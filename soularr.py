@@ -92,4 +92,6 @@ while(True):
 
     if(last_download_state == 'Completed, Succeeded'):
         print("FINISHED DOWNLOADING")
-        break    
+        break
+
+print(lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/Shaggy'))
