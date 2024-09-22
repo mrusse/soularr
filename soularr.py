@@ -1,43 +1,34 @@
-import asyncio
-from typing import List
 from pyarr import LidarrAPI
-from aioslsk.transfer.model import Transfer
-from aioslsk.client import SoulSeekClient
-from aioslsk.search.model import SearchRequest
-from aioslsk.events import SearchResult
-from aioslsk.settings import Settings, CredentialsSettings
+import slskd_api
 
-async def main():
-    host_url = 'http://192.168.2.190:8686'
-    api_key = '55ece427daa746568039b827b68e69fc'
+with open('slskd.auth', 'r') as file:
+    slskd_api_key = file.read().replace('\n', '')
 
-    lidarr = LidarrAPI(host_url, api_key)
+with open('lidarr.auth', 'r') as file:
+    lidarr_api_key = file.read().replace('\n', '')
 
-    #for i in range (0,len(lidarr.get_wanted()['records'])):
-        #print(lidarr.get_wanted()['records'][i]['title'] + " - " + lidarr.get_wanted()['records'][i]['artist']['artistName'])
+host_url = 'http://192.168.2.190:8686'
 
-    settings: Settings = Settings(
-        credentials=CredentialsSettings(
-            username='M3H9Z',
-            password='dagfa213241h'
-        )
-    )
+lidarr = LidarrAPI(host_url, lidarr_api_key)
+artistName = lidarr.get_wanted()['records'][0]['artist']['artistName']
+artistID = lidarr.get_wanted()['records'][0]['artistId']
+albumID = lidarr.get_wanted()['records'][0]['id']
 
-    async with SoulSeekClient(settings) as client:
-        await client.login()
-        search_request: SearchRequest = await client.searches.search('Boombastic.flac')
-        # Wait for a bit and get the first search result
-        await asyncio.sleep(5)
-        search_result: SearchResult = search_request.results[0]
-        # The following will attempt to start the download in the background
-        transfer: Transfer = await client.transfers.download(search_result.username, search_result.shared_items[0].filename)
-        
+tracks = lidarr.get_tracks(artistId = artistID, albumId = albumID)
+test_querry = artistName + " " + tracks[0]['trackNumber'] + " " + tracks[0]['title'] + ".flac"
 
-        downloads: List[Transfer] = client.transfers.get_downloads()
+print(test_querry)
 
-        print(downloads)
-        await asyncio.sleep(50)
-asyncio.run(main())
+slskd = slskd_api.SlskdClient('http://192.168.2.190:5030', slskd_api_key, '/')
+search = slskd.searches.search_text(test_querry)
 
+while(True):
+    if slskd.searches.state(search['id'])['state'] != 'InProgress':
+        break
 
+for result in slskd.searches.search_responses(search['id']):
+   if(len(result['files']) == 1 and '.flac' in result['files'][0]['filename']):
+        print(result['files'])
+        break
 
+slskd.transfers.enqueue(username=result['username'], files=result['files'])
