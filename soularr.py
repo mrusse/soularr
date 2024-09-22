@@ -13,7 +13,7 @@ def album_match(lidarr_tracks, slskd_tracks):
             slskd_filename = slskd_track['filename']
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
-            if(difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio() > 0.4 and not lidarr_filename in counted):
+            if(difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio() > 0.499 and not lidarr_filename in counted):
                 counted.append(lidarr_filename)
                 print("Lidarr Filename: " + lidarr_filename + "\nSoulseek Filename: " + slskd_filename + "\nDiff Ratio: " + str(ratio) + "\n-------------------")
                 break
@@ -67,8 +67,11 @@ for track in tracks:
             if('.flac' in file['filename']):
                 file_dir = os.path.dirname(file['filename'])
                 directory = slskd.users.directory(username = username, directory = file_dir)
+
                 if(album_track_num(directory) == track_num):
                     if(album_match(tracks, directory['files'])):
+                        for i in range(0,len(directory['files'])):
+                            directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
                         slskd.transfers.enqueue(username=username, files=directory['files'])
                         break
         else:
