@@ -6,6 +6,7 @@ import slskd_api
 def album_match(lidarr_tracks, slskd_tracks):
     counted = []
 
+    #TODO: This loop should find the max ratio match not just the first one that is > .499
     for lidarr_track in lidarr_tracks:
         lidarr_filename = lidarr_track['title'] + ".flac"
 
@@ -84,14 +85,12 @@ for track in tracks:
 
 while(True):
     downloads = slskd.transfers.get_all_downloads()
-
-    user_num = len(downloads) - 1
-    dir_num = len(downloads[user_num]['directories']) - 1
-    download_num = downloads[user_num]['directories'][dir_num]['fileCount'] - 1
-    last_download_state = downloads[user_num]['directories'][dir_num]['files'][download_num]['state']
+    download_folder = downloads[-1]['directories'][-1]['directory'].split('\\')[-1]
+    last_download_state = downloads[-1]['directories'][-1]['files'][-1]['state']
 
     if(last_download_state == 'Completed, Succeeded'):
         print("FINISHED DOWNLOADING")
         break
 
-print(lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/Shaggy'))
+#TODO: Need to move tracks to a folder that is the artists name before calling this.
+lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artistName)
