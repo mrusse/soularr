@@ -44,6 +44,7 @@ host_url = 'http://192.168.2.190:8686'
 slskd = slskd_api.SlskdClient('http://192.168.2.190:5030', slskd_api_key, '/')
 lidarr = LidarrAPI(host_url, lidarr_api_key)
 
+
 artistName = lidarr.get_wanted()['records'][0]['artist']['artistName']
 artistID = lidarr.get_wanted()['records'][0]['artistId']
 albumID = lidarr.get_wanted()['records'][0]['id']
@@ -80,3 +81,15 @@ for track in tracks:
     else:
         continue
     break
+
+while(True):
+    downloads = slskd.transfers.get_all_downloads()
+
+    user_num = len(downloads) - 1
+    dir_num = len(downloads[user_num]['directories']) - 1
+    download_num = downloads[user_num]['directories'][dir_num]['fileCount'] - 1
+    last_download_state = downloads[user_num]['directories'][dir_num]['files'][download_num]['state']
+
+    if(last_download_state == 'Completed, Succeeded'):
+        print("FINISHED DOWNLOADING")
+        break    
