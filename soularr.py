@@ -1,5 +1,7 @@
 import difflib
 import os
+import shutil
+import sys
 from pyarr import LidarrAPI
 import slskd_api
 
@@ -35,62 +37,101 @@ def album_track_num(directory):
             count += 1
     return count
 
+def move_folders(folder, target_folder):
+    os.makedirs(target_folder, exist_ok=True)
+
+    for item in os.listdir(folder):
+        source_path = os.path.join(folder, item)
+        target_path = os.path.join(target_folder, item)
+
+        if os.path.isdir(source_path):
+            shutil.copytree(source_path, target_path, dirs_exist_ok=True)
+        else:
+            shutil.copy2(source_path, target_path)
+    #shutil.rmtree(folder)
+
+def grab_most_wanted(albums):
+    grab_list = []
+
+    for album in albums:
+        artistName = album['artist']['artistName']
+        artistID = album['artistId']
+        albumID = album['id']
+
+        tracks = lidarr.get_tracks(artistId = artistID, albumId = albumID)
+        track_num = len(tracks)
+
+        for track in tracks:
+            querry = artistName + " " + track['title']
+            search = slskd.searches.search_text(searchText = querry, searchTimeout = 5000, filterResponses=True)
+
+            while(True):
+                if slskd.searches.state(search['id'])['state'] != 'InProgress':
+                    break
+
+            for result in slskd.searches.search_responses(search['id']):
+                username = result['username']
+                files = result['files']
+
+                for file in files:
+                    if('.flac' in file['filename']):
+                        file_dir = os.path.dirname(file['filename'])
+
+                        try:
+                            directory = slskd.users.directory(username = username, directory = file_dir)
+                        except:
+                            continue
+
+                        if(album_track_num(directory) == track_num):
+                            if(album_match(tracks, directory['files'])):
+                                for i in range(0,len(directory['files'])):
+                                    directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
+                                grab_list.append(file_dir.split("\\")[-1] + "|" + artistName)
+                                slskd.transfers.enqueue(username=username, files=directory['files'])
+                                break
+                else:
+                    continue
+                break
+            else:
+                continue
+            break
+
+    while(True):
+        downloads = slskd.transfers.get_all_downloads()
+        unfinished = 0
+        for user in downloads:
+            for dir in user['directories']:
+                for file in dir['files']:
+                    if file['state'] != 'Completed, Succeeded':
+                        unfinished += 1
+                    if file['state'] == 'Completed, Errored':
+                        username = file['username']
+                        slskd.transfers.enqueue(username=username, files=[file])
+
+        if(unfinished == 0):
+            print("FINISHED DOWNLOADING")
+            break
+    
+    os.chdir(slskd_download_dir)
+    for artist_folder in grab_list:
+        artistName = artist_folder.split("|")[1]
+        folder = artist_folder.split("|")[0]
+
+        move_folders(folder,artistName)
+        lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artistName)
+
 with open('slskd.auth', 'r') as file:
     slskd_api_key = file.read().replace('\n', '')
 
 with open('lidarr.auth', 'r') as file:
     lidarr_api_key = file.read().replace('\n', '')
 
+slskd_download_dir = sys.argv[1]
+
 host_url = 'http://192.168.2.190:8686'
 slskd = slskd_api.SlskdClient('http://192.168.2.190:5030', slskd_api_key, '/')
 lidarr = LidarrAPI(host_url, lidarr_api_key)
 
-
-artistName = lidarr.get_wanted()['records'][0]['artist']['artistName']
-artistID = lidarr.get_wanted()['records'][0]['artistId']
-albumID = lidarr.get_wanted()['records'][0]['id']
-
-tracks = lidarr.get_tracks(artistId = artistID, albumId = albumID)
-track_num = len(tracks)
-
-for track in tracks:
-    querry = artistName + " " + track['trackNumber'] + " " + track['title'] + ".flac"
-    search = slskd.searches.search_text(searchText = querry, searchTimeout = 5000, filterResponses=True)
-
-    while(True):
-        if slskd.searches.state(search['id'])['state'] != 'InProgress':
-            break
-
-    for result in slskd.searches.search_responses(search['id']):
-        username = result['username']
-        files = result['files']
-
-        for file in files:
-            if('.flac' in file['filename']):
-                file_dir = os.path.dirname(file['filename'])
-                directory = slskd.users.directory(username = username, directory = file_dir)
-
-                if(album_track_num(directory) == track_num):
-                    if(album_match(tracks, directory['files'])):
-                        for i in range(0,len(directory['files'])):
-                            directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
-                        slskd.transfers.enqueue(username=username, files=directory['files'])
-                        break
-        else:
-            continue
-        break
-    else:
-        continue
-    break
-
-while(True):
-    downloads = slskd.transfers.get_all_downloads()
-    download_folder = downloads[-1]['directories'][-1]['directory'].split('\\')[-1]
-    last_download_state = downloads[-1]['directories'][-1]['files'][-1]['state']
-
-    if(last_download_state == 'Completed, Succeeded'):
-        print("FINISHED DOWNLOADING")
-        break
-
-#TODO: Need to move tracks to a folder that is the artists name before calling this.
-lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artistName)
+wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
+if(len(wanted) > 0):
+    grab_most_wanted(wanted)
