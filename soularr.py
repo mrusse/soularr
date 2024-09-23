@@ -1,4 +1,5 @@
 import difflib
+import time
 import os
 import shutil
 import sys
@@ -44,10 +45,9 @@ def move_folders(folder, target_folder):
         source_path = os.path.join(folder, item)
         target_path = os.path.join(target_folder, item)
 
-        if os.path.isdir(source_path):
-            shutil.copytree(source_path, target_path, dirs_exist_ok=True)
-        else:
+        if not os.path.isdir(source_path):
             shutil.copy2(source_path, target_path)
+
     #shutil.rmtree(folder)
 
 def grab_most_wanted(albums):
@@ -75,7 +75,7 @@ def grab_most_wanted(albums):
 
                 for file in files:
                     if('.flac' in file['filename']):
-                        file_dir = os.path.dirname(file['filename'])
+                        file_dir = file['filename'].rsplit("\\",1)[0]
 
                         try:
                             directory = slskd.users.directory(username = username, directory = file_dir)
@@ -87,7 +87,16 @@ def grab_most_wanted(albums):
                                 for i in range(0,len(directory['files'])):
                                     directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
                                 grab_list.append(file_dir.split("\\")[-1] + "|" + artistName)
-                                slskd.transfers.enqueue(username=username, files=directory['files'])
+
+                                try:
+                                    slskd.transfers.enqueue(username=username, files=directory['files'])
+                                except:
+                                    for bad_file in directory['files']:
+                                        slskd.transfers.cancel_download(username = username, id = bad_file['id'], remove = True)
+                                        os.chdir(slskd_download_dir)
+                                        shutil.rmtree(file_dir.split("\\")[-1])
+                                    continue
+                                
                                 break
                 else:
                     continue
@@ -110,6 +119,7 @@ def grab_most_wanted(albums):
 
         if(unfinished == 0):
             print("FINISHED DOWNLOADING")
+            time.sleep(10)
             break
     
     os.chdir(slskd_download_dir)
@@ -117,8 +127,11 @@ def grab_most_wanted(albums):
         artistName = artist_folder.split("|")[1]
         folder = artist_folder.split("|")[0]
 
-        move_folders(folder,artistName)
+        shutil.move(folder,artistName)
+        time.sleep(10)
+        print("LIDARR IMPORT")
         lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artistName)
+        time.sleep(10)
 
 with open('slskd.auth', 'r') as file:
     slskd_api_key = file.read().replace('\n', '')
