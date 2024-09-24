@@ -126,6 +126,7 @@ def grab_most_wanted(albums):
                     if file['state'] == 'Completed, Errored':
                         username = file['username']
                         #TODO: Does not work. I think the solution is to just cancel all downloads from this dir and delete the downloaded files if they exist. Will be regrabed on next run of the script.
+                        #dir has actual dir name and dir['files'] are what need to be cancelled
                         slskd.transfers.enqueue(username=username, files=[file])
 
         if(unfinished == 0):
