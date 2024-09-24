@@ -3,31 +3,36 @@ import time
 import os
 import shutil
 import sys
-from pyarr import LidarrAPI
 import slskd_api
+from pyarr import LidarrAPI
 
 def album_match(lidarr_tracks, slskd_tracks):
     counted = []
+    total_match = 0.0
 
-    #TODO: This loop should find the max ratio match not just the first one that is > .499
     for lidarr_track in lidarr_tracks:
         lidarr_filename = lidarr_track['title'] + ".flac"
+        best_match = 0.0
 
         for slskd_track in slskd_tracks:
             slskd_filename = slskd_track['filename']
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
-            if(difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio() > 0.499 and not lidarr_filename in counted):
-                counted.append(lidarr_filename)
-                print("Lidarr Filename: " + lidarr_filename + "\nSoulseek Filename: " + slskd_filename + "\nDiff Ratio: " + str(ratio) + "\n-------------------")
-                break
+            if ratio > best_match:
+                best_match = ratio
 
-    print("\nNum Matched: " + str(len(counted)) + " vs Total Num: " + str(len(lidarr_tracks)))
+        if best_match > 0.5:
+            counted.append(lidarr_filename)
+            total_match += best_match
+
+    print("\nNum matched: " + str(len(counted)) + " vs Total num: " + str(len(lidarr_tracks)))
 
     if(len(counted) == len(lidarr_tracks)):
-        print("SUCCESSFUL MATCH \n-------------------\n")
+        print("Average sequence match ratio: " + str(total_match/len(counted)))
+        print("SUCCESSFUL MATCH \n-------------------")
         return True
-    print("FAILED MATCH \n-------------------\n")
+    
+    print("FAILED MATCH \n-------------------")
     return False
 
 def album_track_num(directory):
@@ -38,18 +43,6 @@ def album_track_num(directory):
             count += 1
     return count
 
-def move_folders(folder, target_folder):
-    os.makedirs(target_folder, exist_ok=True)
-
-    for item in os.listdir(folder):
-        source_path = os.path.join(folder, item)
-        target_path = os.path.join(target_folder, item)
-
-        if not os.path.isdir(source_path):
-            shutil.copy2(source_path, target_path)
-
-    #shutil.rmtree(folder)
-
 def grab_most_wanted(albums):
     grab_list = []
 
@@ -58,14 +51,17 @@ def grab_most_wanted(albums):
         artistID = album['artistId']
         albumID = album['id']
 
+        failed = True
+
         tracks = lidarr.get_tracks(artistId = artistID, albumId = albumID)
         track_num = len(tracks)
 
         for track in tracks:
             querry = artistName + " " + track['title']
+            print("Search querry: " + querry)
             search = slskd.searches.search_text(searchText = querry, searchTimeout = 5000, filterResponses=True)
 
-            while(True):
+            while True:
                 if slskd.searches.state(search['id'])['state'] != 'InProgress':
                     break
 
@@ -82,8 +78,8 @@ def grab_most_wanted(albums):
                         except:
                             continue
 
-                        if(album_track_num(directory) == track_num):
-                            if(album_match(tracks, directory['files'])):
+                        if album_track_num(directory) == track_num:
+                            if album_match(tracks, directory['files']):
                                 for i in range(0,len(directory['files'])):
                                     directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
                                 grab_list.append(file_dir.split("\\")[-1] + "|" + artistName)
@@ -96,7 +92,7 @@ def grab_most_wanted(albums):
                                         os.chdir(slskd_download_dir)
                                         shutil.rmtree(file_dir.split("\\")[-1])
                                     continue
-                                
+                                failed = False
                                 break
                 else:
                     continue
@@ -105,7 +101,21 @@ def grab_most_wanted(albums):
                 continue
             break
 
-    while(True):
+        if failed:
+            print("ERROR: Failed to grab albumID: " + str(albumID) + " for artist: " + artistName)
+            
+    print("Downloads added: ")
+    downloads = slskd.transfers.get_all_downloads()
+
+    for download in downloads:
+        username = download['username']
+        for dir in download['directories']:
+            print("Username: " + username + " Directory: " + dir['directory'])
+
+    print("-------------------")
+    print("Waiting for downloads... monitor at: " + slskd_host_url + "/downloads")
+
+    while True:
         downloads = slskd.transfers.get_all_downloads()
         unfinished = 0
         for user in downloads:
@@ -115,23 +125,37 @@ def grab_most_wanted(albums):
                         unfinished += 1
                     if file['state'] == 'Completed, Errored':
                         username = file['username']
+                        #TODO: Does not work. I think the solution is to just cancel all downloads from this dir and delete the downloaded files if they exist. Will be regrabed on next run of the script.
                         slskd.transfers.enqueue(username=username, files=[file])
 
         if(unfinished == 0):
-            print("FINISHED DOWNLOADING")
-            time.sleep(10)
+            print("All tracks finished downloading!")
+            time.sleep(5)
             break
     
     os.chdir(slskd_download_dir)
+    commands = []
     for artist_folder in grab_list:
         artistName = artist_folder.split("|")[1]
         folder = artist_folder.split("|")[0]
-
         shutil.move(folder,artistName)
         time.sleep(10)
-        print("LIDARR IMPORT")
-        lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artistName)
-        time.sleep(10)
+        command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artistName)
+        commands.append(command)
+        print("Starting Lidarr import for: " + artistName + " ID: " + str(command['id']))
+
+    while True:
+        completed_count = 0
+        for task in commands:
+            current_task = lidarr.get_command(task['id'])
+            if current_task['status'] == 'completed':
+                completed_count += 1
+        if completed_count == len(commands):
+            break
+
+    for task in commands:
+        current_task = lidarr.get_command(task['id'])
+        print(current_task['commandName'] + " " + current_task['message'] + " from: " + current_task['body']['path'])
 
 with open('slskd.auth', 'r') as file:
     slskd_api_key = file.read().replace('\n', '')
@@ -141,10 +165,12 @@ with open('lidarr.auth', 'r') as file:
 
 slskd_download_dir = sys.argv[1]
 
-host_url = 'http://192.168.2.190:8686'
-slskd = slskd_api.SlskdClient('http://192.168.2.190:5030', slskd_api_key, '/')
-lidarr = LidarrAPI(host_url, lidarr_api_key)
+lidarr_host_url = 'http://192.168.2.190:8686'
+slskd_host_url = 'http://192.168.2.190:5030'
+
+slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
+lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
 wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
-if(len(wanted) > 0):
+if len(wanted) > 0:
     grab_most_wanted(wanted)
