@@ -138,7 +138,7 @@ def grab_most_wanted(albums):
                         for errored in dir['files']:
                             slskd.transfers.cancel_download(username = username, id = errored['id'])
                         slskd.transfers.remove_completed_downloads()
-                        delete_dir = dir.split("\\")[-1]
+                        delete_dir = dir['directory'].split("\\")[-1]
                         os.chdir(slskd_download_dir)
                         shutil.rmtree(delete_dir)
 
