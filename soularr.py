@@ -151,13 +151,14 @@ def grab_most_wanted(albums):
     commands = []
     grab_list.sort()
     for artist_folder, next_folder in zip(grab_list, grab_list[1:] + [None]):
-        artistName = artist_folder.split("|")[0]
+        artist_name = artist_folder.split("|")[0]
         folder = artist_folder.split("|")[1]
+        next_name = next_folder.split("|")[0]
 
-        shutil.move(folder,artistName)
+        shutil.move(folder,artist_name)
         time.sleep(10)
 
-        if(artist_folder == next_folder):
+        if(artistName == next_name):
             continue
 
         command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artistName)
