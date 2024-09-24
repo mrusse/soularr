@@ -8,6 +8,7 @@ from pyarr import LidarrAPI
 
 def album_match(lidarr_tracks, slskd_tracks):
     counted = []
+    mp3 = False
     total_match = 0.0
 
     for lidarr_track in lidarr_tracks:
@@ -16,6 +17,8 @@ def album_match(lidarr_tracks, slskd_tracks):
 
         for slskd_track in slskd_tracks:
             slskd_filename = slskd_track['filename']
+            if(".mp3" in slskd_filename):
+                mp3 = True
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
             if ratio > best_match:
@@ -27,7 +30,7 @@ def album_match(lidarr_tracks, slskd_tracks):
 
     print("\nNum matched: " + str(len(counted)) + " vs Total num: " + str(len(lidarr_tracks)))
 
-    if(len(counted) == len(lidarr_tracks)):
+    if(len(counted) == len(lidarr_tracks) and not mp3):
         print("Average sequence match ratio: " + str(total_match/len(counted)))
         print("SUCCESSFUL MATCH \n-------------------")
         return True
@@ -45,6 +48,7 @@ def album_track_num(directory):
 
 def grab_most_wanted(albums):
     grab_list = []
+    failed_download = 0
 
     for album in albums:
         artistName = album['artist']['artistName']
@@ -64,9 +68,13 @@ def grab_most_wanted(albums):
             while True:
                 if slskd.searches.state(search['id'])['state'] != 'InProgress':
                     break
+                time.sleep(1)
+
+            print("Search returned " + str(len(slskd.searches.search_responses(search['id']))) + " results")
 
             for result in slskd.searches.search_responses(search['id']):
                 username = result['username']
+                print("Parsing result from user: " + username)
                 files = result['files']
 
                 for file in files:
@@ -85,7 +93,7 @@ def grab_most_wanted(albums):
                                 grab_list.append(file_dir.split("\\")[-1] + "|" + artistName)
 
                                 try:
-                                    slskd.transfers.enqueue(username=username, files=directory['files'])
+                                    slskd.transfers.enqueue(username = username, files = directory['files'])
                                 except:
                                     for bad_file in directory['files']:
                                         slskd.transfers.cancel_download(username = username, id = bad_file['id'], remove = True)
@@ -103,6 +111,7 @@ def grab_most_wanted(albums):
 
         if failed:
             print("ERROR: Failed to grab albumID: " + str(albumID) + " for artist: " + artistName)
+            failed_download += 1
             
     print("Downloads added: ")
     downloads = slskd.transfers.get_all_downloads()
@@ -124,10 +133,14 @@ def grab_most_wanted(albums):
                     if file['state'] != 'Completed, Succeeded':
                         unfinished += 1
                     if file['state'] == 'Completed, Errored':
+                        failed_download += 1
                         username = file['username']
-                        #TODO: Does not work. I think the solution is to just cancel all downloads from this dir and delete the downloaded files if they exist. Will be regrabed on next run of the script.
-                        #dir has actual dir name and dir['files'] are what need to be cancelled
-                        slskd.transfers.enqueue(username=username, files=[file])
+                        for errored in dir['files']:
+                            slskd.transfers.cancel_download(username = username, id = errored['id'])
+                        slskd.transfers.remove_completed_downloads()
+                        delete_dir = dir.split("\\")[-1]
+                        os.chdir(slskd_download_dir)
+                        shutil.rmtree(delete_dir)
 
         if(unfinished == 0):
             print("All tracks finished downloading!")
@@ -158,6 +171,8 @@ def grab_most_wanted(albums):
         current_task = lidarr.get_command(task['id'])
         print(current_task['commandName'] + " " + current_task['message'] + " from: " + current_task['body']['path'])
 
+    return failed_download
+
 with open('slskd.auth', 'r') as file:
     slskd_api_key = file.read().replace('\n', '')
 
@@ -172,6 +187,17 @@ slskd_host_url = 'http://192.168.2.190:5030'
 slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
 lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
-wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
-if len(wanted) > 0:
-    grab_most_wanted(wanted)
+for i in range(0,5):
+    wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
+    if len(wanted) > 0:
+        failed = grab_most_wanted(wanted)
+        if failed == 0:
+            print("Solarr finished successfully! Exiting...")
+            break
+        else:
+            print(failed + ": releases failed while downloading. Retying in 10 seconds...")
+    else:
+        print("No releases wanted. Exiting...")
+        break
+    
+    time.sleep(10)
