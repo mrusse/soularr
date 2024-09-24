@@ -90,7 +90,7 @@ def grab_most_wanted(albums):
                             if album_match(tracks, directory['files']):
                                 for i in range(0,len(directory['files'])):
                                     directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
-                                grab_list.append(file_dir.split("\\")[-1] + "|" + artistName)
+                                grab_list.append(artistName + "|" + file_dir.split("\\")[-1])
 
                                 try:
                                     slskd.transfers.enqueue(username = username, files = directory['files'])
@@ -149,11 +149,17 @@ def grab_most_wanted(albums):
     
     os.chdir(slskd_download_dir)
     commands = []
-    for artist_folder in grab_list:
-        artistName = artist_folder.split("|")[1]
-        folder = artist_folder.split("|")[0]
+    grab_list.sort()
+    for artist_folder, next_folder in zip(grab_list, grab_list[1:] + [None]):
+        artistName = artist_folder.split("|")[0]
+        folder = artist_folder.split("|")[1]
+
         shutil.move(folder,artistName)
         time.sleep(10)
+
+        if(artist_folder == next_folder):
+            continue
+
         command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artistName)
         commands.append(command)
         print("Starting Lidarr import for: " + artistName + " ID: " + str(command['id']))
