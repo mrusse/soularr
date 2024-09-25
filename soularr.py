@@ -136,17 +136,23 @@ def grab_most_wanted(albums):
         downloads = slskd.transfers.get_all_downloads()
         unfinished = 0
         for user in downloads:
-            for dir in user['directories']:
-                for file in dir['files']:
+            for directory in user['directories']:
+                for file in directory['files']:
                     if file['state'] != 'Completed, Succeeded':
                         unfinished += 1
                     if file['state'] == 'Completed, Errored':
                         failed_download += 1
                         username = file['username']
-                        for errored in dir['files']:
-                            slskd.transfers.cancel_download(username = username, id = errored['id'], remove = True)
-                            time.sleep(.2)
-                        delete_dir = dir['directory'].split("\\")[-1]
+                        for bad_file in directory['files']:
+                            downloads = slskd.transfers.get_all_downloads()
+
+                            for user2 in downloads:
+                                for dir in user2['directories']:
+                                    for file in dir['files']:
+                                        if bad_file['filename'] == file['filename']:
+                                            slskd.transfers.cancel_download(username = user2['username'], id = file['id'], remove= True)
+                                            time.sleep(.2)
+                        delete_dir = directory['directory'].split("\\")[-1]
                         os.chdir(slskd_download_dir)
                         shutil.rmtree(delete_dir)
 
