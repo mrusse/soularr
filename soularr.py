@@ -143,6 +143,8 @@ def grab_most_wanted(albums):
                     if file['state'] == 'Completed, Errored':
                         failed_download += 1
                         username = file['username']
+
+                        #TODO: make this a function
                         for bad_file in directory['files']:
                             downloads = slskd.transfers.get_all_downloads()
 
@@ -172,14 +174,9 @@ def grab_most_wanted(albums):
         else:
             next_name = None
 
-        print("Moving files to artist folder: " + artist_name)
         shutil.move(folder,artist_name)
 
-        while True:
-            if not os.path.exists(folder):
-                print("Transfer complete.")
-                break
-
+        #TODO: test this more... it might be breaking things
         if(artistName == next_name):
             continue
 
