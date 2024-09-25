@@ -63,7 +63,7 @@ def grab_most_wanted(albums):
         for track in tracks:
             querry = artistName + " " + track['title']
             print("Search querry: " + querry)
-            search = slskd.searches.search_text(searchText = querry, searchTimeout = 5000, filterResponses=True)
+            search = slskd.searches.search_text(searchText = querry, searchTimeout = 5000, filterResponses=True, maximumPeerQueueLength = 100)
 
             while True:
                 if slskd.searches.state(search['id'])['state'] != 'InProgress':
@@ -96,7 +96,15 @@ def grab_most_wanted(albums):
                                     slskd.transfers.enqueue(username = username, files = directory['files'])
                                 except:
                                     for bad_file in directory['files']:
-                                        slskd.transfers.cancel_download(username = username, id = bad_file['id'], remove = True)
+                                        downloads = slskd.transfers.get_all_downloads()
+
+                                        for user in downloads:
+                                            for dir in user['directories']:
+                                                for file in dir['files']:
+                                                    if bad_file['filename'] == file['filename']:
+                                                        slskd.transfers.cancel_download(username = user['username'], id = file['id'], remove= True)
+                                                        time.sleep(.2)
+
                                         os.chdir(slskd_download_dir)
                                         shutil.rmtree(file_dir.split("\\")[-1])
                                     continue
@@ -153,10 +161,18 @@ def grab_most_wanted(albums):
     for artist_folder, next_folder in zip(grab_list, grab_list[1:] + [None]):
         artist_name = artist_folder.split("|")[0]
         folder = artist_folder.split("|")[1]
-        next_name = next_folder.split("|")[0]
+        if(next_folder):
+            next_name = next_folder.split("|")[0]
+        else:
+            next_name = None
 
+        print("Moving files to artist folder: " + artist_name)
         shutil.move(folder,artist_name)
-        time.sleep(10)
+
+        while True:
+            if not os.path.exists(folder):
+                print("Transfer complete.")
+                break
 
         if(artistName == next_name):
             continue
@@ -220,7 +236,7 @@ for i in range(0,5):
             
             continue
         if failed == 0:
-            print("Solarr finished successfully! Exiting...")
+            print("Solarr finished. Exiting...")
             break
         else:
             print(failed + ": releases failed while downloading. Retying in 10 seconds...")
