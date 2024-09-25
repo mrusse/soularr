@@ -67,7 +67,9 @@ def choose_release(album_id, artist_name):
     accepted_formats = ["CD", "Digital Media"]
 
     for release in releases:
-        if (release['country'][0] in accepted_country 
+        country = release['country'][0] if release['country'] else None
+
+        if (country in accepted_country 
             and release['format'] in accepted_formats
             and release['mediumCount'] == 1
             and release['status'] == "Official"):
@@ -75,7 +77,7 @@ def choose_release(album_id, artist_name):
             print("Selected release for " 
                   + artist_name + ": " 
                   + release['status'] + ", " 
-                  + release['country'][0] + ", " 
+                  + country + ", " 
                   + release['format'] 
                   + ", Mediums: " + str(release['mediumCount']))
             
@@ -194,12 +196,12 @@ def grab_most_wanted(albums):
 
         shutil.move(folder,artist_name)
 
-    for artist_folder in grab_list:
-        artist_name = artist_folder.split("|")[0]
+    artist_folders = next(os.walk('.'))[1]
 
-        command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artist_name)
+    for artist_folder in artist_folders:
+        command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artist_folder)
         commands.append(command)
-        print("Starting Lidarr import for: " + artist_name + " ID: " + str(command['id']))
+        print("Starting Lidarr import for: " + artist_folder + " ID: " + str(command['id']))
 
     while True:
         completed_count = 0
