@@ -214,8 +214,12 @@ def grab_most_wanted(albums):
 
     for task in commands:
         current_task = lidarr.get_command(task['id'])
-        print(current_task['commandName'] + " " + current_task['message'] + " from: " + current_task['body']['path'])
-
+        try:
+            print(current_task['commandName'] + " " + current_task['message'] + " from: " + current_task['body']['path'])
+        except:
+            print("Error printing lidarr task message. Printing full task.")
+            print(current_task)
+            
     return failed_download
 
 with open('slskd.auth', 'r') as file:
