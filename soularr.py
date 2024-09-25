@@ -46,22 +46,65 @@ def album_track_num(directory):
             count += 1
     return count
 
+def cancel_and_delete(delete_dir, directory):
+    for bad_file in directory['files']:
+        downloads = slskd.transfers.get_all_downloads()
+
+        for user in downloads:
+            for dir in user['directories']:
+                for file in dir['files']:
+                    if bad_file['filename'] == file['filename']:
+                        slskd.transfers.cancel_download(username = user['username'], id = file['id'], remove= True)
+                        time.sleep(.2)
+
+    os.chdir(slskd_download_dir)
+    shutil.rmtree(delete_dir)
+
+def choose_release(album_id, artist_name):
+    releases = lidarr.get_album(album_id)['releases']
+
+    accepted_country = ["Europe","Japan","United Kingdom","United States","[Worldwide]","Australia","Canada"]
+    accepted_formats = ["CD", "Digital Media"]
+
+    for release in releases:
+        if (release['country'][0] in accepted_country 
+            and release['format'] in accepted_formats
+            and release['mediumCount'] == 1
+            and release['status'] == "Official"):
+
+            print("Selected release for " 
+                  + artist_name + ": " 
+                  + release['status'] + ", " 
+                  + release['country'][0] + ", " 
+                  + release['format'] 
+                  + ", Mediums: " + str(release['mediumCount']))
+            
+            return release['id']
+    
+    return ""
+
 def grab_most_wanted(albums):
     grab_list = []
     failed_download = 0
 
     for album in albums:
-        artistName = album['artist']['artistName']
-        artistID = album['artistId']
-        albumID = album['id']
+        artist_name = album['artist']['artistName']
+        artist_id = album['artistId']
+        album_id = album['id']
+
+        release_id = choose_release(album_id, artist_name)
+
+        if release_id != "":
+            tracks = lidarr.get_tracks(artistId = artist_id, albumId = album_id, albumReleaseId = release_id)
+        else:
+            tracks = lidarr.get_tracks(artistId = artist_id, albumId = album_id)
+
+        track_num = len(tracks)
 
         failed = True
 
-        tracks = lidarr.get_tracks(artistId = artistID, albumId = albumID)
-        track_num = len(tracks)
-
         for track in tracks:
-            querry = artistName + " " + track['title']
+            querry = artist_name + " " + track['title']
             print("Search querry: " + querry)
             search = slskd.searches.search_text(searchText = querry, searchTimeout = 5000, filterResponses=True, maximumPeerQueueLength = 100)
 
@@ -90,23 +133,12 @@ def grab_most_wanted(albums):
                             if album_match(tracks, directory['files']):
                                 for i in range(0,len(directory['files'])):
                                     directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
-                                grab_list.append(artistName + "|" + file_dir.split("\\")[-1])
+                                grab_list.append(artist_name + "|" + file_dir.split("\\")[-1])
 
                                 try:
                                     slskd.transfers.enqueue(username = username, files = directory['files'])
                                 except:
-                                    for bad_file in directory['files']:
-                                        downloads = slskd.transfers.get_all_downloads()
-
-                                        for user in downloads:
-                                            for dir in user['directories']:
-                                                for file in dir['files']:
-                                                    if bad_file['filename'] == file['filename']:
-                                                        slskd.transfers.cancel_download(username = user['username'], id = file['id'], remove= True)
-                                                        time.sleep(.2)
-
-                                        os.chdir(slskd_download_dir)
-                                        shutil.rmtree(file_dir.split("\\")[-1])
+                                    cancel_and_delete(file_dir.split("\\")[-1], directory)
                                     continue
                                 failed = False
                                 break
@@ -118,7 +150,7 @@ def grab_most_wanted(albums):
             break
 
         if failed:
-            print("ERROR: Failed to grab albumID: " + str(albumID) + " for artist: " + artistName)
+            print("ERROR: Failed to grab albumID: " + str(album_id) + " for artist: " + artist_name)
             failed_download += 1
             
     print("Downloads added: ")
@@ -144,19 +176,8 @@ def grab_most_wanted(albums):
                         failed_download += 1
                         username = file['username']
 
-                        #TODO: make this a function
-                        for bad_file in directory['files']:
-                            downloads = slskd.transfers.get_all_downloads()
-
-                            for user2 in downloads:
-                                for dir in user2['directories']:
-                                    for file in dir['files']:
-                                        if bad_file['filename'] == file['filename']:
-                                            slskd.transfers.cancel_download(username = user2['username'], id = file['id'], remove= True)
-                                            time.sleep(.2)
                         delete_dir = directory['directory'].split("\\")[-1]
-                        os.chdir(slskd_download_dir)
-                        shutil.rmtree(delete_dir)
+                        cancel_and_delete(delete_dir, directory)
 
         if(unfinished == 0):
             print("All tracks finished downloading!")
@@ -166,23 +187,19 @@ def grab_most_wanted(albums):
     os.chdir(slskd_download_dir)
     commands = []
     grab_list.sort()
-    for artist_folder, next_folder in zip(grab_list, grab_list[1:] + [None]):
+
+    for artist_folder in grab_list:
         artist_name = artist_folder.split("|")[0]
         folder = artist_folder.split("|")[1]
-        if(next_folder):
-            next_name = next_folder.split("|")[0]
-        else:
-            next_name = None
 
         shutil.move(folder,artist_name)
 
-        #TODO: test this more... it might be breaking things
-        if(artistName == next_name):
-            continue
+    for artist_folder in grab_list:
+        artist_name = artist_folder.split("|")[0]
 
-        command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artistName)
+        command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artist_name)
         commands.append(command)
-        print("Starting Lidarr import for: " + artistName + " ID: " + str(command['id']))
+        print("Starting Lidarr import for: " + artist_name + " ID: " + str(command['id']))
 
     while True:
         completed_count = 0
