@@ -136,8 +136,8 @@ def grab_most_wanted(albums):
                         failed_download += 1
                         username = file['username']
                         for errored in dir['files']:
-                            slskd.transfers.cancel_download(username = username, id = errored['id'])
-                        slskd.transfers.remove_completed_downloads()
+                            slskd.transfers.cancel_download(username = username, id = errored['id'], remove = True)
+                            time.sleep(.2)
                         delete_dir = dir['directory'].split("\\")[-1]
                         os.chdir(slskd_download_dir)
                         shutil.rmtree(delete_dir)
@@ -197,7 +197,28 @@ lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 for i in range(0,5):
     wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
     if len(wanted) > 0:
-        failed = grab_most_wanted(wanted)
+        try:
+            failed = grab_most_wanted(wanted)
+        except Exception as e: 
+            print(e)
+            print("\n Fatal error! Deleting all partial downloads and restarting.")
+
+            downloads = slskd.transfers.get_all_downloads()
+
+            for user in downloads:
+                for dir in user['directories']:
+                    for file in dir['files']:
+                        slskd.transfers.cancel_download(username = user['username'], id = file['id'], remove= True)
+                        time.sleep(.2)
+            
+            for item in os.listdir(slskd_download_dir):
+                item_path = os.path.join(slskd_download_dir, item)
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+            
+            continue
         if failed == 0:
             print("Solarr finished successfully! Exiting...")
             break
