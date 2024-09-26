@@ -164,10 +164,10 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
 
                         try:
                             slskd.transfers.enqueue(username = username, files = directory['files'])
+                            return True
                         except:
                             cancel_and_delete(file_dir.split("\\")[-1], directory)
                             continue
-                        return True
     return False
 
 def grab_most_wanted(albums):
@@ -203,9 +203,12 @@ def grab_most_wanted(albums):
                     print("Searching track: " + querry)
                     success = search_and_download(grab_list, querry, tracks, track, artist_name, release)
 
-                    if not success:
-                        print("ERROR: Failed to grab albumID: " + str(album_id) + " for artist: " + artist_name)
-                        failed_download += 1
+                    if success:
+                        break
+
+                if not success:
+                    print("ERROR: Failed to grab albumID: " + str(album_id) + " for artist: " + artist_name)
+                    failed_download += 1
             
     print("Downloads added: ")
     downloads = slskd.transfers.get_all_downloads()
