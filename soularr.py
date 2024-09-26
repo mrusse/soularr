@@ -10,7 +10,7 @@ import music_tag
 import slskd_api
 from pyarr import LidarrAPI
 
-def album_match(lidarr_tracks, slskd_tracks):
+def album_match(lidarr_tracks, slskd_tracks, username):
     counted = []
     mp3 = False
     total_match = 0.0
@@ -32,14 +32,12 @@ def album_match(lidarr_tracks, slskd_tracks):
             counted.append(lidarr_filename)
             total_match += best_match
 
-    print("\nNum matched: " + str(len(counted)) + " vs Total num: " + str(len(lidarr_tracks)))
-
-    if(len(counted) == len(lidarr_tracks) and not mp3):
+    if(len(counted) == len(lidarr_tracks) and not mp3 and username not in ignored_users):
+        print("\nFound match from user: " + username +" for " + str(len(counted)) + " tracks!")
         print("Average sequence match ratio: " + str(total_match/len(counted)))
         print("SUCCESSFUL MATCH \n-------------------")
         return True
     
-    print("FAILED MATCH \n-------------------")
     return False
 
 def album_track_num(directory):
@@ -62,7 +60,7 @@ def cancel_and_delete(delete_dir, directory):
             for dir in user['directories']:
                 for file in dir['files']:
                     if bad_file['filename'] == file['filename']:
-                        slskd.transfers.cancel_download(username = user['username'], id = file['id'], remove= True)
+                        slskd.transfers.cancel_download(username = user['username'], id = file['id'])
                         time.sleep(.2)
 
     os.chdir(slskd_download_dir)
@@ -150,7 +148,7 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                     continue
 
                 if album_track_num(directory) == track_num:
-                    if album_match(tracks, directory['files']):
+                    if album_match(tracks, directory['files'], username):
                         for i in range(0,len(directory['files'])):
                             directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
 
@@ -165,8 +163,11 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                         try:
                             slskd.transfers.enqueue(username = username, files = directory['files'])
                             return True
-                        except:
-                            cancel_and_delete(file_dir.split("\\")[-1], directory)
+                        except Exception:
+                            ignored_users.append(username)
+                            grab_list.remove(folder_data)
+                            print("Error enqueueing tracks! Adding " + username + " to ignored users list.")
+                            #print(traceback.format_exc())
                             continue
     return False
 
@@ -227,14 +228,8 @@ def grab_most_wanted(albums):
         for user in downloads:
             for directory in user['directories']:
                 for file in directory['files']:
-                    if file['state'] != 'Completed, Succeeded':
+                    if not 'Completed' in file['state']:
                         unfinished += 1
-                    if file['state'] == 'Completed, Errored':
-                        failed_download += 1
-                        username = file['username']
-
-                        delete_dir = directory['directory'].split("\\")[-1]
-                        cancel_and_delete(delete_dir, directory)
 
         if(unfinished == 0):
             print("All tracks finished downloading!")
@@ -309,6 +304,8 @@ slskd_host_url = 'http://192.168.2.190:5030'
 
 slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
 lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
+
+ignored_users = []
 
 for i in range(0,5):
     wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
