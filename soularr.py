@@ -68,9 +68,29 @@ def cancel_and_delete(delete_dir, directory):
     os.chdir(slskd_download_dir)
     shutil.rmtree(delete_dir)
 
+def release_trackcount_mode(releases):
+    track_count = {}
+
+    for release in releases:
+        trackcount = release['trackCount']
+        if trackcount in track_count:
+            track_count[trackcount] += 1
+        else:
+            track_count[trackcount] = 1
+
+    most_common_trackcount = None
+    max_count = 0
+
+    for trackcount, count in track_count.items():
+        if count > max_count:
+            max_count = count
+            most_common_trackcount = trackcount
+    
+    return most_common_trackcount
+
 def choose_release(album_id, artist_name):
     releases = lidarr.get_album(album_id)['releases']
-
+    most_common_trackcount = release_trackcount_mode(releases)
     accepted_country = ["Europe","Japan","United Kingdom","United States","[Worldwide]","Australia","Canada"]
     accepted_formats = ["CD", "Digital Media", "Vinyl"]
 
@@ -82,11 +102,10 @@ def choose_release(album_id, artist_name):
         else:
             format_accepted = release['format'] in accepted_formats
 
-        
-
         if (country in accepted_country 
             and format_accepted
-            and release['status'] == "Official"):
+            and release['status'] == "Official"
+            and release['trackCount'] == most_common_trackcount):
 
             print("Selected release for " 
                   + artist_name + ": " 
@@ -97,11 +116,64 @@ def choose_release(album_id, artist_name):
             
             return release
     
-    return ""
+    for release in releases:
+        if release['trackCount'] == most_common_trackcount:
+            default_release = release
+
+    return default_release
+
+def search_and_download(grab_list, querry, tracks, track, artist_name, release):
+    
+    search = slskd.searches.search_text(searchText = querry, searchTimeout = 5000, filterResponses=True, maximumPeerQueueLength = 50)
+
+    track_num = len(tracks)
+
+    while True:
+        if slskd.searches.state(search['id'])['state'] != 'InProgress':
+            break
+        time.sleep(1)
+
+    print("Search returned " + str(len(slskd.searches.search_responses(search['id']))) + " results")
+
+    for result in slskd.searches.search_responses(search['id']):
+        username = result['username']
+        print("Parsing result from user: " + username)
+        files = result['files']
+
+        for file in files:
+            if('.flac' in file['filename']):
+                file_dir = file['filename'].rsplit("\\",1)[0]
+
+                try:
+                    directory = slskd.users.directory(username = username, directory = file_dir)
+                except:
+                    continue
+
+                if album_track_num(directory) == track_num:
+                    if album_match(tracks, directory['files']):
+                        for i in range(0,len(directory['files'])):
+                            directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
+
+                        folder_data =	{
+                            "artist_name": artist_name,
+                            "release": release,
+                            "dir": file_dir.split("\\")[-1],
+                            "discnumber": track['mediumNumber'] 
+                        }
+                        grab_list.append(folder_data)
+
+                        try:
+                            slskd.transfers.enqueue(username = username, files = directory['files'])
+                        except:
+                            cancel_and_delete(file_dir.split("\\")[-1], directory)
+                            continue
+                        return True
+    return False
 
 def grab_most_wanted(albums):
     grab_list = []
     failed_download = 0
+    success = False
 
     for album in albums:
         artist_name = album['artist']['artistName']
@@ -110,78 +182,30 @@ def grab_most_wanted(albums):
 
         release = choose_release(album_id, artist_name)
         
-        if release != "":
-            release_id = release['id']
-            all_tracks = lidarr.get_tracks(artistId = artist_id, albumId = album_id, albumReleaseId = release_id)
-        else:
-            all_tracks = lidarr.get_tracks(artistId = artist_id, albumId = album_id)
+        release_id = release['id']
+        all_tracks = lidarr.get_tracks(artistId = artist_id, albumId = album_id, albumReleaseId = release_id)
 
-        for media in release['media']:
-            tracks = []
-            for track in all_tracks:
-                if track['mediumNumber'] == media['mediumNumber']:
-                    tracks.append(track)
+        if(len(release['media']) == 1):
+            album_title = lidarr.get_album(album_id)['title']
+            querry = album_title
+            print("Searching album: " + querry)
+            success = search_and_download(grab_list, querry, all_tracks, all_tracks[0], artist_name, release)
 
-            track_num = len(tracks)
+        if not success:
+            for media in release['media']:
+                tracks = []
+                for track in all_tracks:
+                    if track['mediumNumber'] == media['mediumNumber']:
+                        tracks.append(track)
 
-            failed = True
+                for track in tracks:
+                    querry = artist_name + " " + track['title']
+                    print("Searching track: " + querry)
+                    success = search_and_download(grab_list, querry, tracks, track, artist_name, release)
 
-            for track in tracks:
-                querry = artist_name + " " + track['title']
-                print("Search querry: " + querry)
-                search = slskd.searches.search_text(searchText = querry, searchTimeout = 5000, filterResponses=True, maximumPeerQueueLength = 50)
-
-                while True:
-                    if slskd.searches.state(search['id'])['state'] != 'InProgress':
-                        break
-                    time.sleep(1)
-
-                print("Search returned " + str(len(slskd.searches.search_responses(search['id']))) + " results")
-
-                for result in slskd.searches.search_responses(search['id']):
-                    username = result['username']
-                    print("Parsing result from user: " + username)
-                    files = result['files']
-
-                    for file in files:
-                        if('.flac' in file['filename']):
-                            file_dir = file['filename'].rsplit("\\",1)[0]
-
-                            try:
-                                directory = slskd.users.directory(username = username, directory = file_dir)
-                            except:
-                                continue
-
-                            if album_track_num(directory) == track_num:
-                                if album_match(tracks, directory['files']):
-                                    for i in range(0,len(directory['files'])):
-                                        directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
-
-                                    folder_data =	{
-                                        "artist_name": artist_name,
-                                        "release": release,
-                                        "dir": file_dir.split("\\")[-1],
-                                        "discnumber": track['mediumNumber'] 
-                                    }
-                                    grab_list.append(folder_data)
-
-                                    try:
-                                        slskd.transfers.enqueue(username = username, files = directory['files'])
-                                    except:
-                                        cancel_and_delete(file_dir.split("\\")[-1], directory)
-                                        continue
-                                    failed = False
-                                    break
-                    else:
-                        continue
-                    break
-                else:
-                    continue
-                break
-
-            if failed:
-                print("ERROR: Failed to grab albumID: " + str(album_id) + " for artist: " + artist_name)
-                failed_download += 1
+                    if not success:
+                        print("ERROR: Failed to grab albumID: " + str(album_id) + " for artist: " + artist_name)
+                        failed_download += 1
             
     print("Downloads added: ")
     downloads = slskd.transfers.get_all_downloads()
