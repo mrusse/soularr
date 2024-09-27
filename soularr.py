@@ -245,6 +245,8 @@ def grab_most_wanted(albums):
             print("All tracks finished downloading!")
             time.sleep(5)
             break
+
+        time.sleep(1)
     
     os.chdir(slskd_download_dir)
     commands = []
