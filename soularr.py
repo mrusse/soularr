@@ -1,11 +1,12 @@
+import re
+import os
+import time
+import shutil
 import difflib
 import operator
-import re
-import time
-import os
-import shutil
-import sys
 import traceback
+import configparser
+
 import music_tag
 import slskd_api
 from pyarr import LidarrAPI
@@ -89,21 +90,27 @@ def release_trackcount_mode(releases):
 def choose_release(album_id, artist_name):
     releases = lidarr.get_album(album_id)['releases']
     most_common_trackcount = release_trackcount_mode(releases)
-    accepted_country = ["Europe","Japan","United Kingdom","United States","[Worldwide]","Australia","Canada"]
-    accepted_formats = ["CD", "Digital Media", "Vinyl"]
 
     for release in releases:
         country = release['country'][0] if release['country'] else None
 
-        if(release['format'][1] == 'x'):
+        if(release['format'][1] == 'x' and allow_multi_disc):
             format_accepted = release['format'].split("x", 1)[1]
         else:
             format_accepted = release['format'] in accepted_formats
 
-        if (country in accepted_country 
+        if use_most_common_tracknum:
+            if release['trackCount'] == most_common_trackcount:
+                track_count_bool = True
+            else:
+                track_count_bool = False
+        else:
+            track_count_bool = True
+
+        if (country in accepted_countries
             and format_accepted
             and release['status'] == "Official"
-            and release['trackCount'] == most_common_trackcount):
+            and track_count_bool):
 
             print("Selected release for " 
                   + artist_name + ": " 
@@ -121,9 +128,12 @@ def choose_release(album_id, artist_name):
     return default_release
 
 def search_and_download(grab_list, querry, tracks, track, artist_name, release):
+    search = slskd.searches.search_text(searchText = querry, 
+                                        searchTimeout = search_settings['search_timeout'], 
+                                        filterResponses = True, 
+                                        maximumPeerQueueLength = search_settings['maximum_peer_queue'], 
+                                        minimumPeerUploadSpeed = search_settings['minimum_peer_upload_speed'])
     
-    search = slskd.searches.search_text(searchText = querry, searchTimeout = 5000, filterResponses=True, maximumPeerQueueLength = 50)
-
     track_num = len(tracks)
 
     while True:
@@ -291,16 +301,26 @@ def grab_most_wanted(albums):
             
     return failed_download
 
-with open('slskd.auth', 'r') as file:
-    slskd_api_key = file.read().replace('\n', '')
+#------------------------------------------#
+config = configparser.ConfigParser()
+config.read('config.ini')
 
-with open('lidarr.auth', 'r') as file:
-    lidarr_api_key = file.read().replace('\n', '')
+slskd_api_key = config['Slskd']['api_key']
+lidarr_api_key = config['Lidarr']['api_key']
 
-slskd_download_dir = sys.argv[1]
+slskd_download_dir = config['Slskd']['download_dir']
 
-lidarr_host_url = 'http://192.168.2.190:8686'
-slskd_host_url = 'http://192.168.2.190:5030'
+lidarr_host_url = config['Lidarr']['host_url']
+slskd_host_url = config['Slskd']['host_url']
+
+search_settings = config['Search Settings']
+
+release_settings = config['Release Settings']
+use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum')
+allow_multi_disc = release_settings.getboolean('allow_multi_disc')
+
+accepted_countries = release_settings['accepted_countries'].split(",")
+accepted_formats = release_settings['accepted_formats'].split(",")
 
 slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
 lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
