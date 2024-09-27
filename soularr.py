@@ -296,7 +296,7 @@ def grab_most_wanted(albums):
         try:
             print(current_task['commandName'] + " " + current_task['message'] + " from: " + current_task['body']['path'])
         except:
-            print("Error printing lidarr task message. Printing full task.")
+            print("Error printing lidarr task message. Printing full unparsed message.")
             print(current_task)
             
     return failed_download
