@@ -50,7 +50,7 @@ def album_track_num(directory):
     return count
 
 def sanitize_folder_name(folder_name):
-    valid_characters = re.sub(r'[<>:"/\\|?*]', '', folder_name)
+    valid_characters = re.sub(r'[<>:."/\\|?*]', '', folder_name)
     return valid_characters.strip()
 
 def cancel_and_delete(delete_dir, directory):
@@ -314,6 +314,7 @@ lidarr_host_url = config['Lidarr']['host_url']
 slskd_host_url = config['Slskd']['host_url']
 
 search_settings = config['Search Settings']
+ignored_users = search_settings['ignored_users'].split(",")
 
 release_settings = config['Release Settings']
 use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum')
@@ -325,40 +326,16 @@ accepted_formats = release_settings['accepted_formats'].split(",")
 slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
 lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
-ignored_users = []
-
-for i in range(0,5):
-    wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
-    if len(wanted) > 0:
-        try:
-            failed = grab_most_wanted(wanted)
-        except Exception: 
-            print(traceback.format_exc())
-            print("\n Fatal error! Deleting all partial downloads and restarting.")
-
-            downloads = slskd.transfers.get_all_downloads()
-
-            for user in downloads:
-                for dir in user['directories']:
-                    for file in dir['files']:
-                        slskd.transfers.cancel_download(username = user['username'], id = file['id'], remove= True)
-                        time.sleep(.2)
-            
-            for item in os.listdir(slskd_download_dir):
-                item_path = os.path.join(slskd_download_dir, item)
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-            
-            continue
-        if failed == 0:
-            print("Solarr finished. Exiting...")
-            break
-        else:
-            print(str(failed) + ": releases failed while downloading. Retying in 10 seconds...")
+wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
+if len(wanted) > 0:
+    try:
+        failed = grab_most_wanted(wanted)
+    except Exception: 
+        print(traceback.format_exc())
+        print("\n Fatal error! Exiting...")
+    if failed == 0:
+        print("Solarr finished. Exiting...")
     else:
-        print("No releases wanted. Exiting...")
-        break
-    
-    time.sleep(10)
+        print(str(failed) + ": releases failed while downloading and are still wanted.")
+else:
+    print("No releases wanted. Exiting...")
