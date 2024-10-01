@@ -105,3 +105,8 @@ This would run the bash script every 5 minutes.
 All of this is focused on Linux but the Python script runs fine on Windows as well. You can use things like the [Windows Task Scheduler](https://en.wikipedia.org/wiki/Windows_Task_Scheduler) to perform similar scheduling operations.
 
 For my personal setup I am running the script on my Unraid server where both Lidarr and Slskd run as well. I run it using the [User Scripts](https://unraid.net/community/apps/c/plugins?q=User+scripts#r) plugin on a 5 minute schedule.
+
+##
+<p align="center">
+  <a href='https://ko-fi.com/mrusse' target='_blank'><img height='35' style='border:0px;height:46px;' src='https://az743702.vo.msecnd.net/cdn/kofi3.png?v=0' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+</p>
