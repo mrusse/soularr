@@ -1,6 +1,14 @@
-# Soularr
-Python script that connects Lidarr with Soulseek using the pyarr and slskd-api libraries. 
-When run the script will download anything from your "wanted" list in Lidarr using Slskd. View the demo below!
+![logo](https://github.com/user-attachments/assets/392a5d30-a34e-4794-8af4-7baae4afff70)
+
+<h1 align="center">Soularr</h1>
+<p align="center">
+  A Python script that connects Lidarr with Soulseek!
+</p>
+
+
+# About
+
+Soularr reads all of your "wanted" albums/artists from Lidarr and downloads them using Slskd. It uses the libraries: [pyarr](https://github.com/totaldebug/pyarr) and [slskd-api](https://github.com/bigoulours/slskd-python-api) to make this happen. View the demo below!
 
 ![Soularr_small](https://github.com/user-attachments/assets/15c47a82-ddf2-40e3-b143-2ad7f570730f)
 
