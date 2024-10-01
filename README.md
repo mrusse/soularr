@@ -12,6 +12,8 @@ Soularr reads all of your "wanted" albums/artists from Lidarr and downloads them
 
 ![Soularr_small](https://github.com/user-attachments/assets/15c47a82-ddf2-40e3-b143-2ad7f570730f)
 
+
+After the downloads are complete in Slskd the script will tell Lidarr to import the downloaded files, making it a truly hands off process.
 # Setup
 
 ### Install the requirements:
