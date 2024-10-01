@@ -1,5 +1,4 @@
 # soularr
 Python script that downloads and imports wanted albums/artists from Lidarr.
 
-<video src="https://github.com/user-attachments/assets/c9db1dfb-3094-4095-948e-b2985804763e" width="3000" />
-
+![Soularr](https://github.com/user-attachments/assets/7f85b1dc-3732-404d-8309-8862b23566d6)
