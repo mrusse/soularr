@@ -33,7 +33,7 @@ api_key = yourlidarrapikeygoeshere
 host_url = http://localhost:8686
 
 [Slskd]
-#Api key from Slskd. Need to set this up manually. See link above.
+#Api key from Slskd. Need to set this up manually. See link to Slskd docs above.
 api_key = yourslskdapikeygoeshere
 host_url = http://localhost:5030
 #Slskd download directory. Should have set it up when installing Slskd.
