@@ -337,7 +337,9 @@ if len(wanted) > 0:
         print("\n Fatal error! Exiting...")
     if failed == 0:
         print("Solarr finished. Exiting...")
+        slskd.transfers.remove_completed_downloads()
     else:
         print(str(failed) + ": releases failed while downloading and are still wanted.")
+        slskd.transfers.remove_completed_downloads()
 else:
     print("No releases wanted. Exiting...")
