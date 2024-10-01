@@ -11,19 +11,17 @@ import music_tag
 import slskd_api
 from pyarr import LidarrAPI
 
-def album_match(lidarr_tracks, slskd_tracks, username):
+def album_match(lidarr_tracks, slskd_tracks, username, filetype):
     counted = []
     mp3 = False
     total_match = 0.0
 
     for lidarr_track in lidarr_tracks:
-        lidarr_filename = lidarr_track['title'] + ".flac"
+        lidarr_filename = lidarr_track['title'] + filetype
         best_match = 0.0
 
         for slskd_track in slskd_tracks:
             slskd_filename = slskd_track['filename']
-            if(".mp3" in slskd_filename):
-                mp3 = True
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
             if ratio > best_match:
@@ -44,10 +42,29 @@ def album_match(lidarr_tracks, slskd_tracks, username):
 def album_track_num(directory):
     files = directory['files']
     count = 0
+    index = -1
+    filetype = ""
     for file in files:
-        if(".flac" in file['filename']):
+        if(file['filename'].split(".")[-1] in allowed_filetypes):
+            new_index = allowed_filetypes.index(file['filename'].split(".")[-1])
+
+            if index == -1:
+                index = new_index
+                filetype = allowed_filetypes[index]
+            elif new_index != index:
+                filetype = ""
+                break
+            else:
+                index = new_index
+                filetype = allowed_filetypes[index]
+
             count += 1
-    return count
+
+    return_data =	{
+        "count": count,
+        "filetype": filetype
+    }
+    return return_data
 
 def sanitize_folder_name(folder_name):
     valid_characters = re.sub(r'[<>:."/\\|?*]', '', folder_name)
@@ -97,7 +114,7 @@ def choose_release(album_id, artist_name):
         if(release['format'][1] == 'x' and allow_multi_disc):
             format_accepted = release['format'].split("x", 1)[1]
         else:
-            format_accepted = release['format'] in accepted_formats
+            format_accepted = release['format'] in allowed_filetypes
 
         if use_most_common_tracknum:
             if release['trackCount'] == most_common_trackcount:
@@ -149,7 +166,7 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
         files = result['files']
 
         for file in files:
-            if('.flac' in file['filename']):
+            if(file['filename'].split(".")[-1] in allowed_filetypes):
                 file_dir = file['filename'].rsplit("\\",1)[0]
 
                 try:
@@ -157,8 +174,10 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                 except:
                     continue
 
-                if album_track_num(directory) == track_num:
-                    if album_match(tracks, directory['files'], username):
+                tracks_info = album_track_num(directory)
+
+                if tracks_info['count'] == track_num:
+                    if album_match(tracks, directory['files'], username, tracks_info['filetype']):
                         for i in range(0,len(directory['files'])):
                             directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
 
@@ -260,7 +279,7 @@ def grab_most_wanted(albums):
             for filename in os.listdir(folder):
                 album_name = lidarr.get_album(albumIds = artist_folder['release']['albumId'])['title']
 
-                if(".flac" in filename):
+                if(filename.split(".")[-1] in allowed_filetypes):
                     song = music_tag.load_file(os.path.join(folder,filename))
                     song['album'] = album_name
                     song['discnumber'] = artist_folder['discnumber']
@@ -323,7 +342,13 @@ use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum
 allow_multi_disc = release_settings.getboolean('allow_multi_disc')
 
 accepted_countries = release_settings['accepted_countries'].split(",")
-accepted_formats = release_settings['accepted_formats'].split(",")
+
+raw_filetypes = search_settings['allowed_filetypes']
+
+if "," in raw_filetypes:
+    allowed_filetypes = raw_filetypes.split(",")
+else:
+    allowed_filetypes = [raw_filetypes]
 
 slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
 lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
