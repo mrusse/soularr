@@ -62,5 +62,16 @@ ignored_users = User1,User2,Fred,Bob
 [Full list of formats (also from Musicbrainz but for some reason they dont have a nice list)](https://pastebin.com/raw/pzGVUgaE)
 
 
-
 I have included this [example config](https://github.com/mrusse/soularr/blob/main/config.ini) in the repo.
+
+# Running The Script
+
+You can simply run the script with:
+```
+python soularr.py
+```
+Note: the `config.ini` file needs to be in the same directory as `soularr.py`.
+
+### Scheduling the script:
+
+Scheduling the script is highly recommended.
