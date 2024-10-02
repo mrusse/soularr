@@ -1,5 +1,6 @@
 import re
 import os
+import sys
 import time
 import shutil
 import difflib
@@ -284,8 +285,9 @@ def grab_most_wanted(albums):
                     song['discnumber'] = artist_folder['discnumber']
                     song.save()
 
+                new_dir = os.path.join(artist_name,sanitize_folder_name(album_name))
+
                 if not os.path.exists(artist_name):
-                    new_dir = os.path.join(artist_name,sanitize_folder_name(album_name))
                     os.mkdir(artist_name)
                     os.mkdir(new_dir)
 
@@ -360,6 +362,7 @@ if len(wanted) > 0:
     except Exception: 
         print(traceback.format_exc())
         print("\n Fatal error! Exiting...")
+        sys.exit(0)
     if failed == 0:
         print("Solarr finished. Exiting...")
         slskd.transfers.remove_completed_downloads()
