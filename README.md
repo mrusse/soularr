@@ -61,6 +61,7 @@ accepted_formats = CD,Digital Media,Vinyl
 [Search Settings]
 search_timeout = 5000
 maximum_peer_queue = 50
+#Min upload speed in bit/s
 minimum_peer_upload_speed = 0
 #Replace "flac,mp3" with "flac" if you just want flacs.
 allowed_filetypes = flac,mp3
