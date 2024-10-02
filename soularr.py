@@ -54,9 +54,6 @@ def album_track_num(directory):
             elif new_index != index:
                 filetype = ""
                 break
-            else:
-                index = new_index
-                filetype = allowed_filetypes[index]
 
             count += 1
 
@@ -112,9 +109,9 @@ def choose_release(album_id, artist_name):
         country = release['country'][0] if release['country'] else None
 
         if(release['format'][1] == 'x' and allow_multi_disc):
-            format_accepted = release['format'].split("x", 1)[1]
+            format_accepted = release['format'].split("x", 1)[1] in accepted_formats
         else:
-            format_accepted = release['format'] in allowed_filetypes
+            format_accepted = release['format'] in accepted_formats
 
         if use_most_common_tracknum:
             if release['trackCount'] == most_common_trackcount:
@@ -176,7 +173,7 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
 
                 tracks_info = album_track_num(directory)
 
-                if tracks_info['count'] == track_num:
+                if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
                     if album_match(tracks, directory['files'], username, tracks_info['filetype']):
                         for i in range(0,len(directory['files'])):
                             directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
@@ -342,6 +339,7 @@ use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum
 allow_multi_disc = release_settings.getboolean('allow_multi_disc')
 
 accepted_countries = release_settings['accepted_countries'].split(",")
+accepted_formats = release_settings['accepted_formats'].split(",")
 
 raw_filetypes = search_settings['allowed_filetypes']
 
