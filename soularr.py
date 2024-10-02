@@ -236,6 +236,8 @@ def grab_most_wanted(albums):
                 if not success:
                     print("ERROR: Failed to grab albumID: " + str(album_id) + " for artist: " + artist_name)
                     failed_download += 1
+
+        success = False
             
     print("Downloads added: ")
     downloads = slskd.transfers.get_all_downloads()
