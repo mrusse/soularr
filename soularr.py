@@ -281,6 +281,8 @@ def grab_most_wanted(albums):
 
                 if(filename.split(".")[-1] in allowed_filetypes):
                     song = music_tag.load_file(os.path.join(folder,filename))
+                    song['artist'] = artist_name
+                    song['albumartist'] = artist_name
                     song['album'] = album_name
                     song['discnumber'] = artist_folder['discnumber']
                     song.save()
