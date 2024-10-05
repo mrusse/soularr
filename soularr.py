@@ -338,7 +338,7 @@ def grab_most_wanted(albums):
 
     return failed_download
 
-lock_file_path = ".soularr.lock"
+lock_file_path = os.path.join(os.getcwd(), ".soularr.lock")
 if os.path.exists(lock_file_path):
     print(f"Soularr instance is already running.")
     sys.exit(1)
