@@ -37,7 +37,7 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
         print("Average sequence match ratio: " + str(total_match/len(counted)))
         print("SUCCESSFUL MATCH \n-------------------")
         return True
-    
+
     return False
 
 def album_track_num(directory):
@@ -99,7 +99,7 @@ def release_trackcount_mode(releases):
         if count > max_count:
             max_count = count
             most_common_trackcount = trackcount
-    
+
     return most_common_trackcount
 
 def choose_release(album_id, artist_name):
@@ -127,15 +127,15 @@ def choose_release(album_id, artist_name):
             and release['status'] == "Official"
             and track_count_bool):
 
-            print("Selected release for " 
-                  + artist_name + ": " 
-                  + release['status'] + ", " 
-                  + country + ", " 
-                  + release['format'] 
+            print("Selected release for "
+                  + artist_name + ": "
+                  + release['status'] + ", "
+                  + country + ", "
+                  + release['format']
                   + ", Mediums: " + str(release['mediumCount']))
-            
+
             return release
-    
+
     for release in releases:
         if release['trackCount'] == most_common_trackcount:
             default_release = release
@@ -143,12 +143,12 @@ def choose_release(album_id, artist_name):
     return default_release
 
 def search_and_download(grab_list, querry, tracks, track, artist_name, release):
-    search = slskd.searches.search_text(searchText = querry, 
-                                        searchTimeout = search_settings['search_timeout'], 
-                                        filterResponses = True, 
-                                        maximumPeerQueueLength = search_settings['maximum_peer_queue'], 
+    search = slskd.searches.search_text(searchText = querry,
+                                        searchTimeout = search_settings['search_timeout'],
+                                        filterResponses = True,
+                                        maximumPeerQueueLength = search_settings['maximum_peer_queue'],
                                         minimumPeerUploadSpeed = search_settings['minimum_peer_upload_speed'])
-    
+
     track_num = len(tracks)
 
     while True:
@@ -183,7 +183,7 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                             "artist_name": artist_name,
                             "release": release,
                             "dir": file_dir.split("\\")[-1],
-                            "discnumber": track['mediumNumber'] 
+                            "discnumber": track['mediumNumber']
                         }
                         grab_list.append(folder_data)
 
@@ -209,7 +209,7 @@ def grab_most_wanted(albums):
         album_id = album['id']
 
         release = choose_release(album_id, artist_name)
-        
+
         release_id = release['id']
         all_tracks = lidarr.get_tracks(artistId = artist_id, albumId = album_id, albumReleaseId = release_id)
 
@@ -239,7 +239,7 @@ def grab_most_wanted(albums):
                     failed_download += 1
 
         success = False
-            
+
     print("Downloads added: ")
     downloads = slskd.transfers.get_all_downloads()
 
@@ -266,7 +266,7 @@ def grab_most_wanted(albums):
             break
 
         time.sleep(1)
-    
+
     os.chdir(slskd_download_dir)
     commands = []
     grab_list.sort(key=operator.itemgetter('artist_name'))
@@ -323,56 +323,70 @@ def grab_most_wanted(albums):
         except:
             print("Error printing lidarr task message. Printing full unparsed message.")
             print(current_task)
-            
+
     return failed_download
 
-#------------------------------------------#
-config = configparser.ConfigParser()
-config.read('config.ini')
+lock_file_path = ".soularr.lock"
+if os.path.exists(lock_file_path):
+    print(f"Soularr instance is already running.")
+    sys.exit(1)
 
-slskd_api_key = config['Slskd']['api_key']
-lidarr_api_key = config['Lidarr']['api_key']
+try:
+    with open(lock_file_path, "w") as lock_file:
+        lock_file.write("locked")
 
-lidarr_download_dir = config['Lidarr']['download_dir']
+    #------------------------------------------#
+    config = configparser.ConfigParser()
+    config.read('config.ini')
 
-slskd_download_dir = config['Slskd']['download_dir']
+    slskd_api_key = config['Slskd']['api_key']
+    lidarr_api_key = config['Lidarr']['api_key']
 
-lidarr_host_url = config['Lidarr']['host_url']
-slskd_host_url = config['Slskd']['host_url']
+    lidarr_download_dir = config['Lidarr']['download_dir']
 
-search_settings = config['Search Settings']
-ignored_users = search_settings['ignored_users'].split(",")
+    slskd_download_dir = config['Slskd']['download_dir']
 
-release_settings = config['Release Settings']
-use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum')
-allow_multi_disc = release_settings.getboolean('allow_multi_disc')
+    lidarr_host_url = config['Lidarr']['host_url']
+    slskd_host_url = config['Slskd']['host_url']
 
-accepted_countries = release_settings['accepted_countries'].split(",")
-accepted_formats = release_settings['accepted_formats'].split(",")
+    search_settings = config['Search Settings']
+    ignored_users = search_settings['ignored_users'].split(",")
 
-raw_filetypes = search_settings['allowed_filetypes']
+    release_settings = config['Release Settings']
+    use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum')
+    allow_multi_disc = release_settings.getboolean('allow_multi_disc')
 
-if "," in raw_filetypes:
-    allowed_filetypes = raw_filetypes.split(",")
-else:
-    allowed_filetypes = [raw_filetypes]
+    accepted_countries = release_settings['accepted_countries'].split(",")
+    accepted_formats = release_settings['accepted_formats'].split(",")
 
-slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
-lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
+    raw_filetypes = search_settings['allowed_filetypes']
 
-wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
-if len(wanted) > 0:
-    try:
-        failed = grab_most_wanted(wanted)
-    except Exception: 
-        print(traceback.format_exc())
-        print("\n Fatal error! Exiting...")
-        sys.exit(0)
-    if failed == 0:
-        print("Solarr finished. Exiting...")
-        slskd.transfers.remove_completed_downloads()
+    if "," in raw_filetypes:
+        allowed_filetypes = raw_filetypes.split(",")
     else:
-        print(str(failed) + ": releases failed while downloading and are still wanted.")
-        slskd.transfers.remove_completed_downloads()
-else:
-    print("No releases wanted. Exiting...")
+        allowed_filetypes = [raw_filetypes]
+
+    slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
+    lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
+
+    wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
+    if len(wanted) > 0:
+        try:
+            failed = grab_most_wanted(wanted)
+        except Exception:
+            print(traceback.format_exc())
+            print("\n Fatal error! Exiting...")
+            sys.exit(0)
+        if failed == 0:
+            print("Solarr finished. Exiting...")
+            slskd.transfers.remove_completed_downloads()
+        else:
+            print(str(failed) + ": releases failed while downloading and are still wanted.")
+            slskd.transfers.remove_completed_downloads()
+    else:
+        print("No releases wanted. Exiting...")
+
+finally:
+    # Remove the lock file after activity is done
+    if os.path.exists(lock_file_path):
+        os.remove(lock_file_path)
