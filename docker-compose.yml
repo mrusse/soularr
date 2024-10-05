@@ -1,0 +1,14 @@
+version: "3"
+services:
+  soularr:
+    restart: unless-stopped
+    container_name: soularr
+    build: .
+    hostname: soularr
+    environment: 
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - /path/to/slskd/downloads:/path/to/slskd/downloads
+      - ./config.ini:/app/config.ini:ro
