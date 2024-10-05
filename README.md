@@ -26,6 +26,8 @@ python -m pip install -r requirements.txt
 **Lidarr**
 [https://lidarr.audio/](https://lidarr.audio/)
 
+Make sure to mount your Slskd download in lidarr and add it to your config (see "download_dir" under "Lidarr" in the example config). 
+
 **Slskd**
 [https://github.com/slskd/slskd](https://github.com/slskd/slskd)
 
