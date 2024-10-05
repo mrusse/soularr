@@ -41,6 +41,8 @@ The config file has a bunch of different settings that affect how the script run
 [Lidarr]
 api_key = yourlidarrapikeygoeshere
 host_url = http://localhost:8686
+#This should be the path mounted in lidarr that points to your slskd download dir
+download_dir = /lidarr/path/to/slskd/downloads
 
 [Slskd]
 #Api key from Slskd. Need to set this up manually. See link to Slskd docs above.
