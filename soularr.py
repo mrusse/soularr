@@ -302,7 +302,8 @@ def grab_most_wanted(albums):
     artist_folders = next(os.walk('.'))[1]
 
     for artist_folder in artist_folders:
-        command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = '/data/' + artist_folder)
+        download_dir = os.path.join(lidarr_download_dir,artist_folder)
+        command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = download_dir)
         commands.append(command)
         print("Starting Lidarr import for: " + artist_folder + " ID: " + str(command['id']))
 
@@ -331,6 +332,8 @@ config.read('config.ini')
 
 slskd_api_key = config['Slskd']['api_key']
 lidarr_api_key = config['Lidarr']['api_key']
+
+lidarr_download_dir = config['Lidarr']['download_dir']
 
 slskd_download_dir = config['Slskd']['download_dir']
 
