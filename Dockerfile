@@ -13,5 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your application code into the container
 COPY . .
 
+# Set environment variable to ensure that Python outputs everything to stdout
+ENV PYTHONUNBUFFERED=1
+
 # Command to run your script
 CMD ["python", "soularr.py"]
