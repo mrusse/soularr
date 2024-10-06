@@ -349,7 +349,7 @@ try:
             config.read('/data/config.ini')
         else:
             print("Config file does not exist! Please mount \"/data\" and place your \"config.ini\" file there.")
-
+            print("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
             if os.path.exists(lock_file_path):
                 os.remove(lock_file_path)
             sys.exit(0)
@@ -358,6 +358,7 @@ try:
             config.read('config.ini')
         else:
             print("Config file does not exist! Please place it in the working directory.")
+            print("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
             if os.path.exists(lock_file_path):
                 os.remove(lock_file_path)
             sys.exit(0)
@@ -399,7 +400,7 @@ try:
         except Exception:
             print(traceback.format_exc())
             print("\n Fatal error! Exiting...")
-            
+
             if os.path.exists(lock_file_path):
                 os.remove(lock_file_path)
             sys.exit(0)
