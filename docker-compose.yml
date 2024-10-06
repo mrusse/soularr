@@ -3,12 +3,14 @@ services:
   soularr:
     restart: unless-stopped
     container_name: soularr
-    build: .
     hostname: soularr
     environment: 
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
     volumes:
-      #- /path/to/slskd/downloads:/path/to/slskd/downloads
-      #- ./config.ini:/app/config.ini:ro
+      #"You can set /downloads to whatever you want but will then need to change the Slskd download dir in your config file"
+      - /path/to/slskd/downloads:/downloads
+      #Select where you are storing your config file. Leave "/data" since thats where the script expects the config file to be
+      - /path/to/config/dir:/data
+    image: mrusse08/soularr:latest

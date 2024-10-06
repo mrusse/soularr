@@ -349,11 +349,18 @@ try:
             config.read('/data/config.ini')
         else:
             print("Config file does not exist! Please mount \"/data\" and place your \"config.ini\" file there.")
+
+            if os.path.exists(lock_file_path):
+                os.remove(lock_file_path)
+            sys.exit(0)
     else:
         if os.path.exists('config.ini'):
             config.read('config.ini')
         else:
             print("Config file does not exist! Please place it in the working directory.")
+            if os.path.exists(lock_file_path):
+                os.remove(lock_file_path)
+            sys.exit(0)
         
     slskd_api_key = config['Slskd']['api_key']
     lidarr_api_key = config['Lidarr']['api_key']
@@ -392,6 +399,9 @@ try:
         except Exception:
             print(traceback.format_exc())
             print("\n Fatal error! Exiting...")
+            
+            if os.path.exists(lock_file_path):
+                os.remove(lock_file_path)
             sys.exit(0)
         if failed == 0:
             print("Solarr finished. Exiting...")
