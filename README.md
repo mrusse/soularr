@@ -148,7 +148,21 @@ Note: the `config.ini` file needs to be in the same directory as `soularr.py`.
 
 ### Scheduling the script:
 
-Even if you are not using Docker you can still schedule the script. I have included an [example bash script](https://github.com/mrusse/soularr/blob/main/example.sh) that can be scheduled using a [cron job](https://crontab.guru/every-5-minutes).
+Even if you are not using Docker you can still schedule the script. I have included an example bash script below that can be scheduled using a [cron job](https://crontab.guru/every-5-minutes).
+
+```bash
+#!/bin/bash
+cd /path/to/soularr/python/script
+
+dt=$(date '+%d/%m/%Y %H:%M:%S');
+echo "Starting Soularr! $dt"
+
+if ps aux | grep "[s]oularr.py" > /dev/null; then
+    echo "Soularr is already running. Exiting..."
+else
+    python soularr.py
+fi
+```
 
 **Example cron job setup:**
 
