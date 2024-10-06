@@ -326,7 +326,14 @@ def grab_most_wanted(albums):
 
     return failed_download
 
-lock_file_path = os.path.join(os.getcwd(), ".soularr.lock")
+def is_docker():
+    return os.getenv('IN_DOCKER') is not None
+
+if is_docker():
+    lock_file_path = os.path.join(os.getcwd(), "/data/.soularr.lock")
+else:
+    lock_file_path = os.path.join(os.getcwd(), ".soularr.lock")
+    
 if os.path.exists(lock_file_path):
     print(f"Soularr instance is already running.")
     sys.exit(1)
@@ -335,10 +342,19 @@ try:
     with open(lock_file_path, "w") as lock_file:
         lock_file.write("locked")
 
-    #------------------------------------------#
     config = configparser.ConfigParser()
-    config.read('config.ini')
 
+    if is_docker():
+        if os.path.exists('/data/config.ini'):
+            config.read('/data/config.ini')
+        else:
+            print("Config file does not exist! Please mount \"/data\" and place your \"config.ini\" file there.")
+    else:
+        if os.path.exists('config.ini'):
+            config.read('config.ini')
+        else:
+            print("Config file does not exist! Please place it in the working directory.")
+        
     slskd_api_key = config['Slskd']['api_key']
     lidarr_api_key = config['Lidarr']['api_key']
 

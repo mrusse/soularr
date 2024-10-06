@@ -89,7 +89,7 @@ Note: the `config.ini` file needs to be in the same directory as `soularr.py`.
 
 ### Scheduling the script:
 
-Scheduling the script is highly recommended since then all you have to do is add albums to the wanted list in Lidarr and the script will pick them up. I have included an [example bash script](https://github.com/mrusse/soularr/blob/main/run.sh) that can be scheduled using a [cron job](https://crontab.guru/every-5-minutes).
+Scheduling the script is highly recommended since then all you have to do is add albums to the wanted list in Lidarr and the script will pick them up. I have included an [example bash script](https://github.com/mrusse/soularr/blob/main/example.sh) that can be scheduled using a [cron job](https://crontab.guru/every-5-minutes).
 
 **Example cron job setup:**
 

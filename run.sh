@@ -1,14 +1,17 @@
 #!/bin/bash
-cd /path/to/soularr/python/script
 
-dt=$(date '+%d/%m/%Y %H:%M:%S');
-echo "Starting Soularr! $dt"
+# Default interval is 300 seconds (5 minutes) if not set
+INTERVAL=${SCRIPT_INTERVAL:-300}
 
-if ps aux | grep "[s]oularr.py" > /dev/null; then
-    echo "Soularr is already running. Exiting..."
-else
-    python soularr.py
-fi
 
-# This script is just an example. Will need to be modified to fit your needs.
-# I have a cronjob that runs a script very similar to this every 5 minutes on my unraid server.
+while true; do
+    if ps aux | grep "[s]oularr.py" > /dev/null; then
+        echo "Soularr is already running. Exiting..."
+    else
+        python -u /app/soularr.py
+    fi
+
+    dt=$(date '+%d/%m/%Y %H:%M:%S');
+    echo "$dt - Waiting for $INTERVAL seconds before checking again..."
+    sleep $INTERVAL
+done
