@@ -1,8 +1,9 @@
 #!/bin/bash
 
+#This script is used when running the app through docker. It handles scheduling the script.
+
 # Default interval is 300 seconds (5 minutes) if not set
 INTERVAL=${SCRIPT_INTERVAL:-300}
-
 
 while true; do
     if ps aux | grep "[s]oularr.py" > /dev/null; then
