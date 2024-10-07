@@ -330,7 +330,6 @@ def grab_most_wanted(albums):
         folder = artist_folder['dir']
 
         if artist_folder['release']['mediumCount'] > 1:
-            print(f"listing items in {folder}")
             for filename in os.listdir(folder):
                 album_name = lidarr.get_album(albumIds = artist_folder['release']['albumId'])['title']
 
@@ -346,6 +345,7 @@ def grab_most_wanted(albums):
 
                 if not os.path.exists(artist_name):
                     os.mkdir(artist_name)
+                if not os.path.exists(new_dir):    
                     os.mkdir(new_dir)
 
                 shutil.move(os.path.join(folder,filename),new_dir)
