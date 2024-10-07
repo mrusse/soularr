@@ -21,7 +21,7 @@ After the downloads are complete in Slskd the script will tell Lidarr to import 
 **Lidarr**
 [https://lidarr.audio/](https://lidarr.audio/)
 
-Make sure to mount your Slskd download directory in Lidarr and add it to your config (see "download_dir" under "Lidarr" in the example config). 
+Make sure Lidarr can see your Slskd download directory, if you are running Lidarr in a Docker container you may need to mount the directory. You will then need add it to your config (see "download_dir" under "Lidarr" in the example config). 
 
 **Slskd**
 [https://github.com/slskd/slskd](https://github.com/slskd/slskd)
@@ -38,7 +38,8 @@ The config file has a bunch of different settings that affect how the script run
 [Lidarr]
 api_key = yourlidarrapikeygoeshere
 host_url = http://localhost:8686
-#This should be the path mounted in lidarr that points to your slskd download dir
+#This should be the path mounted in lidarr that points to your slskd download directory.
+#If Lidarr is not running in Docker then this may just be the same dir as Slskd is using below.
 download_dir = /lidarr/path/to/slskd/downloads
 
 [Slskd]
