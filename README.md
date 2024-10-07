@@ -1,4 +1,4 @@
-![logo](https://github.com/user-attachments/assets/392a5d30-a34e-4794-8af4-7baae4afff70)
+![banner](https://raw.githubusercontent.com/mrusse/soularr/refs/heads/main/resources/banner.png)
 
 <h1 align="center">Soularr</h1>
 <p align="center">
@@ -16,17 +16,12 @@ Soularr reads all of your "wanted" albums/artists from Lidarr and downloads them
 After the downloads are complete in Slskd the script will tell Lidarr to import the downloaded files, making it a truly hands off process.
 # Setup
 
-### Install the requirements:
-```
-python -m pip install -r requirements.txt
-```
-
 ### Install and configure Lidarr and Slskd
 
 **Lidarr**
 [https://lidarr.audio/](https://lidarr.audio/)
 
-Make sure to mount your Slskd download directory in Lidarr and add it to your config (see "download_dir" under "Lidarr" in the example config). 
+Make sure Lidarr can see your Slskd download directory, if you are running Lidarr in a Docker container you may need to mount the directory. You will then need add it to your config (see "download_dir" under "Lidarr" in the example config). 
 
 **Slskd**
 [https://github.com/slskd/slskd](https://github.com/slskd/slskd)
@@ -43,7 +38,8 @@ The config file has a bunch of different settings that affect how the script run
 [Lidarr]
 api_key = yourlidarrapikeygoeshere
 host_url = http://localhost:8686
-#This should be the path mounted in lidarr that points to your slskd download dir
+#This should be the path mounted in lidarr that points to your slskd download directory.
+#If Lidarr is not running in Docker then this may just be the same dir as Slskd is using below.
 download_dir = /lidarr/path/to/slskd/downloads
 
 [Slskd]
@@ -86,7 +82,71 @@ title_blacklist = BlacklistWord1,blacklistword2
 
 I have included this [example config](https://github.com/mrusse/soularr/blob/main/config.ini) in the repo.
 
-# Running The Script
+
+## Docker
+
+The best way to run the script is through Docker. A Docker image is available through [dockerhub](https://hub.docker.com/r/mrusse08/soularr).
+
+Example docker run command:
+```shell
+docker run -d \
+  --name soularr \                           
+  --restart unless-stopped \                 
+  --hostname soularr \                       
+  -e PUID=1000 \                            
+  -e PGID=1000 \                            
+  -e TZ=Etc/UTC \                           
+  -e SCRIPT_INTERVAL=300 \                  
+  -v /path/to/slskd/downloads:/downloads \   
+  -v /path/to/config/dir:/data \            
+  mrusse08/soularr:latest
+```
+
+Or you can also set it up with the provided [Docker Compose](https://github.com/mrusse/soularr/blob/main/docker-compose.yml).
+```yml
+version: "3"
+services:
+  soularr:
+    restart: unless-stopped
+    container_name: soularr
+    hostname: soularr
+    environment: 
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      #Script interval in seconds
+      - SCRIPT_INTERVAL=300
+    volumes:
+      #"You can set /downloads to whatever you want but will then need to change the Slskd download dir in your config file"
+      - /path/to/slskd/downloads:/downloads
+      #Select where you are storing your config file. 
+      #Leave "/data" since thats where the script expects the config file to be
+      - /path/to/config/dir:/data
+    image: mrusse08/soularr:latest
+```
+
+Note: You **must** edit both volumes in the docker compose above. 
+
+- `/path/to/slskd/downloads:/downloads`
+
+  $\quad$ This is where you put your Slskd downloads path.
+
+  $\quad$ You can point it to whatever dir you want but make sure to put the same dir in your config file under `[Slskd] -> download_dir`.
+
+  $\quad$ For example you could leave it as `/downloads` then in your config your entry would be `download_dir = /downloads`.
+
+- `/path/to/config/dir:/data`
+
+  $\quad$ This is where put the path you are storing your config file. It must point to `/data`.
+
+You can also edit `SCRIPT_INTERVAL` to choose how often you want the script to run (default is every 5 mins).
+
+## Running Manually
+
+Install the requirements:
+```
+python -m pip install -r requirements.txt
+```
 
 You can simply run the script with:
 ```
@@ -96,7 +156,21 @@ Note: the `config.ini` file needs to be in the same directory as `soularr.py`.
 
 ### Scheduling the script:
 
-Scheduling the script is highly recommended since then all you have to do is add albums to the wanted list in Lidarr and the script will pick them up. I have included an [example bash script](https://github.com/mrusse/soularr/blob/main/run.sh) that can be scheduled using a [cron job](https://crontab.guru/every-5-minutes).
+Even if you are not using Docker you can still schedule the script. I have included an example bash script below that can be scheduled using a [cron job](https://crontab.guru/every-5-minutes).
+
+```bash
+#!/bin/bash
+cd /path/to/soularr/python/script
+
+dt=$(date '+%d/%m/%Y %H:%M:%S');
+echo "Starting Soularr! $dt"
+
+if ps aux | grep "[s]oularr.py" > /dev/null; then
+    echo "Soularr is already running. Exiting..."
+else
+    python soularr.py
+fi
+```
 
 **Example cron job setup:**
 
@@ -115,8 +189,6 @@ Then enter in your schedule followed by the command. For example:
 This would run the bash script every 5 minutes.
 
 All of this is focused on Linux but the Python script runs fine on Windows as well. You can use things like the [Windows Task Scheduler](https://en.wikipedia.org/wiki/Windows_Task_Scheduler) to perform similar scheduling operations.
-
-For my personal setup I am running the script on my Unraid server where both Lidarr and Slskd run as well. I run it using the [User Scripts](https://unraid.net/community/apps/c/plugins?q=User+scripts#r) plugin on a 5 minute schedule.
 
 ##
 <p align="center">
