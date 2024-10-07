@@ -76,7 +76,7 @@ search_for_tracks = True
 album_prepend_artist = False
 track_prepend_artist = True
 #Comma separated list of words that cannot be in the title of albums or tracks. Case insensitive.
-title_blacklist = Skit,Freestyle
+title_blacklist = BlacklistWord1,blacklistword2
 ```
 
 [Full list of countries from Musicbrainz.](https://musicbrainz.org/doc/Release/Country)
