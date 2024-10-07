@@ -104,7 +104,8 @@ docker run -d \
   -e TZ=Etc/UTC \                           
   -e SCRIPT_INTERVAL=300 \                  
   -v /path/to/slskd/downloads:/downloads \   
-  -v /path/to/config/dir:/data \            
+  -v /path/to/config/dir:/data \
+  --user 1000:1000 \         
   mrusse08/soularr:latest
 ```
 
@@ -122,6 +123,7 @@ services:
       - TZ=Etc/UTC
       #Script interval in seconds
       - SCRIPT_INTERVAL=300
+    user: "${PUID}:${PGID}"
     volumes:
       #"You can set /downloads to whatever you want but will then need to change the Slskd download dir in your config file"
       - /path/to/slskd/downloads:/downloads
