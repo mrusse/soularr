@@ -122,13 +122,13 @@ services:
     restart: unless-stopped
     container_name: soularr
     hostname: soularr
-    environment: 
+    environment:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
       #Script interval in seconds
       - SCRIPT_INTERVAL=300
-    user: "${PUID}:${PGID}"
+    user: "1000:1000"
     volumes:
       #"You can set /downloads to whatever you want but will then need to change the Slskd download dir in your config file"
       - /path/to/slskd/downloads:/downloads
@@ -152,7 +152,7 @@ Note: You **must** edit both volumes in the docker compose above.
 
   $\quad$ This is where put the path you are storing your config file. It must point to `/data`.
 
-You can also edit `SCRIPT_INTERVAL` to choose how often you want the script to run (default is every 5 mins).
+You can also edit `SCRIPT_INTERVAL` to choose how often you want the script to run (default is every 5 mins). Another thing to note is that by default the user perms are set to PUID:1000 and PGID:1000. If you wish to edit this change `user: "1000:1000"` in the Docker to whatever you prefer
 
 ## Running Manually
 
