@@ -5,6 +5,11 @@
   A Python script that connects Lidarr with Soulseek!
 </p>
 
+<p align="center">
+  <a href="https://discord.gg/EznhgYBayN">
+    <img src="https://img.shields.io/discord/1292895470301220894?label=Discord&logo=discord&style=for-the-badge&cacheSeconds=60" alt="Join our Discord">
+  </a>
+</p>
 
 # About
 
