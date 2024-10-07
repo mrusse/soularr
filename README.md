@@ -66,6 +66,13 @@ minimum_peer_upload_speed = 0
 #Replace "flac,mp3" with "flac" if you just want flacs.
 allowed_filetypes = flac,mp3
 ignored_users = User1,User2,Fred,Bob
+#Set to False if you only want to search for complete albums
+search_for_tracks = True
+#Set to True if you want to add the artist's name to the beginning of the search for albums
+album_prepend_artist = False
+track_prepend_artist = True
+#Comma separated list of words that cannot be in the title of albums or tracks. Case insensitive.
+title_blacklist = BlacklistWord1,blacklistword2
 ```
 
 [Full list of countries from Musicbrainz.](https://musicbrainz.org/doc/Release/Country)

@@ -206,6 +206,14 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                             continue
     return False
 
+def is_blacklisted(title: str) -> bool:
+    blacklist = search_settings.get('title_blacklist', '').lower().split(",")
+    for word in blacklist:
+        if word != '' and word in title.lower():
+            print(f"Skipping {title} due to blacklisted word: {word}")
+            return True
+    return False
+
 def grab_most_wanted(albums):
     grab_list = []
     failed_download = 0
@@ -221,13 +229,15 @@ def grab_most_wanted(albums):
         release_id = release['id']
         all_tracks = lidarr.get_tracks(artistId = artist_id, albumId = album_id, albumReleaseId = release_id)
 
-        if(len(release['media']) == 1):
+        if len(release['media']) == 1:
             album_title = lidarr.get_album(album_id)['title']
-            querry = album_title
+            if is_blacklisted(album_title):
+                continue
+            querry = artist_name + " " + album_title if search_settings.getboolean('album_prepend_artist', False) else album_title
             print("Searching album: " + querry)
             success = search_and_download(grab_list, querry, all_tracks, all_tracks[0], artist_name, release)
 
-        if not success:
+        if not success and search_settings.getboolean('search_for_tracks', True):
             for media in release['media']:
                 tracks = []
                 for track in all_tracks:
@@ -235,7 +245,9 @@ def grab_most_wanted(albums):
                         tracks.append(track)
 
                 for track in tracks:
-                    querry = artist_name + " " + track['title']
+                    if is_blacklisted(track['title']):
+                        continue
+                    querry = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist', True) else track['title']
                     print("Searching track: " + querry)
                     success = search_and_download(grab_list, querry, tracks, track, artist_name, release)
 
@@ -285,7 +297,7 @@ def grab_most_wanted(albums):
                     elif len(pending_files) > 0:
                         unfinished += 1
 
-        if(unfinished == 0):
+        if unfinished == 0:
             print("All tracks finished downloading!")
             time.sleep(5)
             break
@@ -305,7 +317,7 @@ def grab_most_wanted(albums):
             for filename in os.listdir(folder):
                 album_name = lidarr.get_album(albumIds = artist_folder['release']['albumId'])['title']
 
-                if(filename.split(".")[-1] in allowed_filetypes):
+                if filename.split(".")[-1] in allowed_filetypes:
                     song = music_tag.load_file(os.path.join(folder,filename))
                     song['artist'] = artist_name
                     song['albumartist'] = artist_name
