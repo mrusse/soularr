@@ -7,6 +7,7 @@ import difflib
 import operator
 import traceback
 import configparser
+from datetime import datetime
 
 import music_tag
 import slskd_api
@@ -255,7 +256,23 @@ def grab_most_wanted(albums):
                         break
 
                 if not success:
-                    print("ERROR: Failed to grab albumID: " + str(album_id) + " for artist: " + artist_name)
+                    if remove_wanted_on_failure:
+                        print("ERROR: Failed to grab album: " + album['title'] + " for artist: " + artist_name + 
+                              ". Failed album removed from wanted list and added to \"failure_list.txt\"")
+
+                        album['monitored'] = False
+                        lidarr.upd_album(album)
+                        
+                        current_datetime = datetime.now()
+                        current_datetime_str = current_datetime.strftime("%d/%m/%Y %H:%M:%S")
+
+                        failure_string = current_datetime_str + " - " + artist_name + ", " + album['title'] + ", " + str(album_id)
+
+                        with open(failure_file_path, "a") as file:
+                            file.write(failure_string)
+                    else:
+                        print("ERROR: Failed to grab album: " + album['title'] + " for artist: " + artist_name)
+                    
                     failed_download += 1
 
         success = False
@@ -369,8 +386,12 @@ def is_docker():
 
 if is_docker():
     lock_file_path = os.path.join(os.getcwd(), "/data/.soularr.lock")
+    config_file_path = os.path.join(os.getcwd(), "/data/config.ini")
+    failure_file_path = os.path.join(os.getcwd(), "/data/failure_list.txt")
 else:
     lock_file_path = os.path.join(os.getcwd(), ".soularr.lock")
+    config_file_path = os.path.join(os.getcwd(), "config.ini")
+    failure_file_path = os.path.join(os.getcwd(), "failure_list.txt")
     
 if os.path.exists(lock_file_path):
     print(f"Soularr instance is already running.")
@@ -382,25 +403,20 @@ try:
 
     config = configparser.ConfigParser()
 
-    if is_docker():
-        if os.path.exists('/data/config.ini'):
-            config.read('/data/config.ini')
-        else:
+
+    if os.path.exists(config_file_path):
+        config.read(config_file_path)
+    else:
+        if is_docker():
             print("Config file does not exist! Please mount \"/data\" and place your \"config.ini\" file there.")
             print("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
-            if os.path.exists(lock_file_path):
-                os.remove(lock_file_path)
-            sys.exit(0)
-    else:
-        if os.path.exists('config.ini'):
-            config.read('config.ini')
         else:
             print("Config file does not exist! Please place it in the working directory.")
             print("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
-            if os.path.exists(lock_file_path):
-                os.remove(lock_file_path)
-            sys.exit(0)
-        
+        if os.path.exists(lock_file_path):
+            os.remove(lock_file_path)
+        sys.exit(0)
+ 
     slskd_api_key = config['Slskd']['api_key']
     lidarr_api_key = config['Lidarr']['api_key']
 
@@ -414,6 +430,7 @@ try:
     search_settings = config['Search Settings']
     ignored_users = search_settings['ignored_users'].split(",")
     grab_full_wanted_list = search_settings.getboolean('grab_full_wanted_list', False)
+    remove_wanted_on_failure = search_settings.getboolean('remove_wanted_on_failure', True)
 
     release_settings = config['Release Settings']
     use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum')
@@ -458,7 +475,10 @@ try:
             print("Solarr finished. Exiting...")
             slskd.transfers.remove_completed_downloads()
         else:
-            print(str(failed) + ": releases failed while downloading and are still wanted.")
+            if remove_wanted_on_failure:
+                print(str(failed) + ": releases failed and were removed from wanted list. View \"failure_list.txt\" for list of failed albums.")
+            else:
+                print(str(failed) + ": releases failed while downloading and are still wanted.")
             slskd.transfers.remove_completed_downloads()
     else:
         print("No releases wanted. Exiting...")

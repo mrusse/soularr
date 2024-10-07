@@ -73,6 +73,9 @@ album_prepend_artist = False
 track_prepend_artist = True
 #Set to True to grab every album in the wanted list. If false it only does one page from Lidarr at a time.
 grab_full_wanted_list = False
+#Unmonitors the album if Soularr can't find it and places it in "failure_list.txt". 
+#Failed albums can be re monitored by filtering "Unmonitored" in the Lidarr wanted list.
+remove_wanted_on_failure = True
 #Comma separated list of words that cannot be in the title of albums or tracks. Case insensitive.
 title_blacklist = BlacklistWord1,blacklistword2
 ```
