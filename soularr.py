@@ -131,9 +131,12 @@ def choose_release(album_id, artist_name):
 
             return release
 
-    for release in releases:
-        if release['trackCount'] == most_common_trackcount:
-            default_release = release
+    if use_most_common_tracknum:
+        for release in releases:
+            if release['trackCount'] == most_common_trackcount:
+                default_release = release
+    else:
+        default_release = releases[0]
 
     return default_release
 
