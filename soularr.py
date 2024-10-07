@@ -68,16 +68,9 @@ def sanitize_folder_name(folder_name):
     valid_characters = re.sub(r'[<>:."/\\|?*]', '', folder_name)
     return valid_characters.strip()
 
-def cancel_and_delete(delete_dir, directory):
-    for bad_file in directory['files']:
-        downloads = slskd.transfers.get_all_downloads()
-
-        for user in downloads:
-            for dir in user['directories']:
-                for file in dir['files']:
-                    if bad_file['filename'] == file['filename']:
-                        slskd.transfers.cancel_download(username = user['username'], id = file['id'])
-                        time.sleep(.2)
+def cancel_and_delete(delete_dir, username, files):
+    for file in files:
+        slskd.transfers.cancel_download(username = username, id = file['id'])
 
     os.chdir(slskd_download_dir)
     shutil.rmtree(delete_dir)
@@ -179,11 +172,13 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                         for i in range(0,len(directory['files'])):
                             directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
 
-                        folder_data =	{
+                        folder_data = {
                             "artist_name": artist_name,
                             "release": release,
                             "dir": file_dir.split("\\")[-1],
-                            "discnumber": track['mediumNumber']
+                            "discnumber": track['mediumNumber'],
+                            "username": username,
+                            "directory": directory,
                         }
                         grab_list.append(folder_data)
 
@@ -252,12 +247,29 @@ def grab_most_wanted(albums):
     print("Waiting for downloads... monitor at: " + slskd_host_url + "/downloads")
 
     while True:
-        downloads = slskd.transfers.get_all_downloads()
         unfinished = 0
-        for user in downloads:
-            for directory in user['directories']:
-                for file in directory['files']:
-                    if not 'Completed' in file['state']:
+        for artist_folder in list(grab_list):
+            username, dir = artist_folder['username'], artist_folder['directory']
+            downloads = slskd.transfers.get_downloads(username)
+
+            for directory in downloads["directories"]:
+                if directory["directory"] == dir["name"]:
+                    # Generate list of errored or failed downloads
+                    errored_files = [file for file in directory["files"] if file["state"] in [
+                        'Completed, Cancelled',
+                        'Completed, TimedOut',
+                        'Completed, Errored',
+                        'Completed, Rejected',
+                    ]]
+                    # Generate list of downloads still pending
+                    pending_files = [file for file in directory["files"] if not 'Completed' in file["state"]]
+
+                    # If we have errored files, cancel and remove ALL files so we can retry next time
+                    if len(errored_files) > 0:
+                        print(f"FAILED: Username: {username} Directory: {dir['name']}")
+                        cancel_and_delete(artist_folder['dir'], artist_folder['username'], directory["files"])
+                        grab_list.remove(artist_folder)
+                    elif len(pending_files) > 0:
                         unfinished += 1
 
         if(unfinished == 0):
@@ -265,7 +277,7 @@ def grab_most_wanted(albums):
             time.sleep(5)
             break
 
-        time.sleep(1)
+        time.sleep(10)
 
     os.chdir(slskd_download_dir)
     commands = []
@@ -276,6 +288,7 @@ def grab_most_wanted(albums):
         folder = artist_folder['dir']
 
         if artist_folder['release']['mediumCount'] > 1:
+            print(f"listing items in {folder}")
             for filename in os.listdir(folder):
                 album_name = lidarr.get_album(albumIds = artist_folder['release']['albumId'])['title']
 
