@@ -79,7 +79,9 @@ def cancel_and_delete(delete_dir, username, files):
         slskd.transfers.cancel_download(username = username, id = file['id'])
 
     os.chdir(slskd_download_dir)
-    shutil.rmtree(delete_dir)
+
+    if os.path.exists(delete_dir):
+        shutil.rmtree(delete_dir)
 
 def release_trackcount_mode(releases):
     track_count = {}
