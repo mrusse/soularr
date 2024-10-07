@@ -432,8 +432,6 @@ try:
     slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
-    print(grab_full_wanted_list)
-
     if grab_full_wanted_list:
         page = 1
         wanted_records = []
