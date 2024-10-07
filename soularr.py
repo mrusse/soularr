@@ -431,10 +431,18 @@ try:
     slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
-    wanted = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
-    if len(wanted) > 0:
+    page = 1
+    wanted_records = []
+    target_wanted = lidarr.get_wanted(page=page, sort_dir='ascending',sort_key='albums.title')['totalRecords']
+
+    while len(wanted_records) < target_wanted:
+        wanted = lidarr.get_wanted(page=page, sort_dir='ascending',sort_key='albums.title')
+        wanted_records.extend(wanted['records'])
+        page += 1
+
+    if len(wanted_records) > 0:
         try:
-            failed = grab_most_wanted(wanted)
+            failed = grab_most_wanted(wanted_records)
         except Exception:
             print(traceback.format_exc())
             print("\n Fatal error! Exiting...")
