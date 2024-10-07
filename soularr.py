@@ -125,7 +125,9 @@ def choose_release(album_id, artist_name):
                   + release['status'] + ", "
                   + country + ", "
                   + release['format']
-                  + ", Mediums: " + str(release['mediumCount']))
+                  + ", Mediums: " + str(release['mediumCount'])
+                  + ", Tracks: " + str(release['trackCount'])
+                  + ", ID: " + str(release['id']))
 
             return release
 
