@@ -1,4 +1,4 @@
-![logo](https://github.com/user-attachments/assets/392a5d30-a34e-4794-8af4-7baae4afff70)
+![banner](https://raw.githubusercontent.com/mrusse/soularr/refs/heads/main/resources/banner.png)
 
 <h1 align="center">Soularr</h1>
 <p align="center">
