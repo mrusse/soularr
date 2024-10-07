@@ -199,7 +199,7 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
     return False
 
 def is_blacklisted(title: str) -> bool:
-    blacklist = search_settings['title_blacklist'].lower().split(",")
+    blacklist = search_settings.get('title_blacklist', '').lower().split(",")
     for word in blacklist:
         if(word in title.lower()):
             print(f"Skipping {title} due to blacklisted word: {word}")
@@ -225,11 +225,11 @@ def grab_most_wanted(albums):
             album_title = lidarr.get_album(album_id)['title']
             if(is_blacklisted(album_title)):
                 continue
-            querry = artist_name + " " + album_title if search_settings.getboolean('album_prepend_artist') else album_title
+            querry = artist_name + " " + album_title if search_settings.getboolean('album_prepend_artist', False) else album_title
             print("Searching album: " + querry)
             success = search_and_download(grab_list, querry, all_tracks, all_tracks[0], artist_name, release)
 
-        if not success and search_settings.getboolean('search_for_tracks'):
+        if not success and search_settings.getboolean('search_for_tracks', True):
             for media in release['media']:
                 tracks = []
                 for track in all_tracks:
@@ -239,7 +239,7 @@ def grab_most_wanted(albums):
                 for track in tracks:
                     if(is_blacklisted(track['title'])):
                         continue
-                    querry = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist') else track['title']
+                    querry = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist', True) else track['title']
                     print("Searching track: " + querry)
                     success = search_and_download(grab_list, querry, tracks, track, artist_name, release)
 
