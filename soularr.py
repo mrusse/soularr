@@ -413,6 +413,7 @@ try:
 
     search_settings = config['Search Settings']
     ignored_users = search_settings['ignored_users'].split(",")
+    grab_full_wanted_list = search_settings.getboolean('grab_full_wanted_list', False)
 
     release_settings = config['Release Settings']
     use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum')
@@ -431,14 +432,19 @@ try:
     slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
-    page = 1
-    wanted_records = []
-    target_wanted = lidarr.get_wanted(page=page, sort_dir='ascending',sort_key='albums.title')['totalRecords']
+    print(grab_full_wanted_list)
 
-    while len(wanted_records) < target_wanted:
-        wanted = lidarr.get_wanted(page=page, sort_dir='ascending',sort_key='albums.title')
-        wanted_records.extend(wanted['records'])
-        page += 1
+    if grab_full_wanted_list:
+        page = 1
+        wanted_records = []
+        target_wanted = lidarr.get_wanted(page=page, sort_dir='ascending',sort_key='albums.title')['totalRecords']
+
+        while len(wanted_records) < target_wanted:
+            wanted = lidarr.get_wanted(page=page, sort_dir='ascending',sort_key='albums.title')
+            wanted_records.extend(wanted['records'])
+            page += 1
+    else:
+        wanted_records = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
 
     if len(wanted_records) > 0:
         try:
