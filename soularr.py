@@ -25,6 +25,12 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
             slskd_filename = slskd_track['filename']
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
+            #If ratio is a bad match try and split off the garbage at the start of the slskd_filename and try again
+            if ratio < 0.5:
+                lidarr_filename_word_count = len(lidarr_filename.split()) * -1
+                truncated_slskd_filename = " ".join(slskd_filename.split()[lidarr_filename_word_count:])
+                ratio = difflib.SequenceMatcher(None, lidarr_filename, truncated_slskd_filename).ratio()
+
             if ratio > best_match:
                 best_match = ratio
 
