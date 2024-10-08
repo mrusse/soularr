@@ -414,7 +414,7 @@ try:
         else:
             print("Config file does not exist! Please place it in the working directory.")
             print("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
-        if os.path.exists(lock_file_path):
+        if os.path.exists(lock_file_path) and not is_docker():
             os.remove(lock_file_path)
         sys.exit(0)
  
