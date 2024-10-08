@@ -40,7 +40,7 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
             counted.append(lidarr_filename)
             total_match += best_match
 
-    if(len(counted) == len(lidarr_tracks) and not mp3 and username not in ignored_users):
+    if len(counted) == len(lidarr_tracks) and not mp3 and username not in ignored_users:
         print("\nFound match from user: " + username +" for " + str(len(counted)) + " tracks!")
         print("Average sequence match ratio: " + str(total_match/len(counted)))
         print("SUCCESSFUL MATCH \n-------------------")
@@ -54,7 +54,7 @@ def album_track_num(directory):
     index = -1
     filetype = ""
     for file in files:
-        if(file['filename'].split(".")[-1] in allowed_filetypes):
+        if file['filename'].split(".")[-1] in allowed_filetypes:
             new_index = allowed_filetypes.index(file['filename'].split(".")[-1])
 
             if index == -1:
@@ -112,7 +112,7 @@ def choose_release(album_id, artist_name):
     for release in releases:
         country = release['country'][0] if release['country'] else None
 
-        if(release['format'][1] == 'x' and allow_multi_disc):
+        if release['format'][1] == 'x' and allow_multi_disc:
             format_accepted = release['format'].split("x", 1)[1] in accepted_formats
         else:
             format_accepted = release['format'] in accepted_formats
@@ -172,7 +172,7 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
         files = result['files']
 
         for file in files:
-            if(file['filename'].split(".")[-1] in allowed_filetypes):
+            if file['filename'].split(".")[-1] in allowed_filetypes:
                 file_dir = file['filename'].rsplit("\\",1)[0]
 
                 try:
@@ -469,7 +469,8 @@ try:
 
     wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title')
     total_wanted = wanted['totalRecords']
-    if(search_type == 'all'):
+
+    if search_type == 'all':
         page = 1
         wanted_records = []
 
@@ -478,17 +479,21 @@ try:
             wanted_records.extend(wanted['records'])
             page += 1
 
-    elif(search_type == 'incrementing_page'):
+    elif search_type == 'incrementing_page':
         page = get_current_page(current_page_file_path)
         wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title')['records']
         page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
         update_current_page(current_page_file_path, str(page))
 
-    elif(search_type == 'first_page'):
+    elif search_type == 'first_page':
         wanted_records = wanted['records']
 
     else:
         print(f'Error: [Search Settings] - search_type = {search_type} is not valid. Exiting...')
+
+        if os.path.exists(lock_file_path) and not is_docker():
+                os.remove(lock_file_path)
+
         sys.exit(0)
 
     if len(wanted_records) > 0:
