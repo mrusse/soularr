@@ -1,3 +1,4 @@
+import math
 import re
 import os
 import sys
@@ -388,10 +389,12 @@ if is_docker():
     lock_file_path = ""
     config_file_path = os.path.join(os.getcwd(), "/data/config.ini")
     failure_file_path = os.path.join(os.getcwd(), "/data/failure_list.txt")
+    current_page_file_path = os.path.join(os.getcwd(), "/data/.current_page.txt")
 else:
     lock_file_path = os.path.join(os.getcwd(), ".soularr.lock")
     config_file_path = os.path.join(os.getcwd(), "config.ini")
     failure_file_path = os.path.join(os.getcwd(), "failure_list.txt")
+    current_page_file_path = os.path.join(os.getcwd(), ".current_page.txt")
     
 if os.path.exists(lock_file_path) and not is_docker():
     print(f"Soularr instance is already running.")
@@ -430,7 +433,8 @@ try:
 
     search_settings = config['Search Settings']
     ignored_users = search_settings['ignored_users'].split(",")
-    grab_full_wanted_list = search_settings.getboolean('grab_full_wanted_list', False)
+    search_type = search_settings.get('search_type', 'first_page').lower().strip()
+    page_size = search_settings.getint('number_of_albums_to_grab', 10)
     remove_wanted_on_failure = search_settings.getboolean('remove_wanted_on_failure', True)
 
     release_settings = config['Release Settings']
@@ -450,17 +454,42 @@ try:
     slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
-    if grab_full_wanted_list:
+    def get_current_page(path: str, default_page=1) -> int:
+        if os.path.exists(path):
+            with open(path, 'r') as file:
+                return int(file.read().strip())
+        else:
+            with open(path, 'w') as file:
+                file.write(default_page)
+            return default_page
+        
+    def update_current_page(path: str, page: int) -> None:
+        with open(path, 'w') as file:
+                file.write(page)
+
+    wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title')
+    total_wanted = wanted['totalRecords']
+    if(search_type == 'all'):
         page = 1
         wanted_records = []
-        target_wanted = lidarr.get_wanted(page=page, sort_dir='ascending',sort_key='albums.title')['totalRecords']
 
-        while len(wanted_records) < target_wanted:
-            wanted = lidarr.get_wanted(page=page, sort_dir='ascending',sort_key='albums.title')
+        while len(wanted_records) < total_wanted:
+            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title')
             wanted_records.extend(wanted['records'])
             page += 1
+
+    elif(search_type == 'incrementing_page'):
+        page = get_current_page(current_page_file_path)
+        wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title')['records']
+        page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
+        update_current_page(current_page_file_path, str(page))
+
+    elif(search_type == 'first_page'):
+        wanted_records = wanted['records']
+
     else:
-        wanted_records = lidarr.get_wanted(sort_dir='ascending',sort_key='albums.title')['records']
+        print(f'Error: [Search Settings] - search_type = {search_type} is not valid. Exiting...')
+        sys.exit(0)
 
     if len(wanted_records) > 0:
         try:
