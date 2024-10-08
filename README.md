@@ -76,9 +76,13 @@ search_for_tracks = True
 #Set to True if you want to add the artist's name to the beginning of the search for albums
 album_prepend_artist = False
 track_prepend_artist = True
-#Set to True to grab every album in the wanted list. 
-#If false it only does one page from Lidarr at a time.
-grab_full_wanted_list = False
+#Valid search types: all || incrementing_wanted_page || first_wanted_page
+# all will search for every wanted record everytime soularr is run.
+# incrementing_wanted_page will search the next page everytime soularr is run.
+# first_wanted_page will repeatedly search the first page, remove_wanted_on_failure should be enabled with this search_type.
+search_type = first_wanted_page
+#How mancy records to grab each run, must be a number between 1 - 2,147,483,647
+number_of_tracks_to_grab = 10
 #Unmonitors the album if Soularr can't find it and places it in "failure_list.txt". 
 #Failed albums can be re monitored by filtering "Unmonitored" in the Lidarr wanted list.
 remove_wanted_on_failure = True
