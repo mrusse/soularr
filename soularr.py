@@ -454,11 +454,12 @@ try:
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
     def get_current_page(path: str, default_page=1) -> int:
-        try:
+        if os.path.exists(path):
             with open(path, 'r') as file:
                 return int(file.read().strip())
-        except (FileNotFoundError, ValueError):
-            print(f'The .current_page file is likely missing or otherwise corrupted.\n{traceback.format_exc()}')
+        else:
+            with open(path, 'w') as file:
+                file.write(default_page)
             return default_page
         
     def update_current_page(path: str, page: int) -> None:
