@@ -386,7 +386,7 @@ def is_docker():
     return os.getenv('IN_DOCKER') is not None
 
 if is_docker():
-    lock_file_path = os.path.join(os.getcwd(), "/data/.soularr.lock")
+    lock_file_path = ""
     config_file_path = os.path.join(os.getcwd(), "/data/config.ini")
     failure_file_path = os.path.join(os.getcwd(), "/data/failure_list.txt")
     current_page_file_path = os.path.join(os.getcwd(), "/data/.current_page.txt")
@@ -396,13 +396,14 @@ else:
     failure_file_path = os.path.join(os.getcwd(), "failure_list.txt")
     current_page_file_path = os.path.join(os.getcwd(), ".current_page.txt")
     
-if os.path.exists(lock_file_path):
+if os.path.exists(lock_file_path) and not is_docker():
     print(f"Soularr instance is already running.")
     sys.exit(1)
 
 try:
-    with open(lock_file_path, "w") as lock_file:
-        lock_file.write("locked")
+    if not is_docker():
+        with open(lock_file_path, "w") as lock_file:
+            lock_file.write("locked")
 
     config = configparser.ConfigParser()
 
@@ -416,7 +417,7 @@ try:
         else:
             print("Config file does not exist! Please place it in the working directory.")
             print("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
-        if os.path.exists(lock_file_path):
+        if os.path.exists(lock_file_path) and not is_docker():
             os.remove(lock_file_path)
         sys.exit(0)
  
@@ -495,7 +496,7 @@ try:
             print(traceback.format_exc())
             print("\n Fatal error! Exiting...")
 
-            if os.path.exists(lock_file_path):
+            if os.path.exists(lock_file_path) and not is_docker():
                 os.remove(lock_file_path)
             sys.exit(0)
         if failed == 0:
@@ -512,5 +513,5 @@ try:
 
 finally:
     # Remove the lock file after activity is done
-    if os.path.exists(lock_file_path):
+    if os.path.exists(lock_file_path) and not is_docker():
         os.remove(lock_file_path)
