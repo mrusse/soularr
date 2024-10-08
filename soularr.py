@@ -266,7 +266,7 @@ def grab_most_wanted(albums):
                         current_datetime = datetime.now()
                         current_datetime_str = current_datetime.strftime("%d/%m/%Y %H:%M:%S")
 
-                        failure_string = current_datetime_str + " - " + artist_name + ", " + album['title'] + ", " + str(album_id)
+                        failure_string = current_datetime_str + " - " + artist_name + ", " + album['title'] + ", " + str(album_id) + "\n"
 
                         with open(failure_file_path, "a") as file:
                             file.write(failure_string)
