@@ -432,7 +432,7 @@ try:
 
     search_settings = config['Search Settings']
     ignored_users = search_settings['ignored_users'].split(",")
-    search_type = search_settings.get('search_type', 'first_wanted_page')
+    search_type = search_settings.get('search_type', 'first_wanted_page').lower().strip()
     page_size = search_settings.getint('number_of_tracks_to_grab', 10)
     remove_wanted_on_failure = search_settings.getboolean('remove_wanted_on_failure', True)
 
@@ -467,27 +467,26 @@ try:
 
     wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title')
     total_wanted = wanted['totalRecords']
-    match search_type.lower().strip():
-        case 'all':
-            page = 1
-            wanted_records = []
+    if(search_type == 'all'):
+        page = 1
+        wanted_records = []
 
-            while len(wanted_records) < total_wanted:
-                wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title')
-                wanted_records.extend(wanted['records'])
-                page += 1
+        while len(wanted_records) < total_wanted:
+            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title')
+            wanted_records.extend(wanted['records'])
+            page += 1
+            
+    elif(search_type == 'incrementing_wanted_page'):
+        page = get_current_page(current_page_file_path)
+        wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title')['records']
+        page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
+        update_current_page(current_page_file_path, str(page))
 
-        case 'incrementing_wanted_page':
-            page = get_current_page(current_page_file_path)
-            wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title')['records']
-            page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
-            update_current_page(current_page_file_path, str(page))
+    elif(search_type == 'first_wanted_page'):
+        wanted_records = wanted['records']
 
-        case 'first_wanted_page':
-            wanted_records = wanted['records']
-
-        case _:
-            print(f'[Search Settings]: search_type = {search_type} is not valid')
+    else:
+        print(f'[Search Settings]: search_type = {search_type} is not valid')
 
     if len(wanted_records) > 0:
         try:
