@@ -462,6 +462,8 @@ try:
                 if page_string:
                     return int(page_string)
                 else:
+                    with open(path, 'w') as file:
+                        file.write(str(default_page))
                     return default_page
         else:
             with open(path, 'w') as file:
