@@ -460,7 +460,7 @@ try:
                 return int(file.read().strip())
         else:
             with open(path, 'w') as file:
-                file.write(default_page)
+                file.write(str(default_page))
             return default_page
         
     def update_current_page(path: str, page: int) -> None:
