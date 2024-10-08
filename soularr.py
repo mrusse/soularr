@@ -487,7 +487,8 @@ try:
         wanted_records = wanted['records']
 
     else:
-        print(f'[Search Settings]: search_type = {search_type} is not valid')
+        print(f'Error: [Search Settings] - search_type = {search_type} is not valid. Exiting...')
+        sys.exit(0)
 
     if len(wanted_records) > 0:
         try:
