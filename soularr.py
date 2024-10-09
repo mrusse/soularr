@@ -231,11 +231,17 @@ def grab_most_wanted(albums):
         release_id = release['id']
         all_tracks = lidarr.get_tracks(artistId = artist_id, albumId = album_id, albumReleaseId = release_id)
 
+        #TODO: Right now if search_for_tracks is False. Multi disc albums will never be downloaded so we need to loop through media in releases even for albums
         if len(release['media']) == 1:
             album_title = lidarr.get_album(album_id)['title']
             if is_blacklisted(album_title):
                 continue
-            querry = artist_name + " " + album_title if search_settings.getboolean('album_prepend_artist', False) else album_title
+
+            if len(album_title) == 1:
+                querry = artist_name + " " + album_title
+            else:
+                querry = artist_name + " " + album_title if search_settings.getboolean('album_prepend_artist', False) else album_title
+
             print("Searching album: " + querry)
             success = search_and_download(grab_list, querry, all_tracks, all_tracks[0], artist_name, release)
 
@@ -249,7 +255,12 @@ def grab_most_wanted(albums):
                 for track in tracks:
                     if is_blacklisted(track['title']):
                         continue
-                    querry = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist', True) else track['title']
+
+                    if len(track['title']) == 1:
+                        querry = artist_name + " " + track['title']
+                    else:
+                        querry = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist', True) else track['title']
+                        
                     print("Searching track: " + querry)
                     success = search_and_download(grab_list, querry, tracks, track, artist_name, release)
 
