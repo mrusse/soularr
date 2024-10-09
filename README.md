@@ -78,7 +78,7 @@ album_prepend_artist = False
 track_prepend_artist = True
 #Valid search types: all || incrementing_page || first_page
   #"all" will search for every wanted record everytime soularr is run.
-  #"incrementing_page" will search the next page everytime soularr is run.
+  #"incrementing_page" will start with the first page and increment to the next everytime soularr is run.
   #"first_page" will repeatedly search the first page.
 #If using the search type "first_page" remove_wanted_on_failure should be enabled.
 search_type = incrementing_page
