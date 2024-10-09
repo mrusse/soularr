@@ -87,7 +87,7 @@ number_of_albums_to_grab = 10
 #Unmonitors the album if Soularr can't find it and places it in "failure_list.txt". 
 #Failed albums can be re monitored by filtering "Unmonitored" in the Lidarr wanted list.
 remove_wanted_on_failure = False
-#Comma separated list of words that cannot be in the title of albums or tracks. Case insensitive.
+#Comma separated list of words that can't be in the title of albums or tracks. Case insensitive.
 title_blacklist = BlacklistWord1,blacklistword2
 ```
 
