@@ -81,12 +81,12 @@ track_prepend_artist = True
   #"incrementing_page" will search the next page everytime soularr is run.
   #"first_page" will repeatedly search the first page.
 #If using the search type "first_page" remove_wanted_on_failure should be enabled.
-search_type = first_page
+search_type = incrementing_page
 #How mancy records to grab each run, must be a number between 1 - 2,147,483,647
 number_of_albums_to_grab = 10
 #Unmonitors the album if Soularr can't find it and places it in "failure_list.txt". 
 #Failed albums can be re monitored by filtering "Unmonitored" in the Lidarr wanted list.
-remove_wanted_on_failure = True
+remove_wanted_on_failure = False
 #Comma separated list of words that cannot be in the title of albums or tracks. Case insensitive.
 title_blacklist = BlacklistWord1,blacklistword2
 ```
