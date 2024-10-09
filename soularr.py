@@ -328,6 +328,7 @@ def grab_most_wanted(albums):
 
     for artist_folder in grab_list:
         artist_name = artist_folder['artist_name']
+        artist_name_sanitized = sanitize_folder_name(artist_name)
         folder = artist_folder['dir']
 
         if artist_folder['release']['mediumCount'] > 1:
@@ -342,10 +343,10 @@ def grab_most_wanted(albums):
                     song['discnumber'] = artist_folder['discnumber']
                     song.save()
 
-                new_dir = os.path.join(artist_name,sanitize_folder_name(album_name))
+                new_dir = os.path.join(artist_name_sanitized,sanitize_folder_name(album_name))
 
-                if not os.path.exists(artist_name):
-                    os.mkdir(artist_name)
+                if not os.path.exists(artist_name_sanitized):
+                    os.mkdir(artist_name_sanitized)
                 if not os.path.exists(new_dir):    
                     os.mkdir(new_dir)
 
@@ -353,7 +354,7 @@ def grab_most_wanted(albums):
             shutil.rmtree(folder)
 
         else:
-            shutil.move(folder,artist_name)
+            shutil.move(folder,artist_name_sanitized)
 
     artist_folders = next(os.walk('.'))[1]
 
