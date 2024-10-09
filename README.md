@@ -55,7 +55,7 @@ host_url = http://localhost:5030
 download_dir = /path/to/your/Slskd/downloads
 
 [Release Settings]
-#If true script will select the release with the most common amount of tracks out of all the releases.
+#Selects the release with the most common amount of tracks out of all the releases.
 use_most_common_tracknum = True
 allow_multi_disc = True
 #See full list of countries below.
@@ -78,7 +78,7 @@ album_prepend_artist = False
 track_prepend_artist = True
 #Valid search types: all || incrementing_page || first_page
   #"all" will search for every wanted record everytime soularr is run.
-  #"incrementing_page" will start with the first page and increment to the next everytime soularr is run.
+  #"incrementing_page" will start with the first page and increment to the next on each run.
   #"first_page" will repeatedly search the first page.
 #If using the search type "first_page" remove_wanted_on_failure should be enabled.
 search_type = incrementing_page
