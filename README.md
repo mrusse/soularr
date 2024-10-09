@@ -147,17 +147,17 @@ Note: You **must** edit both volumes in the docker compose above.
 
 - `/path/to/slskd/downloads:/downloads`
 
-  $\quad$ This is where you put your Slskd downloads path.
+  + This is where you put your Slskd downloads path.
 
-  $\quad$ You can point it to whatever dir you want but make sure to put the same dir in your config file under `[Slskd] -> download_dir`.
+  + You can point it to whatever dir you want but make sure to put the same dir in your config file under `[Slskd] -> download_dir`.
 
-  $\quad$ For example you could leave it as `/downloads` then in your config your entry would be `download_dir = /downloads`.
+  + For example you could leave it as `/downloads` then in your config your entry would be `download_dir = /downloads`.
 
 - `/path/to/config/dir:/data`
 
-  $\quad$ This is where put the path you are storing your config file. It must point to `/data`.
+  + This is where put the path you are storing your config file. It must point to `/data`.
 
-You can also edit `SCRIPT_INTERVAL` to choose how often you want the script to run (default is every 5 mins). Another thing to note is that by default the user perms are set to PUID:1000 and PGID:1000. If you wish to edit this change `user: "1000:1000"` in the Docker to whatever you prefer
+You can also edit `SCRIPT_INTERVAL` to choose how often (in seconds) you want the script to run (default is every 300 seconds). Another thing to note is that by default the user perms are set to PUID:1000 and PGID:1000. If you wish to edit this change `user: "1000:1000"` in the Docker compose to whatever you prefer.
 
 ## Running Manually
 
