@@ -367,7 +367,7 @@ def grab_most_wanted(albums):
                 if not os.path.exists(new_dir):    
                     os.mkdir(new_dir)
 
-                if os.path.exists(os.path.join(folder,filename)):
+                if os.path.exists(os.path.join(folder,filename)) and not os.path.exists(os.path.join(new_dir,filename)):
                     shutil.move(os.path.join(folder,filename),new_dir)
 
             if os.path.exists(folder):        
