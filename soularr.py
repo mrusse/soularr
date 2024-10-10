@@ -336,11 +336,13 @@ def grab_most_wanted(albums):
 
     os.chdir(slskd_download_dir)
     commands = []
+    artist_folders = []
     grab_list.sort(key=operator.itemgetter('artist_name'))
 
     for artist_folder in grab_list:
         artist_name = artist_folder['artist_name']
         artist_name_sanitized = sanitize_folder_name(artist_name)
+        artist_folders.append(artist_name_sanitized)
         folder = artist_folder['dir']
 
         if artist_folder['release']['mediumCount'] > 1:
@@ -370,9 +372,6 @@ def grab_most_wanted(albums):
 
         elif os.path.exists(folder):
             shutil.move(folder,artist_name_sanitized)
-
-    artist_folders = next(os.walk('.'))[1]
-    artist_folders = [folder for folder in artist_folders if folder != 'failed_imports']
 
     for artist_folder in artist_folders:
         download_dir = os.path.join(lidarr_download_dir,artist_folder)
@@ -416,8 +415,9 @@ def move_failed_import(src_path):
         target_path = os.path.join(failed_imports_dir, f"{folder_name}_{counter}")
         counter += 1
     
-    shutil.move(folder_name, target_path)
-    print("Failed import moved to: " + target_path)
+    if os.path.exists(folder_name):
+        shutil.move(folder_name, target_path)
+        print("Failed import moved to: " + target_path)
 
 def is_docker():
     return os.getenv('IN_DOCKER') is not None
