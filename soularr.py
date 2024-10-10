@@ -361,10 +361,13 @@ def grab_most_wanted(albums):
                 if not os.path.exists(new_dir):    
                     os.mkdir(new_dir)
 
-                shutil.move(os.path.join(folder,filename),new_dir)
-            shutil.rmtree(folder)
+                if os.path.exists(os.path.join(folder,filename)):
+                    shutil.move(os.path.join(folder,filename),new_dir)
+                    
+            if os.path.exists(folder):        
+                shutil.rmtree(folder)
 
-        else:
+        elif os.path.exists(folder):
             shutil.move(folder,artist_name_sanitized)
 
     artist_folders = next(os.walk('.'))[1]
