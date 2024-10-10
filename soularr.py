@@ -368,6 +368,7 @@ def grab_most_wanted(albums):
             shutil.move(folder,artist_name_sanitized)
 
     artist_folders = next(os.walk('.'))[1]
+    artist_folders = [folder for folder in artist_folders if folder != 'failed_imports']
 
     for artist_folder in artist_folders:
         download_dir = os.path.join(lidarr_download_dir,artist_folder)
@@ -388,11 +389,31 @@ def grab_most_wanted(albums):
         current_task = lidarr.get_command(task['id'])
         try:
             print(current_task['commandName'] + " " + current_task['message'] + " from: " + current_task['body']['path'])
+
+            if "Failed" in current_task['message']:
+                move_failed_import(current_task['body']['path'])
         except:
             print("Error printing lidarr task message. Printing full unparsed message.")
             print(current_task)
 
     return failed_download
+
+def move_failed_import(src_path):
+    failed_imports_dir = "failed_imports"
+    
+    if not os.path.exists(failed_imports_dir):
+        os.makedirs(failed_imports_dir)
+    
+    folder_name = os.path.basename(src_path)
+    target_path = os.path.join(failed_imports_dir, folder_name)
+    
+    counter = 1
+    while os.path.exists(target_path):
+        target_path = os.path.join(failed_imports_dir, f"{folder_name}_{counter}")
+        counter += 1
+    
+    shutil.move(src_path, target_path)
+    print("Failed import moved to: " + target_path)
 
 def is_docker():
     return os.getenv('IN_DOCKER') is not None
