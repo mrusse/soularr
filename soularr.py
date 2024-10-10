@@ -363,7 +363,7 @@ def grab_most_wanted(albums):
 
                 if os.path.exists(os.path.join(folder,filename)):
                     shutil.move(os.path.join(folder,filename),new_dir)
-                    
+
             if os.path.exists(folder):        
                 shutil.rmtree(folder)
 
@@ -415,7 +415,7 @@ def move_failed_import(src_path):
         target_path = os.path.join(failed_imports_dir, f"{folder_name}_{counter}")
         counter += 1
     
-    shutil.move(src_path, target_path)
+    shutil.move(folder_name, target_path)
     print("Failed import moved to: " + target_path)
 
 def is_docker():
