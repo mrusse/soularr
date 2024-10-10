@@ -201,11 +201,14 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                             slskd.transfers.enqueue(username = username, files = directory['files'])
                             return True
                         except Exception:
-                            ignored_users.append(username)
-
                             print("Error enqueueing tracks! Adding " + username + " to ignored users list.")
-                            grab_list.remove(folder_data)
-                            cancel_and_delete(file_dir.split("\\")[-1], username, directory["files"])
+                            downloads = slskd.transfers.get_downloads(username)
+
+                            for cancel_directory in downloads["directories"]:
+                                if cancel_directory["directory"] == directory["name"]:
+                                    cancel_and_delete(file_dir.split("\\")[-1], username, cancel_directory["files"])
+                                    grab_list.remove(folder_data)
+                                    ignored_users.append(username)
                             continue
     return False
 
