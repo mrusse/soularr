@@ -345,7 +345,10 @@ def grab_most_wanted(albums):
     for artist_folder in grab_list:
         artist_name = artist_folder['artist_name']
         artist_name_sanitized = sanitize_folder_name(artist_name)
-        artist_folders.append(artist_name_sanitized)
+
+        if artist_name_sanitized not in artist_folders:
+            artist_folders.append(artist_name_sanitized)
+
         folder = artist_folder['dir']
 
         if artist_folder['release']['mediumCount'] > 1:
