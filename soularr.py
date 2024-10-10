@@ -202,9 +202,10 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                             return True
                         except Exception:
                             ignored_users.append(username)
-                            grab_list.remove(folder_data)
+
                             print("Error enqueueing tracks! Adding " + username + " to ignored users list.")
-                            #print(traceback.format_exc())
+                            grab_list.remove(folder_data)
+                            cancel_and_delete(file_dir.split("\\")[-1], username, directory["files"])
                             continue
     return False
 
