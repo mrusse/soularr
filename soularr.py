@@ -408,7 +408,7 @@ def grab_most_wanted(albums):
         completed_count = 0
         for task in commands:
             current_task = lidarr.get_command(task['id'])
-            if current_task['status'] == 'completed':
+            if current_task['status'] == 'completed' or current_task['status'] == 'failed':
                 completed_count += 1
         if completed_count == len(commands):
             break
