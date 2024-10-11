@@ -339,15 +339,11 @@ def grab_most_wanted(albums):
 
     os.chdir(slskd_download_dir)
     commands = []
-    artist_folders = []
     grab_list.sort(key=operator.itemgetter('artist_name'))
 
     for artist_folder in grab_list:
         artist_name = artist_folder['artist_name']
         artist_name_sanitized = sanitize_folder_name(artist_name)
-
-        if artist_name_sanitized not in artist_folders:
-            artist_folders.append(artist_name_sanitized)
 
         folder = artist_folder['dir']
 
@@ -378,6 +374,9 @@ def grab_most_wanted(albums):
 
         elif os.path.exists(folder):
             shutil.move(folder,artist_name_sanitized)
+
+    artist_folders = next(os.walk('.'))[1]
+    artist_folders = [folder for folder in artist_folders if folder != 'failed_imports']
 
     for artist_folder in artist_folders:
         download_dir = os.path.join(lidarr_download_dir,artist_folder)
