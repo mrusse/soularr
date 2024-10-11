@@ -27,13 +27,15 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
 
         for slskd_track in slskd_tracks:
             slskd_filename = slskd_track['filename']
+
+            #Try to match the ratio with the exact filenames
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
-            #If ratio is a bad match try and split off the garbage at the start of the slskd_filename and try again
-            if ratio < 0.5:
-                lidarr_filename_word_count = len(lidarr_filename.split()) * -1
-                truncated_slskd_filename = " ".join(slskd_filename.split()[lidarr_filename_word_count:])
-                ratio = difflib.SequenceMatcher(None, lidarr_filename, truncated_slskd_filename).ratio()
+            #If ratio is a bad match try and split off (with " " as the seperator) the garbage at the start of the slskd_filename and try again
+            ratio = check_ratio(" ", ratio, lidarr_filename, slskd_filename)
+
+            #Same but with "_" as the seperator
+            ratio = check_ratio("_", ratio, lidarr_filename, slskd_filename)
 
             if ratio > best_match:
                 best_match = ratio
@@ -49,6 +51,15 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
         return True
 
     return False
+
+def check_ratio(separator, ratio, lidarr_filename, slskd_filename):
+    if ratio < 0.5:
+        lidarr_filename_word_count = len(lidarr_filename.split()) * -1
+        truncated_slskd_filename = " ".join(slskd_filename.split(separator)[lidarr_filename_word_count:])
+        ratio = difflib.SequenceMatcher(None, lidarr_filename, truncated_slskd_filename).ratio()
+
+        return ratio
+    return ratio
 
 def album_track_num(directory):
     files = directory['files']
@@ -202,7 +213,8 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                         try:
                             slskd.transfers.enqueue(username = username, files = directory['files'])
                             # Delete the search from SLSKD DB
-                            slskd.searches.delete(search['id'])
+                            if delete_searches:
+                                slskd.searches.delete(search['id'])
                             return True
                         except Exception:
                             print("Error enqueueing tracks! Adding " + username + " to ignored users list.")
@@ -216,7 +228,8 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                             continue
 
     # Delete the search from SLSKD DB
-    slskd.searches.delete(search['id'])
+    if delete_searches:
+        slskd.searches.delete(search['id'])
     return False
 
 def is_blacklisted(title: str) -> bool:
@@ -399,6 +412,7 @@ def grab_most_wanted(albums):
                 completed_count += 1
         if completed_count == len(commands):
             break
+        time.sleep(2)        
 
     for task in commands:
         current_task = lidarr.get_command(task['id'])
@@ -479,6 +493,8 @@ try:
 
     lidarr_host_url = config['Lidarr']['host_url']
     slskd_host_url = config['Slskd']['host_url']
+
+    delete_searches = config['Slskd'].getboolean('delete_searches', True)
 
     search_settings = config['Search Settings']
     ignored_users = search_settings['ignored_users'].split(",")
