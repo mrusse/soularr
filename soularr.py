@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import math
 import re
 import os
@@ -199,6 +201,8 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
 
                         try:
                             slskd.transfers.enqueue(username = username, files = directory['files'])
+                            # Delete the search from SLSKD DB
+                            slskd.searches.delete(search['id'])
                             return True
                         except Exception:
                             print("Error enqueueing tracks! Adding " + username + " to ignored users list.")
@@ -210,6 +214,9 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                                     grab_list.remove(folder_data)
                                     ignored_users.append(username)
                             continue
+
+    # Delete the search from SLSKD DB
+    slskd.searches.delete(search['id'])
     return False
 
 def is_blacklisted(title: str) -> bool:
