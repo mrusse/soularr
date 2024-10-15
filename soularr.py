@@ -10,6 +10,7 @@ import difflib
 import operator
 import traceback
 import configparser
+import argparse
 from datetime import datetime
 
 import music_tag
@@ -448,17 +449,33 @@ def move_failed_import(src_path):
 def is_docker():
     return os.getenv('IN_DOCKER') is not None
 
+def create_argument_parser():
+    ''' Process the command line arguments '''
+
+    parser = argparse.ArgumentParser(description="Soularr")
+
+    cwd = os.getcwd()
+    parser.add_argument("--config_file", help="Path to config file", default="config.ini")
+    parser.add_argument("--config_dir", help="Path to config directory", default=cwd)
+
+    args = parser.parse_args()
+
+    return args
+
+# The follwoing should really be in main()
+arguments = create_argument_parser()
+
 if is_docker():
     lock_file_path = ""
     config_file_path = os.path.join(os.getcwd(), "/data/config.ini")
     failure_file_path = os.path.join(os.getcwd(), "/data/failure_list.txt")
     current_page_file_path = os.path.join(os.getcwd(), "/data/.current_page.txt")
 else:
-    lock_file_path = os.path.join(os.getcwd(), ".soularr.lock")
-    config_file_path = os.path.join(os.getcwd(), "config.ini")
-    failure_file_path = os.path.join(os.getcwd(), "failure_list.txt")
-    current_page_file_path = os.path.join(os.getcwd(), ".current_page.txt")
-    
+    lock_file_path = os.path.join(arguments.config_dir, ".soularr.lock")
+    config_file_path = os.path.join(arguments.config_dir, arguments.config_file)
+    failure_file_path = os.path.join(arguments.config_dir, "failure_list.txt")
+    current_page_file_path = os.path.join(arguments.config_dir, ".current_page.txt")
+
 if os.path.exists(lock_file_path) and not is_docker():
     print(f"Soularr instance is already running.")
     sys.exit(1)
@@ -483,7 +500,6 @@ try:
         if os.path.exists(lock_file_path) and not is_docker():
             os.remove(lock_file_path)
         sys.exit(0)
- 
     slskd_api_key = config['Slskd']['api_key']
     lidarr_api_key = config['Lidarr']['api_key']
 
