@@ -403,7 +403,7 @@ def grab_most_wanted(albums):
         download_dir = os.path.join(lidarr_download_dir,artist_folder)
         command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = download_dir)
         commands.append(command)
-        print("Starting Lidarr import for: " + artist_folder + " ID: " + str(command['id']))
+        print(f"Starting Lidarr import for: {artist_folder} - {album_title} - ID: {str(command['id'])}")
 
     while True:
         completed_count = 0
