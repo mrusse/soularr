@@ -1,1 +1,9 @@
 /.venv
+.venv
+.vscode
+config.ini.*
+run.sh
+.current_page.txt
+.pylintrc
+.gitignore
+.soularr.lock
