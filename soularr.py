@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import math
 import re
 import os
@@ -8,6 +10,7 @@ import difflib
 import operator
 import traceback
 import configparser
+import argparse
 from datetime import datetime
 
 import music_tag
@@ -25,13 +28,15 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
 
         for slskd_track in slskd_tracks:
             slskd_filename = slskd_track['filename']
+
+            #Try to match the ratio with the exact filenames
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
-            #If ratio is a bad match try and split off the garbage at the start of the slskd_filename and try again
-            if ratio < 0.5:
-                lidarr_filename_word_count = len(lidarr_filename.split()) * -1
-                truncated_slskd_filename = " ".join(slskd_filename.split()[lidarr_filename_word_count:])
-                ratio = difflib.SequenceMatcher(None, lidarr_filename, truncated_slskd_filename).ratio()
+            #If ratio is a bad match try and split off (with " " as the seperator) the garbage at the start of the slskd_filename and try again
+            ratio = check_ratio(" ", ratio, lidarr_filename, slskd_filename)
+
+            #Same but with "_" as the seperator
+            ratio = check_ratio("_", ratio, lidarr_filename, slskd_filename)
 
             if ratio > best_match:
                 best_match = ratio
@@ -47,6 +52,15 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
         return True
 
     return False
+
+def check_ratio(separator, ratio, lidarr_filename, slskd_filename):
+    if ratio < 0.5:
+        lidarr_filename_word_count = len(lidarr_filename.split()) * -1
+        truncated_slskd_filename = " ".join(slskd_filename.split(separator)[lidarr_filename_word_count:])
+        ratio = difflib.SequenceMatcher(None, lidarr_filename, truncated_slskd_filename).ratio()
+
+        return ratio
+    return ratio
 
 def album_track_num(directory):
     files = directory['files']
@@ -199,13 +213,24 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
 
                         try:
                             slskd.transfers.enqueue(username = username, files = directory['files'])
+                            # Delete the search from SLSKD DB
+                            if delete_searches:
+                                slskd.searches.delete(search['id'])
                             return True
                         except Exception:
-                            ignored_users.append(username)
-                            grab_list.remove(folder_data)
                             print("Error enqueueing tracks! Adding " + username + " to ignored users list.")
-                            #print(traceback.format_exc())
+                            downloads = slskd.transfers.get_downloads(username)
+
+                            for cancel_directory in downloads["directories"]:
+                                if cancel_directory["directory"] == directory["name"]:
+                                    cancel_and_delete(file_dir.split("\\")[-1], username, cancel_directory["files"])
+                                    grab_list.remove(folder_data)
+                                    ignored_users.append(username)
                             continue
+
+    # Delete the search from SLSKD DB
+    if delete_searches:
+        slskd.searches.delete(search['id'])
     return False
 
 def is_blacklisted(title: str) -> bool:
@@ -340,6 +365,7 @@ def grab_most_wanted(albums):
     for artist_folder in grab_list:
         artist_name = artist_folder['artist_name']
         artist_name_sanitized = sanitize_folder_name(artist_name)
+
         folder = artist_folder['dir']
 
         if artist_folder['release']['mediumCount'] > 1:
@@ -361,7 +387,7 @@ def grab_most_wanted(albums):
                 if not os.path.exists(new_dir):    
                     os.mkdir(new_dir)
 
-                if os.path.exists(os.path.join(folder,filename)):
+                if os.path.exists(os.path.join(folder,filename)) and not os.path.exists(os.path.join(new_dir,filename)):
                     shutil.move(os.path.join(folder,filename),new_dir)
 
             if os.path.exists(folder):        
@@ -377,16 +403,17 @@ def grab_most_wanted(albums):
         download_dir = os.path.join(lidarr_download_dir,artist_folder)
         command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = download_dir)
         commands.append(command)
-        print("Starting Lidarr import for: " + artist_folder + " ID: " + str(command['id']))
+        print(f"Starting Lidarr import for: {artist_folder} - {album_title} - ID: {str(command['id'])}")
 
     while True:
         completed_count = 0
         for task in commands:
             current_task = lidarr.get_command(task['id'])
-            if current_task['status'] == 'completed':
+            if current_task['status'] == 'completed' or current_task['status'] == 'failed':
                 completed_count += 1
         if completed_count == len(commands):
             break
+        time.sleep(2)        
 
     for task in commands:
         current_task = lidarr.get_command(task['id'])
@@ -415,11 +442,28 @@ def move_failed_import(src_path):
         target_path = os.path.join(failed_imports_dir, f"{folder_name}_{counter}")
         counter += 1
     
-    shutil.move(folder_name, target_path)
-    print("Failed import moved to: " + target_path)
+    if os.path.exists(folder_name):
+        shutil.move(folder_name, target_path)
+        print("Failed import moved to: " + target_path)
 
 def is_docker():
     return os.getenv('IN_DOCKER') is not None
+
+def create_argument_parser():
+    ''' Process the command line arguments '''
+
+    parser = argparse.ArgumentParser(description="Soularr")
+
+    cwd = os.getcwd()
+    parser.add_argument("--config_file", help="Path to config file", default="config.ini")
+    parser.add_argument("--config_dir", help="Path to config directory", default=cwd)
+
+    args = parser.parse_args()
+
+    return args
+
+# The follwoing should really be in main()
+arguments = create_argument_parser()
 
 if is_docker():
     lock_file_path = ""
@@ -427,11 +471,11 @@ if is_docker():
     failure_file_path = os.path.join(os.getcwd(), "/data/failure_list.txt")
     current_page_file_path = os.path.join(os.getcwd(), "/data/.current_page.txt")
 else:
-    lock_file_path = os.path.join(os.getcwd(), ".soularr.lock")
-    config_file_path = os.path.join(os.getcwd(), "config.ini")
-    failure_file_path = os.path.join(os.getcwd(), "failure_list.txt")
-    current_page_file_path = os.path.join(os.getcwd(), ".current_page.txt")
-    
+    lock_file_path = os.path.join(arguments.config_dir, ".soularr.lock")
+    config_file_path = os.path.join(arguments.config_dir, arguments.config_file)
+    failure_file_path = os.path.join(arguments.config_dir, "failure_list.txt")
+    current_page_file_path = os.path.join(arguments.config_dir, ".current_page.txt")
+
 if os.path.exists(lock_file_path) and not is_docker():
     print(f"Soularr instance is already running.")
     sys.exit(1)
@@ -456,7 +500,6 @@ try:
         if os.path.exists(lock_file_path) and not is_docker():
             os.remove(lock_file_path)
         sys.exit(0)
- 
     slskd_api_key = config['Slskd']['api_key']
     lidarr_api_key = config['Lidarr']['api_key']
 
@@ -466,6 +509,8 @@ try:
 
     lidarr_host_url = config['Lidarr']['host_url']
     slskd_host_url = config['Slskd']['host_url']
+
+    delete_searches = config['Slskd'].getboolean('delete_searches', True)
 
     search_settings = config['Search Settings']
     ignored_users = search_settings['ignored_users'].split(",")
