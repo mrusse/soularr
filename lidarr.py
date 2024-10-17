@@ -1,19 +1,14 @@
-import operator
-import time
-import music_tag
-from pyarr import LidarrAPI
+from arrs import Arrs
 from pyarr.types import JsonArray, JsonObject
 
-class Lidarr:
-    def __init__(self: object, host_url: str, api_key: str, download_dir: str, accepted_countries: list[str], accepted_formats: list[str], use_most_common_tracknum: bool, allow_multi_disc: bool) -> None:
-        self.lidarr = LidarrAPI(host_url, api_key)
-        self.download_dir = download_dir
-        self.accepted_countries = accepted_countries
-        self.accepted_formats = accepted_formats
+class Lidarr(Arrs):
+    def __init__(self: object, host_url: str, api_key: str, download_dir: str, accepted_countries: list[str], accepted_formats: list[str], use_most_common_tracknum: bool, allow_multi_disc: bool, number_of_albums_to_grab: int, page_size: int) -> None:
+        super().__init__('lidarr', host_url, api_key, download_dir, accepted_formats, accepted_countries, number_of_albums_to_grab, page_size)
         self.use_most_common_tracknum = use_most_common_tracknum
         self.allow_multi_disc = allow_multi_disc
 
-
+    def update_wanted(self, page: int = 1) -> JsonObject:
+        return self.lidarr.get_wanted(page=page, page_size=self.page_size, sort_dir='ascending',sort_key='albums.title')
 
     def release_track_count_mode(releases: JsonArray) -> int | None:
         track_counts: dict = {}
@@ -36,9 +31,6 @@ class Lidarr:
     
     def is_multi_disc(format: str) -> bool:
         return format[1] == 'x'
-    
-    def is_format_accepted(self: object, format: str) -> bool:
-        return format in self.accepted_formats
 
     def choose_release(self: object, album_id: str, artist_name: str) -> JsonObject:
         releases: JsonArray = self.lidarr.get_album(album_id)['releases']
