@@ -12,4 +12,5 @@ class Applications:
             self.slskd = slskd_api.SlskdClient(host_url, api_key, '/')
         else:
             raise ValueError(f"Invalid application type: {type}")
+        self.host_url = host_url
         self.download_dir = download_dir
