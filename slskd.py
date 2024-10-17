@@ -66,6 +66,7 @@ class Slskd(Applications):
 
         return best_match > 0.5, best_match
 
+    # TODO : Make this generic, to handle readarr too
     def is_album_match(self, lidarr_tracks: JsonArray, slskd_tracks: dict, username: str, filetype: str) -> bool:
         counted: list[str] = []
         total_match: float = 0.0
@@ -92,13 +93,6 @@ class Slskd(Applications):
         valid_characters = re.sub(r'[<>:."/\\|?*]', '', folder_name)
         return valid_characters.strip()
 
-    def is_blacklisted(self, title: str) -> bool:
-        for word in self.title_blacklist:
-            if word != '' and word in title.lower():
-                print(f"Skipping {title} due to blacklisted word: {word}")
-                return True
-        return False
-
     def initiate_search(self, query: str) -> dict:
         return self.slskd.searches.search_text(
             searchText = query,
@@ -114,7 +108,7 @@ class Slskd(Applications):
                 break
             time.sleep(1)
 
-    def process_search_results(self, search: dict, tracks: JsonArray, artist_name: str, release: JsonObject) -> list[dict]:
+    def process_search_results(self, search: dict, tracks: JsonArray, track: JsonObject, artist_name: str, release: JsonObject) -> list[dict]:
         grab_list: list[dict] = []
         results = self.slskd.searches.search_responses(search['id'])
         print(f"Search returned {len(results)} results")
@@ -130,7 +124,7 @@ class Slskd(Applications):
                         continue
                     tracks_info = self.get_track_info(directory['files'])
                     if tracks_info['count'] == len(tracks) and tracks_info['filetype'] != "" and self.is_album_match(tracks, directory['files'], username, tracks_info['filetype']):
-                        folder_data = self.get_folder_data(directory, file_dir, artist_name, release, tracks[0], username)
+                        folder_data = self.get_folder_data(directory, file_dir, artist_name, release, track, username)
                         grab_list.append(folder_data)
         return grab_list    
     
@@ -145,7 +139,7 @@ class Slskd(Applications):
             "directory": directory,
         }
     
-    def download_files(self, grab_list: list[dict]) -> bool:
+    def enqueue_files(self, grab_list: list[dict]) -> bool:
         for folder_data in grab_list:
             try:
                 self.slskd.transfers.enqueue(username=folder_data['username'], files=folder_data['directory']['files'])
@@ -156,8 +150,79 @@ class Slskd(Applications):
                 print(f"Error enqueueing tracks! Adding {folder_data['username']} to ignored users list.")
                 return False
 
-    def search_and_download(self, query: str, tracks: JsonArray, artist_name: str, release: JsonObject) -> bool:
+
+    def print_all_downloads(self):
+        downloads = self.slskd.transfers.get_all_downloads()
+        print("Downloads added: ")
+        for download in downloads:
+            username = download['username']
+            for dir in download['directories']:
+                print(f"Username: {username} Directory: {dir['directory']}")
+
+
+    def monitor_downloads(self, grab_list: list[dict]):
+        while True:
+            unfinished = 0
+            for folder in grab_list:
+                username, dir = folder['username'], folder['directory']
+                downloads = self.slskd.transfers.get_downloads(username)
+                unfinished += self.process_folder(username, dir, folder, grab_list, downloads)
+            
+            if unfinished == 0:
+                print("All tracks finished downloading!")
+                time.sleep(5)
+                break
+
+            time.sleep(10)
+
+
+    def process_folder(self, username: str, dir: str, folder: dict, grab_list: list[dict], downloads: dict) -> int:
+        unfinished = 0
+        for directory in downloads["directories"]:
+            if directory["directory"] == dir["name"]:
+                errored_files = self.get_errored_files(directory["files"])
+                pending_files = self.get_pending_files(directory["files"])
+
+                if len(errored_files) > 0:
+                    print(f"FAILED: Username: {username} Directory: {dir}")
+                    self.cancel_and_delete(folder['dir'], folder['username'], files)
+                    grab_list.remove(folder)
+                elif len(pending_files) > 0:
+                    unfinished += 1
+        
+        return unfinished
+
+
+    def get_errored_files(files: list[dict]) -> list[dict]:
+        return [file for file in files if file["state"] in [
+            'Completed, Cancelled',
+            'Completed, TimedOut',
+            'Completed, Errored',
+            'Completed, Rejected',
+        ]]
+
+
+    def get_pending_files(files: list[dict]) -> list[dict]:
+        return [file for file in files if not 'Completed' in file["state"]]
+
+
+    def search_and_download(self, query: str, tracks: JsonArray, track: JsonObject, artist_name: str, release: JsonObject) -> bool:
         search = self.initiate_search(query)
         self.wait_for_search_completion(search)
-        grab_list: list[dict] = self.process_search_results(search, tracks, artist_name, release)
-        return self.download_files(grab_list)
+        grab_list: list[dict] = self.process_search_results(search, tracks, track, artist_name, release)
+        return self.enqueue_files(grab_list)
+    
+    def move_failed_import(src_path: str) -> None:
+        failed_imports_dir = "failed_imports"
+        counter = 1
+        if not os.path.exists(failed_imports_dir):
+            os.makedirs(failed_imports_dir)
+        folder_name = os.path.basename(src_path)
+        target_path = os.path.join(failed_imports_dir, folder_name)
+        
+        while os.path.exists(target_path):
+            target_path = os.path.join(failed_imports_dir, f"{folder_name}_{counter}")
+            counter += 1
+        
+        shutil.move(folder_name, target_path)
+        print(f"Failed import moved to: {target_path}")
