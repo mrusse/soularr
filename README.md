@@ -53,6 +53,8 @@ api_key = yourslskdapikeygoeshere
 host_url = http://localhost:5030
 #Slskd download directory. Should have set it up when installing Slskd.
 download_dir = /path/to/your/Slskd/downloads
+#Removes searches from Slskd after the search finishes.
+delete_searches = False
 
 [Release Settings]
 #Selects the release with the most common amount of tracks out of all the releases.
