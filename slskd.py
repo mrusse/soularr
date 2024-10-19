@@ -1,6 +1,5 @@
 import difflib
 import os
-import re
 import shutil
 import time
 from pyarr.types import JsonArray, JsonObject
@@ -50,7 +49,6 @@ class Slskd(Applications):
     def is_lidarr_track_in_slskd_tracks(self, lidarr_track: JsonObject, slskd_tracks: dict, filetype: str) -> tuple[bool, float]:
         lidarr_filename: str = lidarr_track['title'] + filetype
         best_match: float = 0.0
-
         for slskd_track in slskd_tracks:
             slskd_filename: str = slskd_track['filename']
             ratio: float = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
@@ -60,23 +58,19 @@ class Slskd(Applications):
                 lidarr_filename_word_count: int = len(lidarr_filename.split()) * -1
                 truncated_slskd_filename: str = " ".join(slskd_filename.split()[lidarr_filename_word_count:])
                 ratio = difflib.SequenceMatcher(None, lidarr_filename, truncated_slskd_filename).ratio()
-
             if ratio > best_match:
                 best_match = ratio
-
         return best_match > 0.5, best_match
 
     # TODO : Make this generic, to handle readarr too
     def is_album_match(self, lidarr_tracks: JsonArray, slskd_tracks: dict, username: str, filetype: str) -> bool:
         counted: list[str] = []
         total_match: float = 0.0
-
         for lidarr_track in lidarr_tracks:
             is_match, best_match = self.is_lidarr_track_in_slskd_tracks(lidarr_track, slskd_tracks, filetype)
             if is_match:
                 counted.append(lidarr_track['title'])
                 total_match += best_match
-
         if len(counted) == len(lidarr_tracks) and username not in self.ignored_users:
             print(f"\nFound match from user: {username} for {len(counted)} tracks! \nAverage sequence match ratio: {total_match/len(counted)} \nSUCCESSFUL MATCH \n-------------------")
             return True
@@ -88,10 +82,6 @@ class Slskd(Applications):
         os.chdir(self.download_dir)
         if os.path.exists(delete_dir):
             shutil.rmtree(delete_dir)
-
-    def sanitize_folder_name(folder_name: str) -> str:
-        valid_characters = re.sub(r'[<>:."/\\|?*]', '', folder_name)
-        return valid_characters.strip()
 
     def initiate_search(self, query: str) -> dict:
         return self.slskd.searches.search_text(
@@ -114,7 +104,7 @@ class Slskd(Applications):
         print(f"Search returned {len(results)} results")
         for result in results:
             username: str = result['username']
-            print("Parsing result from user: " + username)
+            print(f"Parsing result from user: {username}")
             for file in result['files']:
                 if file['filename'].split(".")[-1] in self.allowed_filetypes:
                     file_dir = file['filename'].rsplit("\\", 1)[0]
@@ -124,20 +114,22 @@ class Slskd(Applications):
                         continue
                     tracks_info = self.get_track_info(directory['files'])
                     if tracks_info['count'] == len(tracks) and tracks_info['filetype'] != "" and self.is_album_match(tracks, directory['files'], username, tracks_info['filetype']):
-                        folder_data = self.get_folder_data(directory, file_dir, artist_name, release, track, username)
+                        folder_data = self.get_folder_data(directory, file_dir, artist_name, release, username, track)
                         grab_list.append(folder_data)
         return grab_list    
     
-    def get_folder_data(directory: dict, file_dir: str, artist_name: str, release: JsonObject, track: JsonObject, username: str) -> dict:
+    def get_folder_data(self, directory: dict, file_dir: str, creator: str, release: JsonObject, username: str, track: JsonObject = None) -> dict:
         directory['files'] = [{**file, 'filename': f"{file_dir}\\{file['filename']}"} for file in directory['files']]
-        return {
-            "artist_name": artist_name,
+        folder_data = {
+            "creator": creator,
             "release": release,
             "dir": file_dir.split("\\")[-1],
-            "discnumber": track['mediumNumber'],
             "username": username,
             "directory": directory,
         }
+        if track:
+            folder_data['discnumber'] = track['mediumNumber']
+        return folder_data
     
     def enqueue_files(self, grab_list: list[dict]) -> bool:
         for folder_data in grab_list:
@@ -148,7 +140,8 @@ class Slskd(Applications):
                 self.ignored_users.append(folder_data['username'])
                 grab_list.remove(folder_data)
                 print(f"Error enqueueing tracks! Adding {folder_data['username']} to ignored users list.")
-                return False
+                continue
+        return False
 
 
     def print_all_downloads(self):
@@ -160,19 +153,17 @@ class Slskd(Applications):
                 print(f"Username: {username} Directory: {dir['directory']}")
 
 
-    def monitor_downloads(self, grab_list: list[dict]):
+    def monitor_downloads(self, grab_list: list[dict]) -> list[dict]:
         while True:
             unfinished = 0
             for folder in grab_list:
                 username, dir = folder['username'], folder['directory']
                 downloads = self.slskd.transfers.get_downloads(username)
                 unfinished += self.process_folder(username, dir, folder, grab_list, downloads)
-            
             if unfinished == 0:
                 print("All tracks finished downloading!")
                 time.sleep(5)
-                break
-
+                return grab_list
             time.sleep(10)
 
 
@@ -182,16 +173,13 @@ class Slskd(Applications):
             if directory["directory"] == dir["name"]:
                 errored_files = self.get_errored_files(directory["files"])
                 pending_files = self.get_pending_files(directory["files"])
-
                 if len(errored_files) > 0:
                     print(f"FAILED: Username: {username} Directory: {dir}")
-                    self.cancel_and_delete(folder['dir'], folder['username'], files)
+                    self.cancel_and_delete(folder['dir'], folder['username'], directory["files"])
                     grab_list.remove(folder)
                 elif len(pending_files) > 0:
                     unfinished += 1
-        
         return unfinished
-
 
     def get_errored_files(files: list[dict]) -> list[dict]:
         return [file for file in files if file["state"] in [
@@ -202,7 +190,7 @@ class Slskd(Applications):
         ]]
 
 
-    def get_pending_files(files: list[dict]) -> list[dict]:
+    def get_pending_files(files: list[dict]) -> bool:
         return [file for file in files if not 'Completed' in file["state"]]
 
 
