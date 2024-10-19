@@ -1,4 +1,6 @@
 from datetime import datetime
+import os
+import music_tag
 from arrs import Arrs
 from pyarr.types import JsonArray, JsonObject
 
@@ -24,6 +26,9 @@ class Lidarr(Arrs):
 
     def get_wanted(self, page: int = 1) -> JsonObject:
         return self.lidarr.get_wanted(page=page, page_size=self.page_size, sort_dir='ascending',sort_key='albums.title')
+    
+    def get_title(self, release: JsonObject) -> str:
+        return self.lidarr.get_album(albumIds = release['albumId'])['title']
 
     def release_track_count_mode(releases: JsonArray) -> int | None:
         track_counts: dict = {}
@@ -119,6 +124,39 @@ class Lidarr(Arrs):
                         else:
                             print(f"ERROR: Failed to grab album: {record['title']} for artist: {artist_name}")
                         failed_downloads += 1
-            # success = False
-
+            success = False
         return failed_downloads
+    
+    def retag_file(self, release_name: str, filename: str, path: str, folder: dict) -> None:
+        creator = folder['creator']
+        if filename.split(".")[-1] in self.accepted_formats:
+            song = music_tag.load_file(path)
+            song['artist'] = creator
+            song['albumartist'] = creator
+            song['album'] = release_name
+            song['discnumber'] = folder['discnumber']
+            song.save()
+
+    def import_downloads(self, creator_folders: list[str]) -> None:
+        import_commands = []
+        for creator_folder in creator_folders:
+            task = self.lidarr.post_command(name = 'DownloadedAlbumsScan', path = os.path.join(self.download_dir, creator_folder))
+            import_commands.append(task)
+            print(f"Starting Lidarr import for: {creator_folder} ID: {task['id']}")
+
+        while True:
+            completed_count = 0
+            for task in import_commands:
+                current_task = self.lidarr.get_command(task['id'])
+                if current_task['status'] == 'completed':
+                    completed_count += 1
+            if completed_count == len(import_commands):
+                break
+
+        for task in import_commands:
+            current_task = self.lidarr.get_command(task['id'])
+            try:
+                print(f"{current_task['commandName']} {current_task['message']} from: {current_task['body']['path']}")
+            except:
+                print("Error printing lidarr task message. Printing full unparsed message.")
+                print(current_task)
