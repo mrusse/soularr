@@ -15,6 +15,18 @@ class Arrs(Applications):
         self.prepend_creator = prepend_creator
         self.remove_wanted_on_failure = remove_wanted_on_failure
 
+    def get_wanted(self, page: int = 1) -> JsonObject:
+        raise NotImplementedError(f"get_wanted must be implemented in {self.__class__.__name__}")
+    
+    def get_title(self, release: JsonObject) -> str:
+        raise NotImplementedError(f"get_title must be implemented in {self.__class__.__name__}")
+    
+    def retag_file(self, release_name: str, filename: str, path: str, folder: dict) -> None:
+        raise NotImplementedError(f"retag_file must be implemented in {self.__class__.__name__}")
+    
+    def import_downloads(self, creator_folders: list[str]) -> None:
+        raise NotImplementedError(f"import_downloads must be implemented in {self.__class__.__name__}")
+
     def is_format_accepted(self, format: str) -> bool:
         return format in self.accepted_formats
     
@@ -24,9 +36,6 @@ class Arrs(Applications):
                 print(f"Skipping {title} due to blacklisted word: {word}")
                 return True
         return False
-    
-    def get_wanted(self, page: int = 1) -> JsonObject:
-        raise NotImplementedError("get_wanted must be implemented in each arr subclass")
     
     def get_current_pages(self) -> dict:
         if os.path.exists(self.current_page_file_path):
