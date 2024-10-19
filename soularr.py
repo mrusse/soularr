@@ -1,4 +1,7 @@
+import operator
 import os
+import re
+import shutil
 import sys
 import configparser
 import traceback
@@ -53,10 +56,27 @@ class Soularr:
                 self.search_settings.getboolean("search_for_tracks", True)
             )
             self.lidarr_wanted_records = self.lidarr_instance.get_wanted_records()
+            if len(self.lidarr_wanted_records) > 0:
+                failed_downloads = self.lidarr_instance.grab_releases(self.slskd_instance, self.lidarr_wanted_records, self.failure_file_path)
+                # TODO: can abstract
+                self.slskd_instance.print_all_downloads()
+                print(f"-------------------\nWaiting for downloads... monitor at: {self.slskd_instance.host_url}/downloads")
+                grab_list: list[dict] = self.slskd_instance.monitor_downloads(self.lidarr_wanted_records)
+                os.chdir(self.slskd_instance.download_dir)
+                self.move_downloads(grab_list.sort(key=operator.itemgetter('creator')), self.lidarr_instance)
+                self.lidarr_instance.import_downloads(next(os.walk('.'))[1])
+                soularr.handle_downloads(failed_downloads)
 
         if is_readarr_enabled:
-            # self.readarr_instance = readarr.Readarr()
             pass
+            # TODO
+            # self.readarr_instance = readarr.Readarr()
+            # self.readarr_wanted_records = self.readarr_instance.get_wanted_records()
+            # if len(self.readarr_wanted_records) > 0:
+                # 
+            
+        if not getattr(self, 'lidarr_wanted_records', None) and not getattr(self, 'readarr_wanted_records', None):
+            print("No releases wanted. Exiting...")
 
     def is_docker() -> bool:
         return os.getenv('IN_DOCKER') is not None
@@ -89,6 +109,10 @@ class Soularr:
             os.remove(self.lock_file_path)
         sys.exit(0)
     
+    def sanitize_folder_name(folder_name: str) -> str:
+        valid_characters = re.sub(r'[<>:."/\\|?*]', '', folder_name)
+        return valid_characters.strip()
+
     def handle_downloads(self, failed_downloads: int) -> None:
         if failed_downloads == 0:
             print("Solarr finished. Exiting...")
@@ -97,22 +121,30 @@ class Soularr:
             print(e)
         self.slskd_instance.slskd.transfers.remove_completed_downloads()
 
+    def move_downloads(self, grab_list: list[dict], arr_instance: object):
+        for folder in grab_list:
+            creator = folder['creator']
+            dir = folder['dir']
+
+            if folder['release']['mediumCount'] > 1:
+                for filename in os.listdir(dir):
+                    name = arr_instance.get_title(folder['release'])
+                    arr_instance.retag_file(name, filename, os.path.join(dir, filename), folder)
+                    new_dir = os.path.join(creator, self.sanitize_folder_name(name))
+
+                    if not os.path.exists(creator):
+                        os.mkdir(creator)
+                    if not os.path.exists(new_dir):    
+                        os.mkdir(new_dir)
+
+                    shutil.move(os.path.join(dir, filename), new_dir)
+                shutil.rmtree(dir)
+            else:
+                shutil.move(dir, creator)
+
 if __name__ == "__main__":
     try:
         soularr = Soularr()
-        if len(soularr.lidarr_wanted_records) > 0:
-            failed_downloads = soularr.lidarr_instance.grab_releases(soularr.slskd_instance, soularr.lidarr_wanted_records, soularr.failure_file_path)
-            soularr.slskd_instance.print_all_downloads()
-            print(f"-------------------\nWaiting for downloads... monitor at: {soularr.slskd_instance.host_url}/downloads")
-            soularr.slskd_instance.monitor_downloads(soularr.lidarr_wanted_records)
-
-
-            soularr.handle_downloads(failed_downloads)
-        if len(soularr.readarr_wanted_records) > 0:
-            failed_downloads = soularr.readarr_instance.grab_releases(soularr.readarr_wanted_records)
-            soularr.handle_downloads(failed_downloads)
-        if len(soularr.lidarr_wanted_records) == 0 and len(soularr.readarr_wanted_records) == 0:
-            print("No releases wanted. Exiting...")
     except Exception:
         print(f"{traceback.format_exc()}\n Fatal error! Exiting...")
     finally:
