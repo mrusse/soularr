@@ -15,11 +15,12 @@ class Lidarr(Arrs):
             use_most_common_tracknum: bool,
             allow_multi_disc: bool,
             number_of_albums_to_grab: int,
+            search_type: str,
             album_prepend_artist: bool,
             search_for_tracks: bool,
             remove_wanted_on_failure: bool
         ) -> None:
-        super().__init__('lidarr', host_url, api_key, download_dir, accepted_formats, accepted_countries, number_of_albums_to_grab, album_prepend_artist, remove_wanted_on_failure)
+        super().__init__('lidarr', host_url, api_key, download_dir, accepted_formats, accepted_countries, number_of_albums_to_grab, search_type, album_prepend_artist, remove_wanted_on_failure)
         self.use_most_common_tracknum = use_most_common_tracknum
         self.allow_multi_disc = allow_multi_disc
         self.search_for_tracks = search_for_tracks
@@ -30,10 +31,10 @@ class Lidarr(Arrs):
     def get_title(self, release: JsonObject) -> str:
         return self.lidarr.get_album(albumIds = release['albumId'])['title']
 
-    def release_track_count_mode(releases: JsonArray) -> int | None:
+    def release_track_count_mode(releases: JsonArray) -> int:
         track_counts: dict = {}
         max_count: int = 0
-        most_common_track_count: int | None = None
+        most_common_track_count: int = -1
 
         for release in releases:
             track_count = release['trackCount']
@@ -74,7 +75,7 @@ class Lidarr(Arrs):
             default_release = releases[0]
         return default_release
     
-    def grab_album(self, record: JsonObject) -> tuple[str, JsonArray, str, JsonObject] | None:
+    def grab_album(self, record: JsonObject) -> tuple[str, JsonArray, str, JsonObject]:
         artist_name = record['artist']['artistName']
         artist_id = record['artistId']
         album_id = record['id']
@@ -119,8 +120,9 @@ class Lidarr(Arrs):
                             print(f"ERROR: Failed to grab album: {record['title']} for artist: {artist_name}\n Failed album removed from wanted list and added to \"failure_list.txt\"")
                             record['monitored'] = False
                             self.lidarr.upd_album(record)
+                            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             with open(failure_file_path, "a") as file:
-                                file.write(f"{datetime.now().strftime("%d/%m/%Y %H:%M:%S")} - {artist_name}, {record['title']}, {record["id"]}\n")
+                                file.write(f"{timestamp} - {artist_name}, {record['title']}, {record['id']}\n")
                         else:
                             print(f"ERROR: Failed to grab album: {record['title']} for artist: {artist_name}")
                         failed_downloads += 1
