@@ -8,8 +8,8 @@ from applications import Applications
 class Slskd(Applications):
     def __init__(
             self,
-            api_key: str,
             host_url: str,
+            api_key: str,
             download_dir: str,
             search_timeout: int,
             maximum_peer_queue: int,
@@ -18,9 +18,8 @@ class Slskd(Applications):
             ignored_users: list[str],
             title_blacklist: list[str],
             remove_wanted_on_failure: bool,
-            search_type: str,
         ) -> None:
-        super().__init__(api_key, host_url, download_dir)
+        super().__init__('slskd', api_key, host_url, download_dir)
         self.search_timeout = search_timeout
         self.maximum_peer_queue = maximum_peer_queue
         self.minimum_peer_upload_speed = minimum_peer_upload_speed
@@ -28,7 +27,6 @@ class Slskd(Applications):
         self.ignored_users = ignored_users
         self.title_blacklist = title_blacklist
         self.remove_wanted_on_failure = remove_wanted_on_failure
-        self.search_type = search_type
 
     def get_tracks_info(self, files: dict) -> dict:
         count = 0
