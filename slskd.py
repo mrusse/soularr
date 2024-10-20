@@ -18,7 +18,7 @@ class Slskd(Applications):
             ignored_users: list[str],
             remove_wanted_on_failure: bool,
         ) -> None:
-        super().__init__('slskd', api_key, host_url, download_dir)
+        super().__init__('slskd', host_url, api_key, download_dir)
         self.search_timeout = search_timeout
         self.maximum_peer_queue = maximum_peer_queue
         self.minimum_peer_upload_speed = minimum_peer_upload_speed
@@ -108,7 +108,7 @@ class Slskd(Applications):
                         directory = self.slskd.users.directory(username=username, directory=file_dir)
                     except:
                         continue
-                    tracks_info = self.get_track_info(directory['files'])
+                    tracks_info = self.get_tracks_info(directory['files'])
                     if tracks_info['count'] == len(tracks) and tracks_info['filetype'] != "" and self.is_album_match(tracks, directory['files'], username, tracks_info['filetype']):
                         folder_data = self.get_folder_data(directory, file_dir, artist_name, release, username, track)
                         grab_list.append(folder_data)
@@ -149,7 +149,7 @@ class Slskd(Applications):
                 print(f"Username: {username} Directory: {dir['directory']}")
 
 
-    def monitor_downloads(self, grab_list: list[dict]) -> list[dict]:
+    def monitor_downloads(self, grab_list: list[dict]) -> None:
         while True:
             unfinished = 0
             for folder in grab_list:
@@ -159,7 +159,7 @@ class Slskd(Applications):
             if unfinished == 0:
                 print("All tracks finished downloading!")
                 time.sleep(5)
-                return grab_list
+                break
             time.sleep(10)
 
 
@@ -190,11 +190,11 @@ class Slskd(Applications):
         return [file for file in files if not 'Completed' in file["state"]]
 
 
-    def search_and_download(self, query: str, tracks: JsonArray, track: JsonObject, artist_name: str, release: JsonObject) -> bool:
+    def search_and_download(self, query: str, tracks: JsonArray, track: JsonObject, artist_name: str, release: JsonObject) -> tuple[bool, list[dict]]:
         search = self.initiate_search(query)
         self.wait_for_search_completion(search)
         grab_list: list[dict] = self.process_search_results(search, tracks, track, artist_name, release)
-        return self.enqueue_files(grab_list)
+        return (self.enqueue_files(grab_list), grab_list)
     
     def move_failed_import(src_path: str) -> None:
         failed_imports_dir = "failed_imports"
