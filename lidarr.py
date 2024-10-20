@@ -10,6 +10,7 @@ class Lidarr(Arrs):
             host_url: str,
             api_key: str,
             download_dir: str,
+            current_page_file_path: str,
             accepted_countries: list[str],
             accepted_formats: list[str],
             use_most_common_tracknum: bool,
@@ -20,7 +21,7 @@ class Lidarr(Arrs):
             search_for_tracks: bool,
             remove_wanted_on_failure: bool
         ) -> None:
-        super().__init__('lidarr', host_url, api_key, download_dir, accepted_formats, accepted_countries, number_of_albums_to_grab, search_type, album_prepend_artist, remove_wanted_on_failure)
+        super().__init__('lidarr', host_url, api_key, download_dir, current_page_file_path, accepted_formats, accepted_countries, number_of_albums_to_grab, search_type, album_prepend_artist, remove_wanted_on_failure)
         self.use_most_common_tracknum = use_most_common_tracknum
         self.allow_multi_disc = allow_multi_disc
         self.search_for_tracks = search_for_tracks

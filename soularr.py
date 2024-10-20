@@ -56,6 +56,7 @@ class Soularr:
                     self.lidarr_settings.get("host_url"),
                     self.lidarr_settings.get("api_key"),
                     self.lidarr_settings.get("download_dir"),
+                    self.current_page_file_path,
                     self.release_settings.get("accepted_countries", "Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada").split(","),
                     self.release_settings.get("accepted_formats", "CD,Digital Media,Vinyl").split(","),
                     self.release_settings.getboolean("use_most_common_tracknum", True),
