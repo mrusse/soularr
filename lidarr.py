@@ -13,6 +13,7 @@ class Lidarr(Arrs):
             current_page_file_path: str,
             accepted_countries: list[str],
             accepted_formats: list[str],
+            title_blacklist: list[str],
             use_most_common_tracknum: bool,
             allow_multi_disc: bool,
             number_of_albums_to_grab: int,
@@ -21,7 +22,7 @@ class Lidarr(Arrs):
             search_for_tracks: bool,
             remove_wanted_on_failure: bool
         ) -> None:
-        super().__init__('lidarr', host_url, api_key, download_dir, current_page_file_path, accepted_formats, accepted_countries, number_of_albums_to_grab, search_type, album_prepend_artist, remove_wanted_on_failure)
+        super().__init__('lidarr', host_url, api_key, download_dir, current_page_file_path, accepted_formats, accepted_countries, title_blacklist, number_of_albums_to_grab, search_type, album_prepend_artist, remove_wanted_on_failure)
         self.use_most_common_tracknum = use_most_common_tracknum
         self.allow_multi_disc = allow_multi_disc
         self.search_for_tracks = search_for_tracks
@@ -32,7 +33,7 @@ class Lidarr(Arrs):
     def get_title(self, release: JsonObject) -> str:
         return self.lidarr.get_album(albumIds = release['albumId'])['title']
 
-    def release_track_count_mode(releases: JsonArray) -> int:
+    def release_track_count_mode(self, releases: JsonArray) -> int:
         track_counts: dict = {}
         max_count: int = 0
         most_common_track_count: int = -1
@@ -51,7 +52,7 @@ class Lidarr(Arrs):
 
         return most_common_track_count
     
-    def is_multi_disc(format: str) -> bool:
+    def is_multi_disc(self, format: str) -> bool:
         return format[1] == 'x'
 
     def choose_release(self: object, album_id: str, artist_name: str) -> JsonObject:

@@ -5,12 +5,27 @@ from applications import Applications
 from pyarr.types import JsonObject
 
 class Arrs(Applications):
-    def __init__(self, type: str, host_url: str, api_key: str, download_dir: str, current_page_file_path, accepted_formats: list[str], accepted_countries: list[str], page_size: int, search_type: str, prepend_creator: bool, remove_wanted_on_failure: bool) -> None:
+    def __init__(
+            self,
+            type: str,
+            host_url: str,
+            api_key: str,
+            download_dir: str,
+            current_page_file_path,
+            accepted_formats: list[str],
+            accepted_countries: list[str],
+            title_blacklist: list[str],
+            page_size: int,
+            search_type: str,
+            prepend_creator: bool,
+            remove_wanted_on_failure: bool
+        ) -> None:
         super().__init__(type, host_url, api_key, download_dir)
         self.current_page_file_path = current_page_file_path
         self.type = type
         self.accepted_formats = accepted_formats
         self.accepted_countries = accepted_countries
+        self.title_blacklist = title_blacklist
         self.page_size = page_size
         self.search_type = search_type
         self.prepend_creator = prepend_creator

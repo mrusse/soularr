@@ -47,7 +47,6 @@ class Soularr:
                 self.search_settings.getint("minimum_peer_upload_speed", 0),
                 self.search_settings.get("allowed_filetypes", "flac,mp3").split(","),
                 self.search_settings.get("ignored_users").split(","),
-                self.search_settings.get("title_blacklist").split(","),
                 self.remove_wanted_on_failure
             )
 
@@ -59,6 +58,7 @@ class Soularr:
                     self.current_page_file_path,
                     self.release_settings.get("accepted_countries", "Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada").split(","),
                     self.release_settings.get("accepted_formats", "CD,Digital Media,Vinyl").split(","),
+                    self.search_settings.get("title_blacklist").split(","),
                     self.release_settings.getboolean("use_most_common_tracknum", True),
                     self.release_settings.getboolean("allow_multi_disc", True),
                     self.release_settings.getint("number_of_albums_to_grab", 10),

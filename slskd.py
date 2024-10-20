@@ -16,7 +16,6 @@ class Slskd(Applications):
             minimum_peer_upload_speed: int,
             allowed_filetypes: list[str],
             ignored_users: list[str],
-            title_blacklist: list[str],
             remove_wanted_on_failure: bool,
         ) -> None:
         super().__init__('slskd', api_key, host_url, download_dir)
@@ -25,7 +24,6 @@ class Slskd(Applications):
         self.minimum_peer_upload_speed = minimum_peer_upload_speed
         self.allowed_filetypes = allowed_filetypes
         self.ignored_users = ignored_users
-        self.title_blacklist = title_blacklist
         self.remove_wanted_on_failure = remove_wanted_on_failure
 
     def get_tracks_info(self, files: dict) -> dict:
