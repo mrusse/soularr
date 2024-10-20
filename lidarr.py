@@ -91,31 +91,45 @@ class Lidarr(Arrs):
             if self.is_blacklisted(album_title):
                 return (None, [], artist_name, release)
             query = f"{artist_name} {album_title}" if self.prepend_creator or len(album_title) == 1 else album_title
+        else:
+            return (None, [], artist_name, release)
         return (query, all_tracks, artist_name, release)
+    
+    def grab_tracks(self, release: JsonObject, all_tracks: JsonArray):
+        for media in release['media']:
+            tracks = []
+            for track in all_tracks:
+                if track['mediumNumber'] == media['mediumNumber']:
+                    tracks.append(track)
+        return tracks
+    
+    def grab_track(self, track: JsonObject, artist_name: str):
+        if self.is_blacklisted(track['title']):
+            return None
+        query = f"{artist_name} {track['title']}" if self.prepend_creator or len(track['title']) == 1 else track['title']
+        return query
+                
 
-    def grab_releases(self, slskd_instance: object, wanted_records: JsonArray, failure_file_path: str) -> int:
+    def grab_releases(self, slskd_instance: object, wanted_records: JsonArray, failure_file_path: str) -> tuple[int, list[dict]]:
         failed_downloads = 0
         for record in wanted_records:
             (query, all_tracks, artist_name, release) = self.grab_album(record)
-            if query is None:
-                continue
-            print(f"Searching album: {query}")
-            success = slskd_instance.search_and_download(query, all_tracks, all_tracks[0], artist_name, release)
-
+            if query is not None:
+                print(f"Searching album: {query}")
+                (success, grab_list)  = slskd_instance.search_and_download(query, all_tracks, all_tracks[0], artist_name, release)
+            else:
+                success = False
+            
             if not success and self.search_for_tracks:
-                for media in release['media']:
-                    tracks = []
-                    for track in all_tracks:
-                        if track['mediumNumber'] == media['mediumNumber']:
-                            tracks.append(track)
-                    for track in tracks:
-                        if self.is_blacklisted(track['title']):
-                            continue
-                        query = f"{artist_name} {track['title']}" if self.prepend_creator or len(track['title']) == 1 else track['title']
-                        print(f"Searching track: {query}")
-                        success = slskd_instance.search_and_download(query, tracks, track, artist_name, release)
-                        if success:
-                            break
+                tracks = self.grab_tracks(release, all_tracks)
+                for track in tracks:
+                    query = self.grab_track(track, artist_name)
+                    if query is None:
+                        continue
+                    print(f"Searching track: {query}")
+                    (success, grab_list) = slskd_instance.search_and_download(query, tracks, track, artist_name, release)
+                    if success:
+                        break
 
                     if not success:
                         if self.remove_wanted_on_failure:
@@ -129,7 +143,7 @@ class Lidarr(Arrs):
                             print(f"ERROR: Failed to grab album: {record['title']} for artist: {artist_name}")
                         failed_downloads += 1
             success = False
-        return failed_downloads
+        return (failed_downloads, grab_list)
     
     def retag_file(self, release_name: str, filename: str, path: str, folder: dict) -> None:
         creator = folder['creator']
