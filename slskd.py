@@ -123,7 +123,7 @@ class Slskd(Applications):
                     directory = self.get_user_directory(username, file_dir)
                     if directory is None:
                         continue
-                    folder_data = self.get_folder_data(directory, file_dir, creator_name, username)
+                    folder_data = self.get_folder_data(is_lidarr_search, directory, file_dir, creator_name, username)
                     grab_list.append(folder_data)
                     is_successful = self.enqueue_files(grab_list, folder_data)
                     if is_successful:
@@ -136,15 +136,20 @@ class Slskd(Applications):
         except:
             return None
     
-    def get_folder_data(self, directory: dict, file_dir: str, creator: str, username: str, release: JsonObject = None, track: JsonObject = None) -> dict:
-        directory['files'] = [{**file, 'filename': f"{file_dir}\\{file['filename']}"} for file in directory['files']]
+    def get_folder_data(self, is_lidarr_search: bool, directory: dict, file_dir: str, creator: str, username: str, release: JsonObject = None, track: JsonObject = None) -> dict:
+        wanted_files = []
+        for file in directory['files']:
+            filetype = file['filename'].split(".")[-1]
+            if (filetype in self.allowed_filetypes and is_lidarr_search) or (filetype in self.readarr_allowed_filetypes and not is_lidarr_search):
+                wanted_files.append({**file, 'filename': f"{file_dir}\\{file['filename']}"})
+        directory['files'] = wanted_files
         folder_data = {
             "creator": creator,
             "dir": file_dir.split("\\")[-1],
             "username": username,
             "directory": directory,
         }
-        if track and release:
+        if is_lidarr_search:
             folder_data['discnumber'] = track['mediumNumber']
             folder_data['release'] = release
         return folder_data
