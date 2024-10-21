@@ -94,7 +94,7 @@ class Slskd(Applications):
                 break
             time.sleep(1)
 
-    def process_search_results(self, search: dict, tracks: JsonArray, track: JsonObject, artist_name: str, release: JsonObject) -> list[dict]:
+    def process_search_results(self, search: dict, tracks: JsonArray, track: JsonObject, artist_name: str, release: JsonObject) -> tuple[bool, list[dict]]:
         grab_list: list[dict] = []
         results = self.slskd.searches.search_responses(search['id'])
         print(f"Search returned {len(results)} results")
@@ -112,7 +112,10 @@ class Slskd(Applications):
                     if tracks_info['count'] == len(tracks) and tracks_info['filetype'] != "" and self.is_album_match(tracks, directory['files'], username, tracks_info['filetype']):
                         folder_data = self.get_folder_data(directory, file_dir, artist_name, release, username, track)
                         grab_list.append(folder_data)
-        return grab_list    
+                        is_successful = self.enqueue_files(grab_list, folder_data)
+                        if is_successful:
+                            return (is_successful, grab_list)  
+        return (False, grab_list)
     
     def get_folder_data(self, directory: dict, file_dir: str, creator: str, release: JsonObject, username: str, track: JsonObject = None) -> dict:
         directory['files'] = [{**file, 'filename': f"{file_dir}\\{file['filename']}"} for file in directory['files']]
@@ -127,16 +130,14 @@ class Slskd(Applications):
             folder_data['discnumber'] = track['mediumNumber']
         return folder_data
     
-    def enqueue_files(self, grab_list: list[dict]) -> bool:
-        for folder_data in grab_list:
-            try:
-                self.slskd.transfers.enqueue(username=folder_data['username'], files=folder_data['directory']['files'])
-                return True
-            except Exception:
-                self.ignored_users.append(folder_data['username'])
-                grab_list.remove(folder_data)
-                print(f"Error enqueueing tracks! Adding {folder_data['username']} to ignored users list.")
-                continue
+    def enqueue_files(self, grab_list: list[dict], folder_data: dict) -> bool:
+        try:
+            self.slskd.transfers.enqueue(username=folder_data['username'], files=folder_data['directory']['files'])
+            return True
+        except Exception:
+            self.ignored_users.append(folder_data['username'])
+            grab_list.remove(folder_data)
+            print(f"Error enqueueing tracks! Adding {folder_data['username']} to ignored users list.")
         return False
 
 
@@ -177,7 +178,7 @@ class Slskd(Applications):
                     unfinished += 1
         return unfinished
 
-    def get_errored_files(files: list[dict]) -> list[dict]:
+    def get_errored_files(self, files: list[dict]) -> list[dict]:
         return [file for file in files if file["state"] in [
             'Completed, Cancelled',
             'Completed, TimedOut',
@@ -186,27 +187,10 @@ class Slskd(Applications):
         ]]
 
 
-    def get_pending_files(files: list[dict]) -> bool:
+    def get_pending_files(self, files: list[dict]) -> bool:
         return [file for file in files if not 'Completed' in file["state"]]
-
 
     def search_and_download(self, query: str, tracks: JsonArray, track: JsonObject, artist_name: str, release: JsonObject) -> tuple[bool, list[dict]]:
         search = self.initiate_search(query)
         self.wait_for_search_completion(search)
-        grab_list: list[dict] = self.process_search_results(search, tracks, track, artist_name, release)
-        return (self.enqueue_files(grab_list), grab_list)
-    
-    def move_failed_import(src_path: str) -> None:
-        failed_imports_dir = "failed_imports"
-        counter = 1
-        if not os.path.exists(failed_imports_dir):
-            os.makedirs(failed_imports_dir)
-        folder_name = os.path.basename(src_path)
-        target_path = os.path.join(failed_imports_dir, folder_name)
-        
-        while os.path.exists(target_path):
-            target_path = os.path.join(failed_imports_dir, f"{folder_name}_{counter}")
-            counter += 1
-        
-        shutil.move(folder_name, target_path)
-        print(f"Failed import moved to: {target_path}")
+        return self.process_search_results(search, tracks, track, artist_name, release)
