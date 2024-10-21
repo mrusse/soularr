@@ -15,6 +15,7 @@ class Slskd(Applications):
             maximum_peer_queue: int,
             minimum_peer_upload_speed: int,
             allowed_filetypes: list[str],
+            readarr_allowed_filetypes: list[str],
             ignored_users: list[str],
             remove_wanted_on_failure: bool,
         ) -> None:
@@ -23,6 +24,7 @@ class Slskd(Applications):
         self.maximum_peer_queue = maximum_peer_queue
         self.minimum_peer_upload_speed = minimum_peer_upload_speed
         self.allowed_filetypes = allowed_filetypes
+        self.readarr_allowed_filetypes = readarr_allowed_filetypes
         self.ignored_users = ignored_users
         self.remove_wanted_on_failure = remove_wanted_on_failure
 
@@ -97,34 +99,42 @@ class Slskd(Applications):
     def process_search_results(self, search: dict, creator_name: str, tracks: JsonArray, track: JsonObject, release: JsonObject) -> tuple[bool, list[dict]]:
         grab_list: list[dict] = []
         results = self.slskd.searches.search_responses(search['id'])
+        is_lidarr_search = tracks is not None and track is not None and release is not None
         print(f"Search returned {len(results)} results")
         for result in results:
             username: str = result['username']
             print(f"Parsing result from user: {username}")
             for file in result['files']:
-                if file['filename'].split(".")[-1] in self.allowed_filetypes:
-                    file_dir = file['filename'].rsplit("\\", 1)[0]
-                    try:
-                        directory = self.slskd.users.directory(username=username, directory=file_dir)
-                    except:
+                filetype = file['filename'].split(".")[-1]
+                file_dir = file['filename'].rsplit("\\", 1)[0]
+                if is_lidarr_search and filetype in self.allowed_filetypes:
+                    directory = self.get_user_directory(username, file_dir)
+                    if directory is None:
                         continue
-                    is_lidarr_search = tracks is not None and track is not None and release is not None
-                    if is_lidarr_search:
-                        tracks_info = self.get_tracks_info(directory['files'])
-                        if tracks_info['count'] == len(tracks) and tracks_info['filetype'] != "":
-                            if self.is_album_match(tracks, directory['files'], username, tracks_info['filetype']):
-                                folder_data = self.get_folder_data(directory, file_dir, creator_name, username, release, track)
-                                grab_list.append(folder_data)
-                                is_successful = self.enqueue_files(grab_list, folder_data)
-                                if is_successful:
-                                    return (is_successful, grab_list)
-                    else:
-                        folder_data = self.get_folder_data(directory, file_dir, creator_name, username)
-                        grab_list.append(folder_data)
-                        is_successful = self.enqueue_files(grab_list, folder_data)
-                        if is_successful:
-                            return (is_successful, grab_list)
+                    tracks_info = self.get_tracks_info(directory['files'])
+                    if tracks_info['count'] == len(tracks) and tracks_info['filetype'] != "":
+                        if self.is_album_match(tracks, directory['files'], username, tracks_info['filetype']):
+                            folder_data = self.get_folder_data(directory, file_dir, creator_name, username, release, track)
+                            grab_list.append(folder_data)
+                            is_successful = self.enqueue_files(grab_list, folder_data)
+                            if is_successful:
+                                return (is_successful, grab_list)
+                elif not is_lidarr_search and filetype in self.readarr_allowed_filetypes:
+                    directory = self.get_user_directory(username, file_dir)
+                    if directory is None:
+                        continue
+                    folder_data = self.get_folder_data(directory, file_dir, creator_name, username)
+                    grab_list.append(folder_data)
+                    is_successful = self.enqueue_files(grab_list, folder_data)
+                    if is_successful:
+                        return (is_successful, grab_list)
         return (False, grab_list)
+    
+    def get_user_directory(self, username: str, directory: str) -> dict:
+        try:
+            return self.slskd.users.directory(username=username, directory=directory)
+        except:
+            return None
     
     def get_folder_data(self, directory: dict, file_dir: str, creator: str, username: str, release: JsonObject = None, track: JsonObject = None) -> dict:
         directory['files'] = [{**file, 'filename': f"{file_dir}\\{file['filename']}"} for file in directory['files']]

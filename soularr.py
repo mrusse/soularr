@@ -45,6 +45,7 @@ class Soularr:
                 self.search_settings.getint("maximum_peer_queue", 50),
                 self.search_settings.getint("minimum_peer_upload_speed", 0),
                 self.search_settings.get("allowed_filetypes", "flac,mp3").split(","),
+                self.search_settings.get("readarr_allowed_filetypes", "epub,mobi").split(","),
                 self.search_settings.get("ignored_users").split(","),
                 self.remove_wanted_on_failure
             )
@@ -80,7 +81,7 @@ class Soularr:
                     self.search_settings.getboolean("book_prepend_author", False),
                     self.remove_wanted_on_failure
                 )
-                # self.readarr_wanted_records = self.process_wanted_records(self.readarr_instance)
+                self.readarr_wanted_records = self.process_wanted_records(self.readarr_instance)
                 
             if not getattr(self, 'lidarr_wanted_records', None) and not getattr(self, 'readarr_wanted_records', None):
                 print("No releases wanted. Exiting...")
