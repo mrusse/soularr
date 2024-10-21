@@ -71,13 +71,16 @@ class Soularr:
                 if len(self.lidarr_wanted_records) > 0:
                     (failed_downloads, grab_list) = self.lidarr_instance.grab_releases(self.slskd_instance, self.lidarr_wanted_records, self.failure_file_path)
                     # TODO: can abstract
-                    self.slskd_instance.print_all_downloads()
-                    print(f"-------------------\nWaiting for downloads... monitor at: {self.slskd_instance.host_url}/downloads")
-                    self.slskd_instance.monitor_downloads(grab_list)
-                    os.chdir(self.slskd_instance.download_dir)
-                    self.move_downloads(grab_list.sort(key=operator.itemgetter('creator')), self.lidarr_instance)
-                    self.lidarr_instance.import_downloads(next(os.walk('.'))[1])
-                    soularr.handle_downloads(failed_downloads)
+                    if len(grab_list) > 0:
+                        self.slskd_instance.print_all_downloads()
+                        print(f"-------------------\nWaiting for downloads... monitor at: {self.slskd_instance.host_url}/downloads")
+                        self.slskd_instance.monitor_downloads(grab_list)
+                        os.chdir(self.slskd_instance.download_dir)
+                        self.move_downloads(grab_list.sort(key=operator.itemgetter('creator')), self.lidarr_instance)
+                        self.lidarr_instance.import_downloads(next(os.walk('.'))[1])
+                        soularr.handle_downloads(failed_downloads)
+                    else:
+                        print("No suitable release found for downloading. Exiting...")
 
             if is_readarr_enabled:
                 pass
