@@ -134,7 +134,7 @@ class Soularr:
                 print(f"-------------------\nWaiting for downloads... monitor at: {self.slskd_instance.host_url}/downloads")
                 self.slskd_instance.monitor_downloads(grab_list)
                 os.chdir(self.slskd_instance.download_dir)
-                self.move_downloads(grab_list)
+                self.move_downloads(grab_list, arr_instance.__class__.__name__.lower())
                 arr_instance.import_downloads(next(os.walk('.'))[1])
                 self.handle_downloads(failed_downloads)
             else:
@@ -149,12 +149,11 @@ class Soularr:
             print(e)
         self.slskd_instance.slskd.transfers.remove_completed_downloads()
 
-    def move_downloads(self, grab_list: list[dict]):
+    def move_downloads(self, grab_list: list[dict], arr_type: str) -> None:
         for folder in grab_list:
             creator = folder['creator']
             dir = folder['dir']
-
-            if folder['release']['mediumCount'] > 1:
+            if arr_type == 'lidarr' and folder['release']['mediumCount'] > 1:
                 for filename in os.listdir(dir):
                     name = self.lidarr_instance.get_title(folder['release'])
                     self.lidarr_instance.retag_file(name, filename, os.path.join(dir, filename), folder)

@@ -114,7 +114,7 @@ class Arrs(Applications):
             else:
                 success = False
             
-            if not success and self.search_for_tracks and arr_name == 'lidarr':
+            if arr_name == 'lidarr' and not success and self.search_for_tracks:
                 tracks = self.grab_tracks(release, all_tracks)
                 for track in tracks:
                     query = self.grab_track(track, creator_name)
