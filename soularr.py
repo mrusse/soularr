@@ -5,9 +5,8 @@ import shutil
 import sys
 import configparser
 import traceback
-
 import lidarr
-# import readarr
+import readarr
 import slskd
 
 class Soularr:
@@ -61,34 +60,27 @@ class Soularr:
                     self.search_settings.get("title_blacklist").split(","),
                     self.release_settings.getboolean("use_most_common_tracknum", True),
                     self.release_settings.getboolean("allow_multi_disc", True),
-                    self.release_settings.getint("number_of_albums_to_grab", 10),
+                    self.search_settings.getint("number_of_albums_to_grab", 10),
                     self.search_settings.get("search_type", "incrementing_page").lower().strip(),
                     self.search_settings.getboolean("album_prepend_artist", False),
                     self.search_settings.getboolean("search_for_tracks", True),
                     self.remove_wanted_on_failure
                 )
-                self.lidarr_wanted_records = self.lidarr_instance.get_wanted_records()
-                if len(self.lidarr_wanted_records) > 0:
-                    (failed_downloads, grab_list) = self.lidarr_instance.grab_releases(self.slskd_instance, self.lidarr_wanted_records, self.failure_file_path)
-                    # TODO: can abstract
-                    if len(grab_list) > 0:
-                        self.slskd_instance.print_all_downloads()
-                        print(f"-------------------\nWaiting for downloads... monitor at: {self.slskd_instance.host_url}/downloads")
-                        self.slskd_instance.monitor_downloads(grab_list)
-                        os.chdir(self.slskd_instance.download_dir)
-                        self.move_downloads(grab_list.sort(key=operator.itemgetter('creator')), self.lidarr_instance)
-                        self.lidarr_instance.import_downloads(next(os.walk('.'))[1])
-                        soularr.handle_downloads(failed_downloads)
-                    else:
-                        print("No suitable release found for downloading. Exiting...")
+                self.lidarr_wanted_records = self.process_wanted_records(self.lidarr_instance)
 
             if is_readarr_enabled:
-                pass
-                # TODO
-                # self.readarr_instance = readarr.Readarr()
-                # self.readarr_wanted_records = self.readarr_instance.get_wanted_records()
-                # if len(self.readarr_wanted_records) > 0:
-                    # 
+                self.readarr_instance = readarr.Readarr(
+                    self.readarr_settings.get("host_url"),
+                    self.readarr_settings.get("api_key"),
+                    self.readarr_settings.get("download_dir"),
+                    self.current_page_file_path,
+                    self.search_settings.get("readarr_title_blacklist", "").split(","),
+                    self.search_settings.getint("number_of_books_to_grab", 10),
+                    self.search_settings.get("search_type", "incrementing_page").lower().strip(),
+                    self.search_settings.getboolean("book_prepend_author", False),
+                    self.remove_wanted_on_failure
+                )
+                # self.readarr_wanted_records = self.process_wanted_records(self.readarr_instance)
                 
             if not getattr(self, 'lidarr_wanted_records', None) and not getattr(self, 'readarr_wanted_records', None):
                 print("No releases wanted. Exiting...")
@@ -130,6 +122,23 @@ class Soularr:
     def sanitize_folder_name(folder_name: str) -> str:
         valid_characters = re.sub(r'[<>:."/\\|?*]', '', folder_name)
         return valid_characters.strip()
+    
+    def process_wanted_records(self, arr_instance: object) -> list[dict]:
+        wanted_records = arr_instance.get_wanted_records()
+        if len(wanted_records) > 0:
+            (failed_downloads, grab_list) = arr_instance.grab_releases(self.slskd_instance, arr_instance, wanted_records, self.failure_file_path)
+            grab_list.sort(key=operator.itemgetter('creator'))
+            if len(grab_list) > 0:
+                self.slskd_instance.print_all_downloads()
+                print(f"-------------------\nWaiting for downloads... monitor at: {self.slskd_instance.host_url}/downloads")
+                self.slskd_instance.monitor_downloads(grab_list)
+                os.chdir(self.slskd_instance.download_dir)
+                self.move_downloads(grab_list, self.lidarr_instance)
+                arr_instance.import_downloads(next(os.walk('.'))[1])
+                self.handle_downloads(failed_downloads)
+            else:
+                print("No suitable releases found for downloading.")
+        return wanted_records
 
     def handle_downloads(self, failed_downloads: int) -> None:
         if failed_downloads == 0:
