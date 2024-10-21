@@ -1,3 +1,4 @@
+import os
 from arrs import Arrs
 from pyarr.types import JsonObject
 
@@ -29,8 +30,14 @@ class Readarr(Arrs):
 
     def import_downloads(self, creator_folders: list[str]) -> None:
         # gotta check if DownloadedBooksScan is the right command
-        # TODO
-        pass
+        import_commands = []
+        for creator_folder in creator_folders:
+            task = self.readarr.post_command(name = 'DownloadedBooksScan', path = os.path.join(self.download_dir, creator_folder))
+            import_commands.append(task)
+            print(f"Starting Readarr import for: {creator_folder} ID: {task['id']}")
+        self.monitor_import_tasks(import_commands)
+        for task in import_commands:
+            self.process_import_task(self.readarr.get_command(task['id']))
 
     def grab_book(self, record: JsonObject) -> tuple[str, str]:
         book = self.readarr.get_book(record['id'])

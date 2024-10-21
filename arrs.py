@@ -140,6 +140,25 @@ class Arrs(Applications):
             success = False
         return (failed_downloads, records_grabbed)
     
+    def monitor_import_commands(self, import_commands: list[JsonObject]) -> None:
+        while True:
+            completed_count = 0
+            for task in import_commands:
+                current_task = self.lidarr.get_command(task['id'])
+                if current_task['status'] == 'completed':
+                    completed_count += 1
+            if completed_count == len(import_commands):
+                break
+
+    def process_import_task(self, current_task: dict) -> None:
+        try:
+            print(f"{current_task['commandName']} {current_task['message']} from: {current_task['body']['path']}")
+            if "Failed" in current_task['message']:
+                self.move_failed_import(current_task['body']['path'])
+        except:
+            print("Error printing arr task message. Printing full unparsed message.")
+            print(current_task)
+    
     def move_failed_import(self, src_path: str) -> None:
         failed_imports_dir = "failed_imports"
         counter = 1

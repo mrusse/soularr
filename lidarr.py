@@ -125,22 +125,6 @@ class Lidarr(Arrs):
             task = self.lidarr.post_command(name = 'DownloadedAlbumsScan', path = os.path.join(self.download_dir, creator_folder))
             import_commands.append(task)
             print(f"Starting Lidarr import for: {creator_folder} ID: {task['id']}")
-
-        while True:
-            completed_count = 0
-            for task in import_commands:
-                current_task = self.lidarr.get_command(task['id'])
-                if current_task['status'] == 'completed':
-                    completed_count += 1
-            if completed_count == len(import_commands):
-                break
-
+        self.monitor_import_commands(import_commands)
         for task in import_commands:
-            current_task = self.lidarr.get_command(task['id'])
-            try:
-                print(f"{current_task['commandName']} {current_task['message']} from: {current_task['body']['path']}")
-                if "Failed" in current_task['message']:
-                    self.move_failed_import(current_task['body']['path'])
-            except:
-                print("Error printing lidarr task message. Printing full unparsed message.")
-                print(current_task)
+            self.process_import_task(self.lidarr.get_command(task['id']))
