@@ -133,7 +133,7 @@ class Soularr:
                 print(f"-------------------\nWaiting for downloads... monitor at: {self.slskd_instance.host_url}/downloads")
                 self.slskd_instance.monitor_downloads(grab_list)
                 os.chdir(self.slskd_instance.download_dir)
-                self.move_downloads(grab_list, self.lidarr_instance)
+                self.move_downloads(grab_list)
                 arr_instance.import_downloads(next(os.walk('.'))[1])
                 self.handle_downloads(failed_downloads)
             else:
@@ -144,19 +144,19 @@ class Soularr:
         if failed_downloads == 0:
             print("Solarr finished. Exiting...")
         else:
-            e = f"{failed_downloads}: releases failed and were removed from wanted list. View \"failure_list.txt\" for list of failed albums." if self.remove_wanted_on_failure else f"{failed_downloads}: releases failed while downloading and are still wanted."
+            e = f"{failed_downloads}: releases failed and were removed from wanted list. View \"failure_list.txt\" for list of failed operations." if self.remove_wanted_on_failure else f"{failed_downloads}: releases failed while downloading and are still wanted."
             print(e)
         self.slskd_instance.slskd.transfers.remove_completed_downloads()
 
-    def move_downloads(self, grab_list: list[dict], arr_instance: object):
+    def move_downloads(self, grab_list: list[dict]):
         for folder in grab_list:
             creator = folder['creator']
             dir = folder['dir']
 
             if folder['release']['mediumCount'] > 1:
                 for filename in os.listdir(dir):
-                    name = arr_instance.get_title(folder['release'])
-                    arr_instance.retag_file(name, filename, os.path.join(dir, filename), folder)
+                    name = self.lidarr_instance.get_title(folder['release'])
+                    self.lidarr_instance.retag_file(name, filename, os.path.join(dir, filename), folder)
                     new_dir = os.path.join(creator, self.sanitize_folder_name(name))
 
                     if not os.path.exists(creator):
