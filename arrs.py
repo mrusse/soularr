@@ -1,9 +1,10 @@
+from datetime import datetime
 import math
 import os
 import json
 import shutil
 from applications import Applications
-from pyarr.types import JsonObject
+from pyarr.types import JsonObject, JsonArray
 
 class Arrs(Applications):
     def __init__(
@@ -13,8 +14,6 @@ class Arrs(Applications):
             api_key: str,
             download_dir: str,
             current_page_file_path,
-            accepted_formats: list[str],
-            accepted_countries: list[str],
             title_blacklist: list[str],
             page_size: int,
             search_type: str,
@@ -24,8 +23,6 @@ class Arrs(Applications):
         super().__init__(type, host_url, api_key, download_dir)
         self.current_page_file_path = current_page_file_path
         self.type = type
-        self.accepted_formats = accepted_formats
-        self.accepted_countries = accepted_countries
         self.title_blacklist = title_blacklist
         self.page_size = page_size
         self.search_type = search_type
@@ -43,9 +40,6 @@ class Arrs(Applications):
     
     def import_downloads(self, creator_folders: list[str]) -> None:
         raise NotImplementedError(f"import_downloads must be implemented in {self.__class__.__name__}")
-
-    def is_format_accepted(self, format: str) -> bool:
-        return format in self.accepted_formats
     
     def is_blacklisted(self, title: str) -> bool:
         for word in self.title_blacklist:
@@ -97,6 +91,52 @@ class Arrs(Applications):
             raise ValueError(f'Error: [Search Settings] - search_type = {self.search_type} is not valid.')
         
         return wanted_records
+    
+    def grab_releases(self, slskd_instance: object, arr_instance: object, wanted_records: JsonArray, failure_file_path: str) -> tuple[int, list[dict]]:
+        failed_downloads = 0
+        records_grabbed = []
+        arr_name = arr_instance.__class__.__name__
+        for record in wanted_records:
+            if arr_name == 'lidarr':
+                (query, all_tracks, creator_name, release) = self.grab_album(record)
+            elif arr_name == 'readarr':
+                (query, creator_name) = self.grab_book(record)
+
+            if query is not None:
+                print(f"Searching {arr_name}: {query}")
+                if arr_name == 'lidarr':
+                    (success, grab_list) = slskd_instance.search_and_download(query, creator_name, all_tracks, all_tracks[0], release)
+                elif arr_name == 'readarr':
+                    (success, grab_list) = slskd_instance.search_and_download(query, creator_name)
+                records_grabbed.extend(grab_list)
+            else:
+                success = False
+            
+            if not success and self.search_for_tracks and arr_name == 'lidarr':
+                tracks = self.grab_tracks(release, all_tracks)
+                for track in tracks:
+                    query = self.grab_track(track, creator_name)
+                    if query is None:
+                        continue
+                    print(f"Searching track: {query}")
+                    (success, grab_list) = slskd_instance.search_and_download(query, creator_name, tracks, track, release)
+                    records_grabbed.extend(grab_list)
+                    if success:
+                        break
+
+                    if not success:
+                        if self.remove_wanted_on_failure:
+                            print(f"ERROR: Failed to grab {arr_name}: {record['title']} for creator: {creator_name}\n Failed item removed from wanted list and added to \"failure_list.txt\"")
+                            record['monitored'] = False
+                            arr_instance.upd_item(record)
+                            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            with open(failure_file_path, "a") as file:
+                                file.write(f"{timestamp} - {creator_name}, {record['title']}, {record['id']}\n")
+                        else:
+                            print(f"ERROR: Failed to grab {arr_name}: {record['title']} for creator: {creator_name}")
+                        failed_downloads += 1
+            success = False
+        return (failed_downloads, records_grabbed)
     
     def move_failed_import(self, src_path: str) -> None:
         failed_imports_dir = "failed_imports"
