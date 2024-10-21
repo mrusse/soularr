@@ -20,10 +20,6 @@ class Readarr(Arrs):
     def get_wanted(self, page: int = 1) -> JsonObject:
         return self.readarr.get_missing(page=page, page_size=self.page_size, sort_dir='ascending',sort_key='title')
     
-    def get_title(self, release: JsonObject) -> str:
-        # gotta check if bookId is the right key
-        return self.readarr.get_book(albumIds = release['bookId'])['title']
-    
     def get_command(self, id: int) -> dict:
         return self.readarr.get_command(id)
     
@@ -32,8 +28,7 @@ class Readarr(Arrs):
         pass
 
     def import_downloads(self, creator_folders: list[str]) -> None:
-        # gotta check if DownloadedBooksScan is the right command
-        import_commands = []
+        import_commands: list[JsonObject] = []
         for creator_folder in creator_folders:
             task = self.readarr.post_command(name = 'DownloadedBooksScan', path = os.path.join(self.download_dir, creator_folder))
             import_commands.append(task)

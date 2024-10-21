@@ -31,9 +31,6 @@ class Lidarr(Arrs):
     def get_wanted(self, page: int = 1) -> JsonObject:
         return self.lidarr.get_wanted(page=page, page_size=self.page_size, sort_dir='ascending',sort_key='albums.title')
     
-    def get_title(self, release: JsonObject) -> str:
-        return self.lidarr.get_album(albumIds = release['albumId'])['title']
-    
     def get_command(self, id: int) -> dict:
         return self.lidarr.get_command(id)
 

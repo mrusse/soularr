@@ -155,7 +155,7 @@ class Soularr:
             dir = folder['dir']
             if arr_type == 'lidarr' and folder['release']['mediumCount'] > 1:
                 for filename in os.listdir(dir):
-                    name = self.lidarr_instance.get_title(folder['release'])
+                    name = self.lidarr_instance.get_album(albumIds = folder['release']['albumId'])['title']
                     self.lidarr_instance.retag_file(name, filename, os.path.join(dir, filename), folder)
                     new_dir = os.path.join(creator, self.sanitize_folder_name(name))
 

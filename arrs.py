@@ -3,6 +3,7 @@ import math
 import os
 import json
 import shutil
+import time
 from applications import Applications
 from pyarr.types import JsonObject, JsonArray
 
@@ -31,9 +32,6 @@ class Arrs(Applications):
 
     def get_wanted(self, page: int = 1) -> JsonObject:
         raise NotImplementedError(f"get_wanted must be implemented in {self.__class__.__name__}")
-    
-    def get_title(self, release: JsonObject) -> str:
-        raise NotImplementedError(f"get_title must be implemented in {self.__class__.__name__}")
     
     def retag_file(self, release_name: str, filename: str, path: str, folder: dict) -> None:
         raise NotImplementedError(f"retag_file must be implemented in {self.__class__.__name__}")
@@ -152,6 +150,7 @@ class Arrs(Applications):
                     completed_count += 1
             if completed_count == len(import_commands):
                 break
+            time.sleep(2)
 
     def process_import_task(self, current_task: dict) -> None:
         try:
