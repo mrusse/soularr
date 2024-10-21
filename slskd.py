@@ -109,12 +109,13 @@ class Slskd(Applications):
                     except:
                         continue
                     tracks_info = self.get_tracks_info(directory['files'])
-                    if tracks_info['count'] == len(tracks) and tracks_info['filetype'] != "" and self.is_album_match(tracks, directory['files'], username, tracks_info['filetype']):
-                        folder_data = self.get_folder_data(directory, file_dir, artist_name, release, username, track)
-                        grab_list.append(folder_data)
-                        is_successful = self.enqueue_files(grab_list, folder_data)
-                        if is_successful:
-                            return (is_successful, grab_list)  
+                    if tracks_info['count'] == len(tracks) and tracks_info['filetype'] != "":
+                        if self.is_album_match(tracks, directory['files'], username, tracks_info['filetype']):
+                            folder_data = self.get_folder_data(directory, file_dir, artist_name, release, username, track)
+                            grab_list.append(folder_data)
+                            is_successful = self.enqueue_files(grab_list, folder_data)
+                            if is_successful:
+                                return (is_successful, grab_list)
         return (False, grab_list)
     
     def get_folder_data(self, directory: dict, file_dir: str, creator: str, release: JsonObject, username: str, track: JsonObject = None) -> dict:
