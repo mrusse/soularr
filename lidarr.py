@@ -1,4 +1,3 @@
-from datetime import datetime
 import os
 import music_tag
 from arrs import Arrs
@@ -22,7 +21,9 @@ class Lidarr(Arrs):
             search_for_tracks: bool,
             remove_wanted_on_failure: bool
         ) -> None:
-        super().__init__('lidarr', host_url, api_key, download_dir, current_page_file_path, accepted_formats, accepted_countries, title_blacklist, number_of_albums_to_grab, search_type, album_prepend_artist, remove_wanted_on_failure)
+        super().__init__('lidarr', host_url, api_key, download_dir, current_page_file_path, title_blacklist, number_of_albums_to_grab, search_type, album_prepend_artist, remove_wanted_on_failure)
+        self.accepted_countries = accepted_countries
+        self.accepted_formats = accepted_formats
         self.use_most_common_tracknum = use_most_common_tracknum
         self.allow_multi_disc = allow_multi_disc
         self.search_for_tracks = search_for_tracks
@@ -62,10 +63,9 @@ class Lidarr(Arrs):
         for release in releases:
             format: str = release['format'].split("x", 1)[1] if (self.allow_multi_disc and self.is_multi_disc(release['format'])) else release['format']
             country: str | None = release['country'][0] if release['country'] else None
-            format_accepted: bool =  self.is_format_accepted(format)
             track_count: bool = release['trackCount'] == most_common_trackcount if self.use_most_common_tracknum else True
 
-            if (country in self.accepted_countries and format_accepted and release['status'] == "Official" and track_count):
+            if (country in self.accepted_countries and format in self.accepted_formats and release['status'] == "Official" and track_count):
                 print(f"Selected release for {artist_name}: {release['status']}, {country}, {release['format']}, Mediums: {release['mediumCount']}, Tracks: {release['trackCount']}, ID: {release['id']}")
                 return release
 
@@ -108,45 +108,6 @@ class Lidarr(Arrs):
             return None
         query = f"{artist_name} {track['title']}" if self.prepend_creator or len(track['title']) == 1 else track['title']
         return query
-                
-
-    def grab_releases(self, slskd_instance: object, wanted_records: JsonArray, failure_file_path: str) -> tuple[int, list[dict]]:
-        failed_downloads = 0
-        records_grabbed = []
-        for record in wanted_records:
-            (query, all_tracks, artist_name, release) = self.grab_album(record)
-            if query is not None:
-                print(f"Searching album: {query}")
-                (success, grab_list)  = slskd_instance.search_and_download(query, all_tracks, all_tracks[0], artist_name, release)
-                records_grabbed.extend(grab_list)
-            else:
-                success = False
-            
-            if not success and self.search_for_tracks:
-                tracks = self.grab_tracks(release, all_tracks)
-                for track in tracks:
-                    query = self.grab_track(track, artist_name)
-                    if query is None:
-                        continue
-                    print(f"Searching track: {query}")
-                    (success, grab_list) = slskd_instance.search_and_download(query, tracks, track, artist_name, release)
-                    records_grabbed.extend(grab_list)
-                    if success:
-                        break
-
-                    if not success:
-                        if self.remove_wanted_on_failure:
-                            print(f"ERROR: Failed to grab album: {record['title']} for artist: {artist_name}\n Failed album removed from wanted list and added to \"failure_list.txt\"")
-                            record['monitored'] = False
-                            self.lidarr.upd_album(record)
-                            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            with open(failure_file_path, "a") as file:
-                                file.write(f"{timestamp} - {artist_name}, {record['title']}, {record['id']}\n")
-                        else:
-                            print(f"ERROR: Failed to grab album: {record['title']} for artist: {artist_name}")
-                        failed_downloads += 1
-            success = False
-        return (failed_downloads, records_grabbed)
     
     def retag_file(self, release_name: str, filename: str, path: str, folder: dict) -> None:
         creator = folder['creator']
