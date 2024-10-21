@@ -209,17 +209,18 @@ class Soularr:
             if arr_type == "lidarr" and folder["release"]["mediumCount"] > 1:
                 for filename in os.listdir(dir):
                     name = self.lidarr_instance.get_album(albumIds=folder["release"]["albumId"])["title"]
-                    self.lidarr_instance.retag_file(name, filename, os.path.join(dir, filename), folder)
+                    path = os.path.join(dir, filename)
+                    self.lidarr_instance.retag_file(name, filename, path, folder)
                     new_dir = os.path.join(creator, self.sanitize_folder_name(name))
 
                     if not os.path.exists(creator):
                         os.mkdir(creator)
                     if not os.path.exists(new_dir):
                         os.mkdir(new_dir)
-
-                    shutil.move(os.path.join(dir, filename), new_dir)
+                    if os.path.exists(new_dir) and os.path.exists(path):
+                        shutil.move(path, new_dir)
                 shutil.rmtree(dir)
-            else:
+            elif os.path.exists(creator) and os.path.exists(dir):
                 shutil.move(dir, creator)
 
 
