@@ -112,11 +112,13 @@ class Lidarr(Arrs):
 
     def grab_releases(self, slskd_instance: object, wanted_records: JsonArray, failure_file_path: str) -> tuple[int, list[dict]]:
         failed_downloads = 0
+        records_grabbed = []
         for record in wanted_records:
             (query, all_tracks, artist_name, release) = self.grab_album(record)
             if query is not None:
                 print(f"Searching album: {query}")
                 (success, grab_list)  = slskd_instance.search_and_download(query, all_tracks, all_tracks[0], artist_name, release)
+                records_grabbed.extend(grab_list)
             else:
                 success = False
             
@@ -128,6 +130,7 @@ class Lidarr(Arrs):
                         continue
                     print(f"Searching track: {query}")
                     (success, grab_list) = slskd_instance.search_and_download(query, tracks, track, artist_name, release)
+                    records_grabbed.extend(grab_list)
                     if success:
                         break
 
@@ -143,7 +146,7 @@ class Lidarr(Arrs):
                             print(f"ERROR: Failed to grab album: {record['title']} for artist: {artist_name}")
                         failed_downloads += 1
             success = False
-        return (failed_downloads, grab_list)
+        return (failed_downloads, records_grabbed)
     
     def retag_file(self, release_name: str, filename: str, path: str, folder: dict) -> None:
         creator = folder['creator']
@@ -175,6 +178,8 @@ class Lidarr(Arrs):
             current_task = self.lidarr.get_command(task['id'])
             try:
                 print(f"{current_task['commandName']} {current_task['message']} from: {current_task['body']['path']}")
+                if "Failed" in current_task['message']:
+                    self.move_failed_import(current_task['body']['path'])
             except:
                 print("Error printing lidarr task message. Printing full unparsed message.")
                 print(current_task)
