@@ -9,15 +9,15 @@ class Readarr(Arrs):
     """Readarr class for managing book-related operations."""
 
     def __init__(
-            self,
-            application_settings: tuple[str, str, str],
-            current_page_file_path: str,
-            title_blacklist: list[str],
-            number_of_books_to_grab: int,
-            search_type: str,
-            prepend_creator: bool,
-            remove_wanted_on_failure: bool,
-        ) -> None:
+        self,
+        application_settings: tuple[str, str, str],
+        current_page_file_path: str,
+        title_blacklist: list[str],
+        number_of_books_to_grab: int,
+        search_type: str,
+        prepend_creator: bool,
+        remove_wanted_on_failure: bool,
+    ) -> None:
         """Initialize the Readarr class with the given parameters.
 
         Args:
@@ -30,7 +30,9 @@ class Readarr(Arrs):
             remove_wanted_on_failure (bool): Whether to remove wanted items on failure.
 
         """
-        super().__init__(application_settings, current_page_file_path, title_blacklist, number_of_books_to_grab, search_type, prepend_creator, remove_wanted_on_failure)
+        super().__init__(
+            application_settings, current_page_file_path, title_blacklist, number_of_books_to_grab, search_type, prepend_creator, remove_wanted_on_failure,
+        )
 
     def get_wanted(self, page: int = 1) -> JsonObject:
         """Retrieve the list of wanted books.
@@ -42,7 +44,7 @@ class Readarr(Arrs):
             JsonObject: The JSON object containing the list of wanted books.
 
         """
-        return self.readarr.get_missing(page=page, page_size=self.page_size, sort_dir="ascending",sort_key="title")
+        return self.readarr.get_missing(page=page, page_size=self.page_size, sort_dir="ascending", sort_key="title")
 
     def get_command(self, id: int) -> dict:
         """Retrieve the command with the specified ID.
@@ -77,7 +79,7 @@ class Readarr(Arrs):
         """
         import_commands: list[JsonObject] = []
         for creator_folder in creator_folders:
-            task = self.readarr.post_command(name = "DownloadedBooksScan", path = os.path.join(self.download_dir, creator_folder))
+            task = self.readarr.post_command(name="DownloadedBooksScan", path=os.path.join(self.download_dir, creator_folder))
             import_commands.append(task)
             print(f"Starting Readarr import for: {creator_folder} ID: {task['id']}")
         self.monitor_import_commands(import_commands)

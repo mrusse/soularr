@@ -12,16 +12,16 @@ class Slskd(Applications):
     """Slskd class handles the interaction with the Soulseek client, managing searches, downloads, and processing of results."""
 
     def __init__(
-            self,
-            application_settings: tuple[str, str, str],
-            search_timeout: int,
-            maximum_peer_queue: int,
-            minimum_peer_upload_speed: int,
-            allowed_filetypes: list[str],
-            readarr_allowed_filetypes: list[str],
-            ignored_users: list[str],
-            remove_wanted_on_failure: bool,
-        ) -> None:
+        self,
+        application_settings: tuple[str, str, str],
+        search_timeout: int,
+        maximum_peer_queue: int,
+        minimum_peer_upload_speed: int,
+        allowed_filetypes: list[str],
+        readarr_allowed_filetypes: list[str],
+        ignored_users: list[str],
+        remove_wanted_on_failure: bool,
+    ) -> None:
         """Initialize the Slskd class with the given settings.
 
         Args:
@@ -58,7 +58,7 @@ class Slskd(Applications):
         index = -1
         filetype = ""
         for file in files:
-            if(file["filename"].split(".")[-1] in self.allowed_filetypes):
+            if file["filename"].split(".")[-1] in self.allowed_filetypes:
                 new_index = self.allowed_filetypes.index(file["filename"].split(".")[-1])
                 if index == -1:
                     index = new_index
@@ -67,7 +67,7 @@ class Slskd(Applications):
                     filetype = ""
                     break
                 count += 1
-        return { "count": count, "filetype": filetype }
+        return {"count": count, "filetype": filetype}
 
     def is_lidarr_track_in_slskd_tracks(self, lidarr_track: JsonObject, slskd_tracks: dict, filetype: str) -> tuple[bool, float]:
         """Check if a Lidarr track is present in the Soulseek tracks.
@@ -89,7 +89,7 @@ class Slskd(Applications):
             slskd_filename: str = slskd_track["filename"]
             ratio: float = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
-            #If ratio is a bad match try and split off the garbage at the start of the slskd_filename and try again
+            # If ratio is a bad match try and split off the garbage at the start of the slskd_filename and try again
             if ratio < MATCH_THRESHOLD:
                 lidarr_filename_word_count: int = len(lidarr_filename.split()) * -1
                 truncated_slskd_filename: str = " ".join(slskd_filename.split()[lidarr_filename_word_count:])
@@ -118,9 +118,11 @@ class Slskd(Applications):
                 counted.append(lidarr_track["title"])
                 total_match += best_match
         if len(counted) == len(lidarr_tracks) and username not in self.ignored_users:
-            print(f"\nFound match from user: {username} for {len(counted)} tracks! "
-                  f"\nAverage sequence match ratio: {total_match/len(counted)} "
-                  f"\nSUCCESSFUL MATCH \n-------------------")
+            print(
+                f"\nFound match from user: {username} for {len(counted)} tracks! "
+                f"\nAverage sequence match ratio: {total_match/len(counted)} "
+                f"\nSUCCESSFUL MATCH \n-------------------",
+            )
             return True
         return False
 
@@ -134,7 +136,7 @@ class Slskd(Applications):
 
         """
         for file in files:
-            self.slskd.transfers.cancel_download(username = username, id = file["id"])
+            self.slskd.transfers.cancel_download(username=username, id=file["id"])
         os.chdir(self.download_dir)
         if os.path.exists(delete_dir):
             shutil.rmtree(delete_dir)
@@ -150,11 +152,11 @@ class Slskd(Applications):
 
         """
         return self.slskd.searches.search_text(
-            searchText = query,
-            searchTimeout = self.search_timeout,
-            filterResponses = True,
-            maximumPeerQueueLength = self.maximum_peer_queue,
-            minimumPeerUploadSpeed = self.minimum_peer_upload_speed,
+            searchText=query,
+            searchTimeout=self.search_timeout,
+            filterResponses=True,
+            maximumPeerQueueLength=self.maximum_peer_queue,
+            minimumPeerUploadSpeed=self.minimum_peer_upload_speed,
         )
 
     def wait_for_search_completion(self, search: dict) -> None:
@@ -235,7 +237,9 @@ class Slskd(Applications):
         except:
             return None
 
-    def get_folder_data(self, is_lidarr_search: bool, directory: dict, file_dir: str, creator: str, username: str, release: JsonObject = None, track: JsonObject = None) -> dict:
+    def get_folder_data(
+        self, is_lidarr_search: bool, directory: dict, file_dir: str, creator: str, username: str, release: JsonObject = None, track: JsonObject = None,
+    ) -> dict:
         """Retrieve folder data for the given search type and directory.
 
         Args:
@@ -287,7 +291,6 @@ class Slskd(Applications):
             print(f"Error enqueueing tracks! Adding {folder_data['username']} to ignored users list.")
         return False
 
-
     def print_all_downloads(self) -> None:
         """Print all current downloads."""
         downloads = self.slskd.transfers.get_all_downloads()
@@ -316,7 +319,6 @@ class Slskd(Applications):
                 time.sleep(5)
                 break
             time.sleep(10)
-
 
     def process_folder(self, username: str, dir: str, folder: dict, grab_list: list[dict], downloads: dict) -> int:
         """Process a folder to check for unfinished downloads and handle errors.
@@ -355,13 +357,17 @@ class Slskd(Applications):
             list[dict]: A list of files that have errored states.
 
         """
-        return [file for file in files if file["state"] in [
-            "Completed, Cancelled",
-            "Completed, TimedOut",
-            "Completed, Errored",
-            "Completed, Rejected",
-        ]]
-
+        return [
+            file
+            for file in files
+            if file["state"]
+            in [
+                "Completed, Cancelled",
+                "Completed, TimedOut",
+                "Completed, Errored",
+                "Completed, Rejected",
+            ]
+        ]
 
     def get_pending_files(self, files: list[dict]) -> bool:
         """Retrieve the list of pending files.
@@ -375,7 +381,9 @@ class Slskd(Applications):
         """
         return [file for file in files if "Completed" not in file["state"]]
 
-    def search_and_download(self, query: str, creator_name: str, tracks: JsonArray = [], track: JsonObject = None, release: JsonObject = None) -> tuple[bool, list[dict]]:
+    def search_and_download(
+        self, query: str, creator_name: str, tracks: JsonArray = None, track: JsonObject = None, release: JsonObject = None,
+    ) -> tuple[bool, list[dict]]:
         """Search for tracks and download them.
 
         Args:
@@ -389,6 +397,8 @@ class Slskd(Applications):
             tuple[bool, list[dict]]: A tuple containing a boolean indicating success and a list of dictionaries with folder data.
 
         """
+        if tracks is None:
+            tracks = []
         search = self.initiate_search(query)
         self.wait_for_search_completion(search)
         return self.process_search_results(search, creator_name, tracks, track, release)

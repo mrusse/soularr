@@ -14,15 +14,15 @@ class Arrs(Applications):
     """Arrs class handles operations required for *arr applications."""
 
     def __init__(
-            self,
-            application_settings: tuple[str, str, str],
-            current_page_file_path: str,
-            title_blacklist: list[str],
-            page_size: int,
-            search_type: str,
-            prepend_creator: bool,
-            remove_wanted_on_failure: bool,
-        ) -> None:
+        self,
+        application_settings: tuple[str, str, str],
+        current_page_file_path: str,
+        title_blacklist: list[str],
+        page_size: int,
+        search_type: str,
+        prepend_creator: bool,
+        remove_wanted_on_failure: bool,
+    ) -> None:
         """Initialize the class with the specified settings.
 
         Args:
@@ -132,7 +132,7 @@ class Arrs(Applications):
 
         """
         with open(self.current_page_file_path, "w") as file:
-                json.dump(data, file)
+            json.dump(data, file)
 
     def get_wanted_records(self) -> list[JsonObject]:
         """Retrieve the wanted records based on the search type.

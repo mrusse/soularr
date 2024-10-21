@@ -10,20 +10,20 @@ class Lidarr(Arrs):
     """Lidarr class for managing music albums and tracks."""
 
     def __init__(
-            self,
-            application_settings: tuple[str, str, str],
-            current_page_file_path: str,
-            accepted_countries: list[str],
-            accepted_formats: list[str],
-            title_blacklist: list[str],
-            use_most_common_tracknum: bool,
-            allow_multi_disc: bool,
-            number_of_albums_to_grab: int,
-            search_type: str,
-            album_prepend_artist: bool,
-            search_for_tracks: bool,
-            remove_wanted_on_failure: bool,
-        ) -> None:
+        self,
+        application_settings: tuple[str, str, str],
+        current_page_file_path: str,
+        accepted_countries: list[str],
+        accepted_formats: list[str],
+        title_blacklist: list[str],
+        use_most_common_tracknum: bool,
+        allow_multi_disc: bool,
+        number_of_albums_to_grab: int,
+        search_type: str,
+        album_prepend_artist: bool,
+        search_for_tracks: bool,
+        remove_wanted_on_failure: bool,
+    ) -> None:
         """Initialize the Lidarr class with the given settings.
 
         Args:
@@ -41,7 +41,9 @@ class Lidarr(Arrs):
             remove_wanted_on_failure (bool): Whether to remove wanted items on failure
 
         """
-        super().__init__(application_settings, current_page_file_path, title_blacklist, number_of_albums_to_grab, search_type, album_prepend_artist, remove_wanted_on_failure)
+        super().__init__(
+            application_settings, current_page_file_path, title_blacklist, number_of_albums_to_grab, search_type, album_prepend_artist, remove_wanted_on_failure,
+        )
         self.accepted_countries = accepted_countries
         self.accepted_formats = accepted_formats
         self.use_most_common_tracknum = use_most_common_tracknum
@@ -58,7 +60,7 @@ class Lidarr(Arrs):
             JsonObject: The JSON object containing the list of wanted albums.
 
         """
-        return self.lidarr.get_wanted(page=page, page_size=self.page_size, sort_dir="ascending",sort_key="albums.title")
+        return self.lidarr.get_wanted(page=page, page_size=self.page_size, sort_dir="ascending", sort_key="albums.title")
 
     def get_command(self, id: int) -> dict:
         """Retrieve the command with the specified ID.
@@ -131,10 +133,12 @@ class Lidarr(Arrs):
             country: str | None = release["country"][0] if release["country"] else None
             track_count: bool = release["trackCount"] == most_common_trackcount if self.use_most_common_tracknum else True
 
-            if (country in self.accepted_countries and format in self.accepted_formats and release["status"] == "Official" and track_count):
-                print(f"Selected release for {artist_name}: {release['status']}, {country}, "
-                      f"{release['format']}, Mediums: {release['mediumCount']}, "
-                      f"Tracks: {release['trackCount']}, ID: {release['id']}")
+            if country in self.accepted_countries and format in self.accepted_formats and release["status"] == "Official" and track_count:
+                print(
+                    f"Selected release for {artist_name}: {release['status']}, {country}, "
+                    f"{release['format']}, Mediums: {release['mediumCount']}, "
+                    f"Tracks: {release['trackCount']}, ID: {release['id']}",
+                )
                 return release
 
         if self.use_most_common_tracknum:
@@ -160,7 +164,7 @@ class Lidarr(Arrs):
         album_id = record["id"]
         release = self.choose_release(album_id, artist_name)
         release_id = release["id"]
-        all_tracks = self.lidarr.get_tracks(artistId = artist_id, albumId = album_id, albumReleaseId = release_id)
+        all_tracks = self.lidarr.get_tracks(artistId=artist_id, albumId=album_id, albumReleaseId=release_id)
 
         # TODO: Right now if search_for_tracks is False. Multi disc albums will never be downloaded so we need to loop through media in releases even for albums
         if len(release["media"]) == 1:
@@ -233,7 +237,7 @@ class Lidarr(Arrs):
         """
         import_commands = []
         for creator_folder in creator_folders:
-            task = self.lidarr.post_command(name = "DownloadedAlbumsScan", path = os.path.join(self.download_dir, creator_folder))
+            task = self.lidarr.post_command(name="DownloadedAlbumsScan", path=os.path.join(self.download_dir, creator_folder))
             import_commands.append(task)
             print(f"Starting Lidarr import for: {creator_folder} ID: {task['id']}")
         self.monitor_import_commands(import_commands)
