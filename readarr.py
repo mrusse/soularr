@@ -35,7 +35,7 @@ class Readarr(Arrs):
             task = self.readarr.post_command(name = 'DownloadedBooksScan', path = os.path.join(self.download_dir, creator_folder))
             import_commands.append(task)
             print(f"Starting Readarr import for: {creator_folder} ID: {task['id']}")
-        self.monitor_import_tasks(import_commands)
+        self.monitor_import_commands(import_commands)
         for task in import_commands:
             self.process_import_task(self.readarr.get_command(task['id']))
 
