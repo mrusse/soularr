@@ -94,7 +94,7 @@ class Slskd(Applications):
                 break
             time.sleep(1)
 
-    def process_search_results(self, search: dict, tracks: JsonArray, track: JsonObject, artist_name: str, release: JsonObject) -> tuple[bool, list[dict]]:
+    def process_search_results(self, search: dict, creator_name: str, tracks: JsonArray, track: JsonObject, release: JsonObject) -> tuple[bool, list[dict]]:
         grab_list: list[dict] = []
         results = self.slskd.searches.search_responses(search['id'])
         print(f"Search returned {len(results)} results")
@@ -108,27 +108,35 @@ class Slskd(Applications):
                         directory = self.slskd.users.directory(username=username, directory=file_dir)
                     except:
                         continue
-                    tracks_info = self.get_tracks_info(directory['files'])
-                    if tracks_info['count'] == len(tracks) and tracks_info['filetype'] != "":
-                        if self.is_album_match(tracks, directory['files'], username, tracks_info['filetype']):
-                            folder_data = self.get_folder_data(directory, file_dir, artist_name, release, username, track)
-                            grab_list.append(folder_data)
-                            is_successful = self.enqueue_files(grab_list, folder_data)
-                            if is_successful:
-                                return (is_successful, grab_list)
+                    is_lidarr_search = tracks is not None and track is not None and release is not None
+                    if is_lidarr_search:
+                        tracks_info = self.get_tracks_info(directory['files'])
+                        if tracks_info['count'] == len(tracks) and tracks_info['filetype'] != "":
+                            if self.is_album_match(tracks, directory['files'], username, tracks_info['filetype']):
+                                folder_data = self.get_folder_data(directory, file_dir, creator_name, username, release, track)
+                                grab_list.append(folder_data)
+                                is_successful = self.enqueue_files(grab_list, folder_data)
+                                if is_successful:
+                                    return (is_successful, grab_list)
+                    else:
+                        folder_data = self.get_folder_data(directory, file_dir, creator_name, username)
+                        grab_list.append(folder_data)
+                        is_successful = self.enqueue_files(grab_list, folder_data)
+                        if is_successful:
+                            return (is_successful, grab_list)
         return (False, grab_list)
     
-    def get_folder_data(self, directory: dict, file_dir: str, creator: str, release: JsonObject, username: str, track: JsonObject = None) -> dict:
+    def get_folder_data(self, directory: dict, file_dir: str, creator: str, username: str, release: JsonObject = None, track: JsonObject = None) -> dict:
         directory['files'] = [{**file, 'filename': f"{file_dir}\\{file['filename']}"} for file in directory['files']]
         folder_data = {
             "creator": creator,
-            "release": release,
             "dir": file_dir.split("\\")[-1],
             "username": username,
             "directory": directory,
         }
-        if track:
+        if track and release:
             folder_data['discnumber'] = track['mediumNumber']
+            folder_data['release'] = release
         return folder_data
     
     def enqueue_files(self, grab_list: list[dict], folder_data: dict) -> bool:
@@ -159,7 +167,7 @@ class Slskd(Applications):
                 downloads = self.slskd.transfers.get_downloads(username)
                 unfinished += self.process_folder(username, dir, folder, grab_list, downloads)
             if unfinished == 0:
-                print("All tracks finished downloading!")
+                print("All items finished downloading!")
                 time.sleep(5)
                 break
             time.sleep(10)
@@ -191,7 +199,7 @@ class Slskd(Applications):
     def get_pending_files(self, files: list[dict]) -> bool:
         return [file for file in files if not 'Completed' in file["state"]]
 
-    def search_and_download(self, query: str, tracks: JsonArray, track: JsonObject, artist_name: str, release: JsonObject) -> tuple[bool, list[dict]]:
+    def search_and_download(self, query: str, creator_name: str, tracks: JsonArray = [], track: JsonObject = None, release: JsonObject = None) -> tuple[bool, list[dict]]:
         search = self.initiate_search(query)
         self.wait_for_search_completion(search)
-        return self.process_search_results(search, tracks, track, artist_name, release)
+        return self.process_search_results(search, creator_name, tracks, track, release)
