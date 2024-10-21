@@ -95,12 +95,14 @@ class Arrs(Applications):
     def grab_releases(self, slskd_instance: object, arr_instance: object, wanted_records: JsonArray, failure_file_path: str) -> tuple[int, list[dict]]:
         failed_downloads = 0
         records_grabbed = []
-        arr_name = arr_instance.__class__.__name__
+        arr_name = arr_instance.__class__.__name__.lower()
         for record in wanted_records:
             if arr_name == 'lidarr':
                 (query, all_tracks, creator_name, release) = self.grab_album(record)
             elif arr_name == 'readarr':
                 (query, creator_name) = self.grab_book(record)
+            else:
+                raise ValueError(f"Error: {arr_name} is not a valid arr type.")
 
             if query is not None:
                 print(f"Searching {arr_name}: {query}")
