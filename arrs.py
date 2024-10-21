@@ -1,6 +1,7 @@
 import math
 import os
 import json
+import shutil
 from applications import Applications
 from pyarr.types import JsonObject
 
@@ -96,3 +97,18 @@ class Arrs(Applications):
             raise ValueError(f'Error: [Search Settings] - search_type = {self.search_type} is not valid.')
         
         return wanted_records
+    
+    def move_failed_import(self, src_path: str) -> None:
+        failed_imports_dir = "failed_imports"
+        counter = 1
+        if not os.path.exists(failed_imports_dir):
+            os.makedirs(failed_imports_dir)
+        folder_name = os.path.basename(src_path)
+        target_path = os.path.join(failed_imports_dir, folder_name)
+        
+        while os.path.exists(target_path):
+            target_path = os.path.join(failed_imports_dir, f"{folder_name}_{counter}")
+            counter += 1
+        
+        shutil.move(folder_name, target_path)
+        print(f"Failed import moved to: {target_path}")
