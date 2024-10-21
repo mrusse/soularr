@@ -41,6 +41,9 @@ class Arrs(Applications):
     def import_downloads(self, creator_folders: list[str]) -> None:
         raise NotImplementedError(f"import_downloads must be implemented in {self.__class__.__name__}")
     
+    def get_command(self, id: int) -> dict:
+        raise NotImplementedError(f"get_command must be implemented in {self.__class__.__name__}")
+    
     def is_blacklisted(self, title: str) -> bool:
         for word in self.title_blacklist:
             if word != '' and word in title.lower():
@@ -144,7 +147,7 @@ class Arrs(Applications):
         while True:
             completed_count = 0
             for task in import_commands:
-                current_task = self.lidarr.get_command(task['id'])
+                current_task = self.get_command(task['id'])
                 if current_task['status'] == 'completed':
                     completed_count += 1
             if completed_count == len(import_commands):

@@ -24,6 +24,9 @@ class Readarr(Arrs):
         # gotta check if bookId is the right key
         return self.readarr.get_book(albumIds = release['bookId'])['title']
     
+    def get_command(self, id: int) -> dict:
+        return self.readarr.get_command(id)
+    
     def retag_file(self, release_name: str, filename: str, path: str, folder: dict) -> None:
         # TODO: Likely needed for audiobooks, but I don't use readarr for audiobooks so idk
         pass

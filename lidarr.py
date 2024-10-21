@@ -33,6 +33,9 @@ class Lidarr(Arrs):
     
     def get_title(self, release: JsonObject) -> str:
         return self.lidarr.get_album(albumIds = release['albumId'])['title']
+    
+    def get_command(self, id: int) -> dict:
+        return self.lidarr.get_command(id)
 
     def release_track_count_mode(self, releases: JsonArray) -> int:
         track_counts: dict = {}
