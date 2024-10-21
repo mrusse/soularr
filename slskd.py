@@ -35,7 +35,7 @@ class Slskd(Applications):
             remove_wanted_on_failure (bool): Whether to remove wanted items on failure.
 
         """
-        super().__init__(application_settings)
+        super().__init__(self.__class__.__name__.lower(), application_settings)
         self.search_timeout = search_timeout
         self.maximum_peer_queue = maximum_peer_queue
         self.minimum_peer_upload_speed = minimum_peer_upload_speed
