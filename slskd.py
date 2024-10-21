@@ -205,7 +205,7 @@ class Slskd(Applications):
                     tracks_info = self.get_tracks_info(directory["files"])
                     if tracks_info["count"] == len(tracks) and tracks_info["filetype"] != "":
                         if self.is_album_match(tracks, directory["files"], username, tracks_info["filetype"]):
-                            folder_data = self.get_folder_data(directory, file_dir, creator_name, username, release, track)
+                            folder_data = self.get_folder_data(is_lidarr_search, directory, file_dir, creator_name, username, release, track)
                             grab_list.append(folder_data)
                             is_successful = self.enqueue_files(grab_list, folder_data)
                             if is_successful:
