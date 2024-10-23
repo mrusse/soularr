@@ -210,6 +210,8 @@ class Slskd(Applications):
                         continue
                     if is_lidarr_search:
                         tracks_info = self.get_tracks_info(directory["files"])
+                        if tracks_info["count"] != len(tracks) or tracks_info["filetype"] == "":
+                            continue
                         (is_match, best_match_item) = self.is_item_match(tracks, directory["files"], username, tracks_info["filetype"])
                     else:
                         (is_match, best_match_item) = self.is_item_match([{"title": book_title}], directory["files"], username, filetype)
