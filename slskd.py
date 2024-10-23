@@ -69,62 +69,65 @@ class Slskd(Applications):
                 count += 1
         return {"count": count, "filetype": filetype}
 
-    def is_lidarr_track_in_slskd_tracks(self, lidarr_track: JsonObject, slskd_tracks: dict, filetype: str) -> tuple[bool, float]:
-        """Check if a Lidarr track is present in the Soulseek tracks.
+    def is_item_in_slskd_items(self, item: JsonObject, slskd_items: dict, filetype: str) -> tuple[bool, float, JsonObject]:
+        """Check if an item is in the Soulseek items and return the best match.
 
         Args:
-            lidarr_track (JsonObject): The Lidarr track to check.
-            slskd_tracks (dict): The Soulseek tracks to compare against.
-            filetype (str): The filetype of the tracks.
+            item (JsonObject): The item to check.
+            slskd_items (dict): The Soulseek items to compare against.
+            filetype (str): The filetype of the item.
 
         Returns:
-            tuple[bool, float]: A tuple containing a boolean indicating if a match was found and the best match ratio.
+            tuple[bool, float, JsonObject]: A tuple containing a boolean indicating if a match was found, the best match ratio, and the best match item.
 
         """
-        lidarr_filename: str = lidarr_track["title"] + filetype
+        item_filename: str = item["title"] + filetype
         best_match: float = 0.0
+        best_match_item: JsonObject = None
         MATCH_THRESHOLD = 0.5
 
-        for slskd_track in slskd_tracks:
-            slskd_filename: str = slskd_track["filename"]
-            ratio: float = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
+        for slskd_item in slskd_items:
+            slskd_filename: str = slskd_item["filename"]
+            ratio: float = difflib.SequenceMatcher(None, item_filename, slskd_filename).ratio()
 
-            # If ratio is a bad match try and split off the garbage at the start of the slskd_filename and try again
+            # If ratio is a bad match, try and split off the garbage at the start of the slskd_filename and try again
             if ratio < MATCH_THRESHOLD:
-                lidarr_filename_word_count: int = len(lidarr_filename.split()) * -1
-                truncated_slskd_filename: str = " ".join(slskd_filename.split()[lidarr_filename_word_count:])
-                ratio = difflib.SequenceMatcher(None, lidarr_filename, truncated_slskd_filename).ratio()
-            best_match = max(ratio, best_match)
-        return best_match > MATCH_THRESHOLD, best_match
+                item_filename_word_count: int = len(item_filename.split()) * -1
+                truncated_slskd_filename: str = " ".join(slskd_filename.split()[item_filename_word_count:])
+                ratio = difflib.SequenceMatcher(None, item_filename, truncated_slskd_filename).ratio()
+            if ratio > best_match:
+                best_match = ratio
+                best_match_item = slskd_item
+        return (best_match > MATCH_THRESHOLD, best_match, best_match_item)
 
-    def is_album_match(self, lidarr_tracks: JsonArray, slskd_tracks: dict, username: str, filetype: str) -> bool:
-        """Check if an album matches between Lidarr tracks and Soulseek tracks.
+    def is_item_match(self, items: JsonArray, slskd_items: dict, username: str, filetype: str) -> tuple[bool, JsonObject]:
+        """Check if items (Lidarr tracks or Readarr books) match between the specified items and Soulseek items.
 
         Args:
-            lidarr_tracks (JsonArray): The Lidarr tracks to check.
-            slskd_tracks (dict): The Soulseek tracks to compare against.
+            items (JsonArray): The items (Lidarr tracks or Readarr books) to check.
+            slskd_items (dict): The Soulseek items to compare against.
             username (str): The username of the Soulseek user.
-            filetype (str): The filetype of the tracks.
+            filetype (str): The filetype of the items.
 
         Returns:
-            bool: True if an album match is found, False otherwise.
+            tuple[bool, JsonObject]: A tuple containing a boolean indicating if a match was found and the best match item.
 
         """
         counted: list[str] = []
         total_match: float = 0.0
-        for lidarr_track in lidarr_tracks:
-            is_match, best_match = self.is_lidarr_track_in_slskd_tracks(lidarr_track, slskd_tracks, filetype)
+        for item in items:
+            (is_match, best_match, best_match_item) = self.is_item_in_slskd_items(item, slskd_items, filetype)
             if is_match:
-                counted.append(lidarr_track["title"])
+                counted.append(item["title"])
                 total_match += best_match
-        if len(counted) == len(lidarr_tracks) and username not in self.ignored_users:
+        if len(counted) == len(items) and username not in self.ignored_users:
             print(
-                f"\nFound match from user: {username} for {len(counted)} tracks! "
+                f"\nFound match from user: {username} for {len(counted)} items! "
                 f"\nAverage sequence match ratio: {total_match/len(counted)} "
                 f"\nSUCCESSFUL MATCH \n-------------------",
             )
-            return True
-        return False
+            return (True, best_match_item)
+        return (False, None)
 
     def cancel_and_delete(self, delete_dir: str, username: str, files: dict) -> None:
         """Cancel and delete the specified downloads.
@@ -171,12 +174,15 @@ class Slskd(Applications):
                 break
             time.sleep(1)
 
-    def process_search_results(self, search: dict, creator_name: str, tracks: JsonArray, track: JsonObject, release: JsonObject) -> tuple[bool, list[dict]]:
+    def process_search_results(
+        self, search: dict, creator_name: str, book_title: str, tracks: JsonArray, track: JsonObject, release: JsonObject,
+    ) -> tuple[bool, list[dict]]:
         """Process the search results and attempt to enqueue files for download.
 
         Args:
             search (dict): The search dictionary containing search details.
             creator_name (str): The name of the creator (artist or author).
+            book_title (str): The title of the book (for Readarr searches).
             tracks (JsonArray): A JSON array of tracks (for Lidarr searches).
             track (JsonObject): A JSON object representing a single track (for Lidarr searches).
             release (JsonObject): A JSON object representing the release (for Lidarr searches).
@@ -198,25 +204,22 @@ class Slskd(Applications):
             for file in result["files"]:
                 filetype = file["filename"].split(".")[-1]
                 file_dir = file["filename"].rsplit("\\", 1)[0]
-                if is_lidarr_search and filetype in self.allowed_filetypes:
+                if (is_lidarr_search and filetype in self.allowed_filetypes) or (not is_lidarr_search and filetype in self.readarr_allowed_filetypes):
                     directory = self.get_user_directory(username, file_dir)
                     if directory is None:
                         continue
-                    tracks_info = self.get_tracks_info(directory["files"])
-                    if tracks_info["count"] == len(tracks) and tracks_info["filetype"] != "":
-                        if self.is_album_match(tracks, directory["files"], username, tracks_info["filetype"]):
-                            folder_data = self.get_folder_data(is_lidarr_search, directory, file_dir, creator_name, username, release, track)
-                            grab_list.append(folder_data)
-                            is_successful = self.enqueue_files(grab_list, folder_data)
-                            if is_successful:
-                                return (is_successful, grab_list)
-                elif not is_lidarr_search and filetype in self.readarr_allowed_filetypes:
-                    directory = self.get_user_directory(username, file_dir)
-                    if directory is None:
+                    if is_lidarr_search:
+                        tracks_info = self.get_tracks_info(directory["files"])
+                        (is_match, best_match_item) = self.is_item_match(tracks, directory["files"], username, tracks_info["filetype"])
+                    else:
+                        (is_match, best_match_item) = self.is_item_match([{"title": book_title}], directory["files"], username, filetype)
+                        directory["files"] = [best_match_item]
+                    if not is_match:
                         continue
-                    folder_data = self.get_folder_data(is_lidarr_search, directory, file_dir, creator_name, username)
+                    folder_data = self.get_folder_data(is_lidarr_search, directory, file_dir, creator_name, username, release, track)
                     grab_list.append(folder_data)
                     is_successful = self.enqueue_files(grab_list, folder_data)
+
                     if is_successful:
                         return (is_successful, grab_list)
         return (False, grab_list)
@@ -238,7 +241,14 @@ class Slskd(Applications):
             return None
 
     def get_folder_data(
-        self, is_lidarr_search: bool, directory: dict, file_dir: str, creator: str, username: str, release: JsonObject = None, track: JsonObject = None,
+        self,
+        is_lidarr_search: bool,
+        directory: dict,
+        file_dir: str,
+        creator: str,
+        username: str,
+        release: JsonObject = None,
+        track: JsonObject = None,
     ) -> dict:
         """Retrieve folder data for the given search type and directory.
 
@@ -382,13 +392,20 @@ class Slskd(Applications):
         return [file for file in files if "Completed" not in file["state"]]
 
     def search_and_download(
-        self, query: str, creator_name: str, tracks: JsonArray = None, track: JsonObject = None, release: JsonObject = None,
+        self,
+        query: str,
+        creator_name: str,
+        book_title: str = "",
+        tracks: JsonArray = None,
+        track: JsonObject = None,
+        release: JsonObject = None,
     ) -> tuple[bool, list[dict]]:
         """Search for tracks and download them.
 
         Args:
             query (str): The search query.
             creator_name (str): The name of the creator (artist or author).
+            book_title (str, optional): The title of the book (for Readarr searches). Defaults to "".
             tracks (JsonArray, optional): A JSON array of tracks (for Lidarr searches). Defaults to [].
             track (JsonObject, optional): A JSON object representing a single track (for Lidarr searches). Defaults to None.
             release (JsonObject, optional): A JSON object representing the release (for Lidarr searches). Defaults to None.
@@ -401,4 +418,4 @@ class Slskd(Applications):
             tracks = []
         search = self.initiate_search(query)
         self.wait_for_search_completion(search)
-        return self.process_search_results(search, creator_name, tracks, track, release)
+        return self.process_search_results(search, creator_name, book_title, tracks, track, release)
