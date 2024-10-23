@@ -42,7 +42,13 @@ class Lidarr(Arrs):
 
         """
         super().__init__(
-            application_settings, current_page_file_path, title_blacklist, number_of_albums_to_grab, search_type, album_prepend_artist, remove_wanted_on_failure,
+            application_settings,
+            current_page_file_path,
+            title_blacklist,
+            number_of_albums_to_grab,
+            search_type,
+            album_prepend_artist,
+            remove_wanted_on_failure,
         )
         self.accepted_countries = accepted_countries
         self.accepted_formats = accepted_formats
