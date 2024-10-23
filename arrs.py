@@ -283,6 +283,6 @@ class Arrs(Applications):
         while os.path.exists(target_path):
             target_path = os.path.join(failed_imports_dir, f"{folder_name}_{counter}")
             counter += 1
-        if os.path.exists(folder_name) and folder_name != failed_imports_dir:
+        if os.path.exists(folder_name) and "failed_imports" not in folder_name:
             shutil.move(folder_name, target_path)
             print(f"Failed import moved to: {target_path}")
