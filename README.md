@@ -2,7 +2,7 @@
 
 <h1 align="center">Soularr</h1>
 <p align="center">
-  A Python script that connects Lidarr with Soulseek!
+  A Python script that connects Lidarr and Readarr with Soulseek!
 </p>
 
 <p align="center">
@@ -13,20 +13,23 @@
 
 # About
 
-Soularr reads all of your "wanted" albums/artists from Lidarr and downloads them using Slskd. It uses the libraries: [pyarr](https://github.com/totaldebug/pyarr) and [slskd-api](https://github.com/bigoulours/slskd-python-api) to make this happen. View the demo below!
+Soularr reads all of your "wanted" albums/artists from Lidarr and books/authors from Readarr, then downloads them using Slskd. It uses the libraries: [pyarr](https://github.com/totaldebug/pyarr) and [slskd-api](https://github.com/bigoulours/slskd-python-api) to make this happen. View the demo below!
 
 ![Soularr_small](https://github.com/user-attachments/assets/15c47a82-ddf2-40e3-b143-2ad7f570730f)
 
 
-After the downloads are complete in Slskd the script will tell Lidarr to import the downloaded files, making it a truly hands off process.
+After the downloads are complete in Slskd the script will tell the relevent arr application to import the downloaded files, making it a truly hands off process.
 # Setup
 
-### Install and configure Lidarr and Slskd
+### Install and configure Lidarr, Readarr and Slskd
 
 **Lidarr**
 [https://lidarr.audio/](https://lidarr.audio/)
 
-Make sure Lidarr can see your Slskd download directory, if you are running Lidarr in a Docker container you may need to mount the directory. You will then need add it to your config (see "download_dir" under "Lidarr" in the example config). 
+**Readarr**
+[https://readarr.com/](https://readarr.com/)
+
+Make sure Lidarr and Readarr can see your Slskd download directory, if you are running them in a Docker container you may need to mount the directory. You will then need add it to your config (see "download_dir" under "Lidarr" in the example config).
 
 **Slskd**
 [https://github.com/slskd/slskd](https://github.com/slskd/slskd)
@@ -46,6 +49,13 @@ host_url = http://localhost:8686
 #This should be the path mounted in lidarr that points to your slskd download directory.
 #If Lidarr is not running in Docker then this may just be the same dir as Slskd is using below.
 download_dir = /lidarr/path/to/slskd/downloads
+enabled = True
+
+[Readarr]
+api_key = yourreadarrapikeygoeshere
+host_url = http://localhost:8787
+download_dir = /readarr/path/to/slskd/downloads
+enabled = True
 
 [Slskd]
 #Api key from Slskd. Need to set this up manually. See link to Slskd docs above.
@@ -70,12 +80,13 @@ maximum_peer_queue = 50
 minimum_peer_upload_speed = 0
 #Replace "flac,mp3" with "flac" if you just want flacs.
 allowed_filetypes = flac,mp3
+readarr_allowed_filetypes = epub,mobi
 ignored_users = User1,User2,Fred,Bob
 #Set to False if you only want to search for complete albums
 search_for_tracks = True
-#Set to True if you want to add the artist's name to the beginning of the search for albums
+#Set to True if you want to add the creator's name to the beginning of the search for albums/books
 album_prepend_artist = False
-track_prepend_artist = True
+book_prepend_author = False
 #Valid search types: all || incrementing_page || first_page
   #"all" will search for every wanted record everytime soularr is run.
   #"incrementing_page" will start with the first page and increment to the next on each run.
@@ -84,11 +95,13 @@ track_prepend_artist = True
 search_type = incrementing_page
 #How mancy records to grab each run, must be a number between 1 - 2,147,483,647
 number_of_albums_to_grab = 10
+number_of_books_to_grab = 10
 #Unmonitors the album if Soularr can't find it and places it in "failure_list.txt". 
 #Failed albums can be re monitored by filtering "Unmonitored" in the Lidarr wanted list.
 remove_wanted_on_failure = False
 #Comma separated list of words that can't be in the title of albums or tracks. Case insensitive.
 title_blacklist = BlacklistWord1,blacklistword2
+readarr_title_blacklist = BlacklistWord1,blacklistword2
 ```
 
 [Full list of countries from Musicbrainz.](https://musicbrainz.org/doc/Release/Country)
