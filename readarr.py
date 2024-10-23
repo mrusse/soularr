@@ -31,7 +31,13 @@ class Readarr(Arrs):
 
         """
         super().__init__(
-            application_settings, current_page_file_path, title_blacklist, number_of_books_to_grab, search_type, prepend_creator, remove_wanted_on_failure,
+            application_settings,
+            current_page_file_path,
+            title_blacklist,
+            number_of_books_to_grab,
+            search_type,
+            prepend_creator,
+            remove_wanted_on_failure,
         )
 
     def get_wanted(self, page: int = 1) -> JsonObject:
@@ -86,14 +92,14 @@ class Readarr(Arrs):
         for task in import_commands:
             self.process_import_task(self.readarr.get_command(task["id"]))
 
-    def grab_book(self, record: JsonObject) -> tuple[str, str]:
+    def grab_book(self, record: JsonObject) -> tuple[str, str, str]:
         """Grab a book based on the given record.
 
         Args:
             record (JsonObject): The JSON object containing the book record.
 
         Returns:
-            tuple[str, str]: A tuple containing the query string and the book title.
+            tuple[str, str, str]: A tuple containing the query string, the author's name, and the book title.
 
         """
         book = self.readarr.get_book(record["id"])
@@ -102,4 +108,4 @@ class Readarr(Arrs):
         if self.is_blacklisted(book_title):
             return (None, author_name)
         query = f"{author_name} {book_title}" if self.prepend_creator or len(book_title) == 1 else book_title
-        return (query, book_title)
+        return (query, author_name, book_title)
