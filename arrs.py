@@ -190,16 +190,16 @@ class Arrs(Applications):
             if arr_name == "lidarr":
                 (query, all_tracks, creator_name, release) = self.grab_album(record)
             elif arr_name == "readarr":
-                (query, creator_name) = self.grab_book(record)
+                (query, creator_name, book_title) = self.grab_book(record)
             else:
                 raise ValueError(f"Error: {arr_name} is not a valid arr type.")
 
             if query is not None:
                 print(f"Searching {arr_name}: {query}")
                 if arr_name == "lidarr":
-                    (success, grab_list) = slskd_instance.search_and_download(query, creator_name, all_tracks, all_tracks[0], release)
+                    (success, grab_list) = slskd_instance.search_and_download(query, creator_name, "", all_tracks, all_tracks[0], release)
                 elif arr_name == "readarr":
-                    (success, grab_list) = slskd_instance.search_and_download(query, creator_name)
+                    (success, grab_list) = slskd_instance.search_and_download(query, creator_name, book_title)
                 records_grabbed.extend(grab_list)
             else:
                 success = False
@@ -273,7 +273,7 @@ class Arrs(Applications):
             src_path (str): The source path of the failed import.
 
         """
-        failed_imports_dir = "failed_imports"
+        failed_imports_dir = f"failed_imports_{self.__class__.__name__.lower()}"
         counter = 1
         if not os.path.exists(failed_imports_dir):
             os.makedirs(failed_imports_dir)
@@ -283,6 +283,6 @@ class Arrs(Applications):
         while os.path.exists(target_path):
             target_path = os.path.join(failed_imports_dir, f"{folder_name}_{counter}")
             counter += 1
-
-        shutil.move(folder_name, target_path)
-        print(f"Failed import moved to: {target_path}")
+        if os.path.exists(folder_name) and folder_name != failed_imports_dir:
+            shutil.move(folder_name, target_path)
+            print(f"Failed import moved to: {target_path}")
