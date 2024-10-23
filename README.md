@@ -210,6 +210,10 @@ This would run the bash script every 5 minutes.
 
 All of this is focused on Linux but the Python script runs fine on Windows as well. You can use things like the [Windows Task Scheduler](https://en.wikipedia.org/wiki/Windows_Task_Scheduler) to perform similar scheduling operations.
 
+## Check Out These Forks!
+
+[AdamWHY2K's fork with Readarr support!](https://github.com/AdamWHY2K/soularr)
+
 ##
 <p align="center">
   <a href='https://ko-fi.com/mrusse' target='_blank'><img height='35' style='border:0px;height:46px;' src='https://az743702.vo.msecnd.net/cdn/kofi3.png?v=0' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
