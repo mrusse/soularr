@@ -33,7 +33,7 @@ Make sure Lidarr can see your Slskd download directory, if you are running Lidar
 
 The script requires an api key from Slskd. Take a look at their [docs](https://github.com/slskd/slskd/blob/master/docs/config.md#authentication) on how to set it up (all you have to do is add it to the yml file under `web, authentication, api_keys, my_api_key`).
 
-### Configure your config file:
+### Configure your config file
 
 The config file has a bunch of different settings that affect how the script runs. Any lists in the config such as "accepted_countries" need to be comma separated with no spaces (e.g. `","` not `" , "` or `" ,"`).
 
@@ -91,6 +91,17 @@ number_of_albums_to_grab = 10
 remove_wanted_on_failure = False
 #Comma separated list of words that can't be in the title of albums or tracks. Case insensitive.
 title_blacklist = BlacklistWord1,blacklistword2
+
+[Logging]
+#These options are passed into the logger's basicConfig() method as-is.
+#This means, if you're familiar with Python's logging module, you can configure
+#the logger with options beyond what's listed here by default.
+#For more information on available options  --  https://docs.python.org/3/library/logging.html#logging.basicConfig
+level = INFO
+# Format of log message  --  https://docs.python.org/3/library/logging.html#logrecord-attributes
+format = [%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s
+# Format of datetimes  --  https://docs.python.org/3/library/time.html#time.strftime
+datefmt = %Y-%m-%dT%H:%M:%S%z
 ```
 
 [Full list of countries from Musicbrainz.](https://musicbrainz.org/doc/Release/Country)
@@ -209,6 +220,53 @@ Then enter in your schedule followed by the command. For example:
 This would run the bash script every 5 minutes.
 
 All of this is focused on Linux but the Python script runs fine on Windows as well. You can use things like the [Windows Task Scheduler](https://en.wikipedia.org/wiki/Windows_Task_Scheduler) to perform similar scheduling operations.
+
+## Logging
+
+There are some very basic options for logging found under the `[Logging]` section of the `config.ini` file. The defaults
+should be sensible for a typical logging scenario, but are still somewhat opinionated. Some users may not like how the
+log messages are formatted and would prefer a much simpler output than what is provided by default.
+
+For example, if you want the logs to only show the message and none of the other detailed information, edit the
+`[Logging]` section's `format` property to look like this:
+
+```ini
+[Logging]
+format = %(message)s
+```
+
+For more information on the options available for logging, including more options for changing how the messages are
+formatted, see the comments in the `[Logging]` section from the [example config.ini](#configure-your-config-file).
+
+### Log to a File
+
+Currently, the logs are only output to stdout which should be suitable for most users who just want a basic and simple
+set up for Soularr. For users running Soularr as a long-running process, or as part of a cronjob, or for any reason where
+logging to a file is desired, normal command-line tools can be used without needing to touch the logger's configuration.
+
+For example, the `tee` command on Linux and MacOS can be used to allow Soularr to log its output to both stdout and a
+file of your choosing (here the file `soularr.log` is used, but it can be any file you want):
+
+```sh
+python soularr.py 2>&1 | tee -a soularr.log
+```
+
+Or on Windows PowerShell using the similar `Tee-Object` cmdlet:
+
+```powershell
+python soularr.py 2>&1 | Tee-Object -FilePath soularr.log -Append
+```
+
+### Advanced Logging Usage
+
+The current logging setup for Soularr is *very* simple and only allows for the most basic configuration options
+provided by [Python's builtin logging module](https://docs.python.org/3/library/logging.html). Logging was kept simple
+to avoid over-complicating things, and it seems like the desire for more advanced logging capabilities is currently
+quite low.
+
+**If you would like more advanced logging configuration options to be implemented** (such as configuring filters,
+formatters, handlers, additional streams, and multi-logger setups), consider submitting a feature request in
+[the official discord](https://discord.gg/EznhgYBayN) or [submitting an Issue in the GitHub repository itself](https://github.com/mrusse/soularr/issues).
 
 ## Check Out These Forks!
 
