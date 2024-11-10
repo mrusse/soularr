@@ -18,6 +18,13 @@ import slskd_api
 from pyarr import LidarrAPI
 
 logger = logging.getLogger('soularr')
+#Allows backwards compatability for users updating an older version of Soularr
+#without using the new [Logging] section in the config.ini file.
+DEFAULT_LOGGING_CONF = {
+    'level': 'INFO',
+    'format': '[%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s',
+    'datefmt': '%Y-%m-%dT%H:%M:%S%z',
+}
 
 def album_match(lidarr_tracks, slskd_tracks, username, filetype):
     counted = []
@@ -453,7 +460,12 @@ def is_docker():
     return os.getenv('IN_DOCKER') is not None
 
 def setup_logging(config):
-    logging.basicConfig(**config['Logging'])
+    if 'Logging' in config:
+        log_config = config['Logging']
+    else:
+        log_config = DEFAULT_LOGGING_CONF
+    logging.basicConfig(**log_config)   # type: ignore
+
 
 if is_docker():
     lock_file_path = ""
