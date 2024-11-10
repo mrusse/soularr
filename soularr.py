@@ -10,11 +10,14 @@ import difflib
 import operator
 import traceback
 import configparser
+import logging
 from datetime import datetime
 
 import music_tag
 import slskd_api
 from pyarr import LidarrAPI
+
+logger = logging.getLogger('soularr')
 
 def album_match(lidarr_tracks, slskd_tracks, username, filetype):
     counted = []
@@ -45,9 +48,10 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
             total_match += best_match
 
     if len(counted) == len(lidarr_tracks) and not mp3 and username not in ignored_users:
-        print("\nFound match from user: " + username +" for " + str(len(counted)) + " tracks!")
-        print("Average sequence match ratio: " + str(total_match/len(counted)))
-        print("SUCCESSFUL MATCH \n-------------------")
+        logger.info(f"Found match from user: {username} for {len(counted)} tracks!")
+        logger.info(f"Average sequence match ratio: {total_match/len(counted)}")
+        logger.info("SUCCESSFUL MATCH")
+        logger.info("-------------------")
         return True
 
     return False
@@ -143,14 +147,14 @@ def choose_release(album_id, artist_name):
             and release['status'] == "Official"
             and track_count_bool):
 
-            print("Selected release for "
-                  + artist_name + ": "
-                  + release['status'] + ", "
-                  + country + ", "
-                  + release['format']
-                  + ", Mediums: " + str(release['mediumCount'])
-                  + ", Tracks: " + str(release['trackCount'])
-                  + ", ID: " + str(release['id']))
+            logger.info(", ".join([
+                f"Selected release for {artist_name}: {release['status']}",
+                str(country),
+                release['format'],
+                f"Mediums: {release['mediumCount']}",
+                f"Tracks: {release['trackCount']}",
+                f"ID: {release['id']}",
+            ]))
 
             return release
 
@@ -177,11 +181,11 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
             break
         time.sleep(1)
 
-    print("Search returned " + str(len(slskd.searches.search_responses(search['id']))) + " results")
+    logger.info(f"Search returned {len(slskd.searches.search_responses(search['id']))} results")
 
     for result in slskd.searches.search_responses(search['id']):
         username = result['username']
-        print("Parsing result from user: " + username)
+        logger.info(f"Parsing result from user: {username}")
         files = result['files']
 
         for file in files:
@@ -217,7 +221,7 @@ def search_and_download(grab_list, querry, tracks, track, artist_name, release):
                                 slskd.searches.delete(search['id'])
                             return True
                         except Exception:
-                            print("Error enqueueing tracks! Adding " + username + " to ignored users list.")
+                            logger.warning(f"Error enqueueing tracks! Adding {username} to ignored users list.")
                             downloads = slskd.transfers.get_downloads(username)
 
                             for cancel_directory in downloads["directories"]:
@@ -236,7 +240,7 @@ def is_blacklisted(title: str) -> bool:
     blacklist = search_settings.get('title_blacklist', '').lower().split(",")
     for word in blacklist:
         if word != '' and word in title.lower():
-            print(f"Skipping {title} due to blacklisted word: {word}")
+            logger.info(f"Skipping {title} due to blacklisted word: {word}")
             return True
     return False
 
@@ -266,7 +270,7 @@ def grab_most_wanted(albums):
             else:
                 querry = artist_name + " " + album_title if search_settings.getboolean('album_prepend_artist', False) else album_title
 
-            print("Searching album: " + querry)
+            logger.info(f"Searching album: {querry}")
             success = search_and_download(grab_list, querry, all_tracks, all_tracks[0], artist_name, release)
 
         if not success and search_settings.getboolean('search_for_tracks', True):
@@ -284,8 +288,8 @@ def grab_most_wanted(albums):
                         querry = artist_name + " " + track['title']
                     else:
                         querry = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist', True) else track['title']
-                        
-                    print("Searching track: " + querry)
+
+                    logger.info("Searching track: {querry}")
                     success = search_and_download(grab_list, querry, tracks, track, artist_name, release)
 
                     if success:
@@ -293,12 +297,12 @@ def grab_most_wanted(albums):
 
                 if not success:
                     if remove_wanted_on_failure:
-                        print("ERROR: Failed to grab album: " + album['title'] + " for artist: " + artist_name + 
-                              ". Failed album removed from wanted list and added to \"failure_list.txt\"")
+                        logger.error(f"Failed to grab album: {album['title']} for artist: {artist_name}."
+                            + ' Failed album removed from wanted list and added to "failure_list.txt"')
 
                         album['monitored'] = False
                         lidarr.upd_album(album)
-                        
+
                         current_datetime = datetime.now()
                         current_datetime_str = current_datetime.strftime("%d/%m/%Y %H:%M:%S")
 
@@ -307,22 +311,22 @@ def grab_most_wanted(albums):
                         with open(failure_file_path, "a") as file:
                             file.write(failure_string)
                     else:
-                        print("ERROR: Failed to grab album: " + album['title'] + " for artist: " + artist_name)
-                    
+                        logger.error(f"Failed to grab album: {album['title']} for artist: {artist_name}")
+
                     failed_download += 1
 
         success = False
 
-    print("Downloads added: ")
+    logger.info("Downloads added:")
     downloads = slskd.transfers.get_all_downloads()
 
     for download in downloads:
         username = download['username']
         for dir in download['directories']:
-            print("Username: " + username + " Directory: " + dir['directory'])
+            logger.info(f"Username: {username} Directory: {dir['directory']}")
 
-    print("-------------------")
-    print("Waiting for downloads... monitor at: " + slskd_host_url + "/downloads")
+    logger.info("-------------------")
+    logger.info(f"Waiting for downloads... monitor at: {slskd_host_url}/downloads")
 
     while True:
         unfinished = 0
@@ -344,14 +348,14 @@ def grab_most_wanted(albums):
 
                     # If we have errored files, cancel and remove ALL files so we can retry next time
                     if len(errored_files) > 0:
-                        print(f"FAILED: Username: {username} Directory: {dir['name']}")
+                        logger.error(f"FAILED: Username: {username} Directory: {dir['name']}")
                         cancel_and_delete(artist_folder['dir'], artist_folder['username'], directory["files"])
                         grab_list.remove(artist_folder)
                     elif len(pending_files) > 0:
                         unfinished += 1
 
         if unfinished == 0:
-            print("All tracks finished downloading!")
+            logger.info("All tracks finished downloading!")
             time.sleep(5)
             break
 
@@ -383,13 +387,13 @@ def grab_most_wanted(albums):
 
                 if not os.path.exists(artist_name_sanitized):
                     os.mkdir(artist_name_sanitized)
-                if not os.path.exists(new_dir):    
+                if not os.path.exists(new_dir):
                     os.mkdir(new_dir)
 
                 if os.path.exists(os.path.join(folder,filename)) and not os.path.exists(os.path.join(new_dir,filename)):
                     shutil.move(os.path.join(folder,filename),new_dir)
 
-            if os.path.exists(folder):        
+            if os.path.exists(folder):
                 shutil.rmtree(folder)
 
         elif os.path.exists(folder):
@@ -402,7 +406,7 @@ def grab_most_wanted(albums):
         download_dir = os.path.join(lidarr_download_dir,artist_folder)
         command = lidarr.post_command(name = 'DownloadedAlbumsScan', path = download_dir)
         commands.append(command)
-        print("Starting Lidarr import for: " + artist_folder + " ID: " + str(command['id']))
+        logger.info(f"Starting Lidarr import for: {artist_folder} ID: {command['id']}")
 
     while True:
         completed_count = 0
@@ -412,41 +416,44 @@ def grab_most_wanted(albums):
                 completed_count += 1
         if completed_count == len(commands):
             break
-        time.sleep(2)        
+        time.sleep(2)
 
     for task in commands:
         current_task = lidarr.get_command(task['id'])
         try:
-            print(current_task['commandName'] + " " + current_task['message'] + " from: " + current_task['body']['path'])
+            logger.info(f"{current_task['commandName']} {current_task['message']} from: {current_task['body']['path']}")
 
             if "Failed" in current_task['message']:
                 move_failed_import(current_task['body']['path'])
         except:
-            print("Error printing lidarr task message. Printing full unparsed message.")
-            print(current_task)
+            logger.error("Error printing lidarr task message. Printing full unparsed message.")
+            logger.error(current_task)
 
     return failed_download
 
 def move_failed_import(src_path):
     failed_imports_dir = "failed_imports"
-    
+
     if not os.path.exists(failed_imports_dir):
         os.makedirs(failed_imports_dir)
-    
+
     folder_name = os.path.basename(src_path)
     target_path = os.path.join(failed_imports_dir, folder_name)
-    
+
     counter = 1
     while os.path.exists(target_path):
         target_path = os.path.join(failed_imports_dir, f"{folder_name}_{counter}")
         counter += 1
-    
+
     if os.path.exists(folder_name):
         shutil.move(folder_name, target_path)
-        print("Failed import moved to: " + target_path)
+        logger.info(f"Failed import moved to: {target_path}")
 
 def is_docker():
     return os.getenv('IN_DOCKER') is not None
+
+def setup_logging(config):
+    logging.basicConfig(**config['Logging'])
 
 if is_docker():
     lock_file_path = ""
@@ -458,9 +465,9 @@ else:
     config_file_path = os.path.join(os.getcwd(), "config.ini")
     failure_file_path = os.path.join(os.getcwd(), "failure_list.txt")
     current_page_file_path = os.path.join(os.getcwd(), ".current_page.txt")
-    
+
 if os.path.exists(lock_file_path) and not is_docker():
-    print(f"Soularr instance is already running.")
+    logger.info(f"Soularr instance is already running.")
     sys.exit(1)
 
 try:
@@ -468,22 +475,23 @@ try:
         with open(lock_file_path, "w") as lock_file:
             lock_file.write("locked")
 
-    config = configparser.ConfigParser()
+    # Disable interpolation to make storing logging formats in the config file much easier
+    config = configparser.ConfigParser(interpolation=None)
 
 
     if os.path.exists(config_file_path):
         config.read(config_file_path)
     else:
         if is_docker():
-            print("Config file does not exist! Please mount \"/data\" and place your \"config.ini\" file there.")
-            print("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
+            logger.error('Config file does not exist! Please mount "/data" and place your "config.ini" file there.')
+            logger.error("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
         else:
-            print("Config file does not exist! Please place it in the working directory.")
-            print("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
+            logger.error("Config file does not exist! Please place it in the working directory.")
+            logger.error("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
         if os.path.exists(lock_file_path) and not is_docker():
             os.remove(lock_file_path)
         sys.exit(0)
- 
+
     slskd_api_key = config['Slskd']['api_key']
     lidarr_api_key = config['Lidarr']['api_key']
 
@@ -516,6 +524,8 @@ try:
     else:
         allowed_filetypes = [raw_filetypes]
 
+    setup_logging(config)
+
     slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
@@ -534,7 +544,7 @@ try:
             with open(path, 'w') as file:
                 file.write(str(default_page))
             return default_page
-        
+
     def update_current_page(path: str, page: int) -> None:
         with open(path, 'w') as file:
                 file.write(page)
@@ -561,7 +571,7 @@ try:
         wanted_records = wanted['records']
 
     else:
-        print(f'Error: [Search Settings] - search_type = {search_type} is not valid. Exiting...')
+        logger.error(f'[Search Settings] - search_type = {search_type} is not valid. Exiting...')
 
         if os.path.exists(lock_file_path) and not is_docker():
                 os.remove(lock_file_path)
@@ -572,23 +582,23 @@ try:
         try:
             failed = grab_most_wanted(wanted_records)
         except Exception:
-            print(traceback.format_exc())
-            print("\n Fatal error! Exiting...")
+            logger.error(traceback.format_exc())
+            logger.error("\n Fatal error! Exiting...")
 
             if os.path.exists(lock_file_path) and not is_docker():
                 os.remove(lock_file_path)
             sys.exit(0)
         if failed == 0:
-            print("Solarr finished. Exiting...")
+            logger.info("Solarr finished. Exiting...")
             slskd.transfers.remove_completed_downloads()
         else:
             if remove_wanted_on_failure:
-                print(str(failed) + ": releases failed and were removed from wanted list. View \"failure_list.txt\" for list of failed albums.")
+                logger.info(f'{failed}: releases failed and were removed from wanted list. View "failure_list.txt" for list of failed albums.')
             else:
-                print(str(failed) + ": releases failed while downloading and are still wanted.")
+                logger.info(f"{failed}: releases failed while downloading and are still wanted.")
             slskd.transfers.remove_completed_downloads()
     else:
-        print("No releases wanted. Exiting...")
+        logger.info("No releases wanted. Exiting...")
 
 finally:
     # Remove the lock file after activity is done
