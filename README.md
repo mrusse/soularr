@@ -97,7 +97,7 @@ title_blacklist = BlacklistWord1,blacklistword2
 #This means, if you're familiar with Python's logging module, you can configure
 #the logger with options beyond what's listed here by default.
 #For more information on available options  --  https://docs.python.org/3/library/logging.html#logging.basicConfig
-level = DEBUG
+level = INFO
 # Format of log message  --  https://docs.python.org/3/library/logging.html#logrecord-attributes
 format = [%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s
 # Format of datetimes  --  https://docs.python.org/3/library/time.html#time.strftime
