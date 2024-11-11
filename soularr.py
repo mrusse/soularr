@@ -335,6 +335,8 @@ def grab_most_wanted(albums):
     logger.info("-------------------")
     logger.info(f"Waiting for downloads... monitor at: {slskd_host_url}/downloads")
 
+    time_count = 0
+
     while True:
         unfinished = 0
         for artist_folder in list(grab_list):
@@ -365,6 +367,12 @@ def grab_most_wanted(albums):
             logger.info("All tracks finished downloading!")
             time.sleep(5)
             break
+
+        time_count += 10
+
+        if(time_count > stalled_timeout):
+            logger.info("STALL DETECTED!!!!!")
+            #TODO: Remove downloads that are not completed and start import for completed
 
         time.sleep(10)
 
@@ -514,6 +522,8 @@ try:
     lidarr_host_url = config['Lidarr']['host_url']
     slskd_host_url = config['Slskd']['host_url']
 
+    stalled_timeout = config['Slskd'].getint('stalled_timeout', 60)
+
     delete_searches = config['Slskd'].getboolean('delete_searches', True)
 
     search_settings = config['Search Settings']
@@ -537,6 +547,7 @@ try:
         allowed_filetypes = [raw_filetypes]
 
     setup_logging(config)
+    logger.info(f"stalled_timeout: {str(stalled_timeout)}")
 
     slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
