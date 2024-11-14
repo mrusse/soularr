@@ -559,7 +559,6 @@ try:
         allowed_filetypes = [raw_filetypes]
 
     setup_logging(config)
-    logger.info(f"stalled_timeout: {str(stalled_timeout)}")
 
     slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
