@@ -296,7 +296,7 @@ def grab_most_wanted(albums):
                     else:
                         querry = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist', True) else track['title']
 
-                    logger.info("Searching track: {querry}")
+                    logger.info(f"Searching track: {querry}")
                     success = search_and_download(grab_list, querry, tracks, track, artist_name, release)
 
                     if success:
