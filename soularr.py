@@ -296,7 +296,7 @@ def grab_most_wanted(albums):
                     else:
                         querry = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist', True) else track['title']
 
-                    logger.info("Searching track: {querry}")
+                    logger.info(f"Searching track: {querry}")
                     success = search_and_download(grab_list, querry, tracks, track, artist_name, release)
 
                     if success:
@@ -371,8 +371,20 @@ def grab_most_wanted(albums):
         time_count += 10
 
         if(time_count > stalled_timeout):
-            logger.info("STALL DETECTED!!!!!")
-            #TODO: Remove downloads that are not completed and start import for completed
+            logger.info("Stall timeout reached! Removing stuck downloads...")
+
+            for directory in downloads["directories"]:
+                if directory["directory"] == dir["name"]:
+                    pending_files = [file for file in directory["files"] if not 'Completed' in file["state"]]
+
+                    if len(pending_files) > 0:
+                        logger.error(f"Removing Stalled Download: Username: {username} Directory: {dir['name']}")
+                        cancel_and_delete(artist_folder['dir'], artist_folder['username'], directory["files"])
+                        grab_list.remove(artist_folder)
+
+            logger.info("All tracks finished downloading!")
+            time.sleep(5)
+            break
 
         time.sleep(10)
 
