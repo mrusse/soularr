@@ -174,8 +174,8 @@ def choose_release(album_id, artist_name):
 
     return default_release
 
-def search_and_download(grab_list, querry, tracks, track, artist_name, release):
-    search = slskd.searches.search_text(searchText = querry,
+def search_and_download(grab_list, query, tracks, track, artist_name, release):
+    search = slskd.searches.search_text(searchText = query,
                                         searchTimeout = search_settings['search_timeout'],
                                         filterResponses = True,
                                         maximumPeerQueueLength = search_settings['maximum_peer_queue'],
@@ -273,12 +273,12 @@ def grab_most_wanted(albums):
                 continue
 
             if len(album_title) == 1:
-                querry = artist_name + " " + album_title
+                query = artist_name + " " + album_title
             else:
-                querry = artist_name + " " + album_title if search_settings.getboolean('album_prepend_artist', False) else album_title
+                query = artist_name + " " + album_title if search_settings.getboolean('album_prepend_artist', False) else album_title
 
-            logger.info(f"Searching album: {querry}")
-            success = search_and_download(grab_list, querry, all_tracks, all_tracks[0], artist_name, release)
+            logger.info(f"Searching album: {query}")
+            success = search_and_download(grab_list, query, all_tracks, all_tracks[0], artist_name, release)
 
         if not success and search_settings.getboolean('search_for_tracks', True):
             for media in release['media']:
@@ -292,12 +292,12 @@ def grab_most_wanted(albums):
                         continue
 
                     if len(track['title']) == 1:
-                        querry = artist_name + " " + track['title']
+                        query = artist_name + " " + track['title']
                     else:
-                        querry = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist', True) else track['title']
+                        query = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist', True) else track['title']
 
-                    logger.info(f"Searching track: {querry}")
-                    success = search_and_download(grab_list, querry, tracks, track, artist_name, release)
+                    logger.info(f"Searching track: {query}")
+                    success = search_and_download(grab_list, query, tracks, track, artist_name, release)
 
                     if success:
                         break
