@@ -534,7 +534,7 @@ try:
     lidarr_host_url = config['Lidarr']['host_url']
     slskd_host_url = config['Slskd']['host_url']
 
-    stalled_timeout = config['Slskd'].getint('stalled_timeout', 60)
+    stalled_timeout = config['Slskd'].getint('stalled_timeout', 3600)
 
     delete_searches = config['Slskd'].getboolean('delete_searches', True)
 
