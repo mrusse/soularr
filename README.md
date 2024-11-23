@@ -55,6 +55,9 @@ host_url = http://localhost:5030
 download_dir = /path/to/your/Slskd/downloads
 #Removes searches from Slskd after the search finishes.
 delete_searches = False
+#Maximum time (in seconds) that the script will wait for downloads to complete.
+#This is used to prevent the script from running forever due to a stalled download. Defaults to 1 hour.
+stalled_timeout = 3600
 
 [Release Settings]
 #Selects the release with the most common amount of tracks out of all the releases.
