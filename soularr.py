@@ -335,6 +335,8 @@ def grab_most_wanted(albums):
     logger.info("-------------------")
     logger.info(f"Waiting for downloads... monitor at: {slskd_host_url}/downloads")
 
+    time_count = 0
+
     while True:
         unfinished = 0
         for artist_folder in list(grab_list):
@@ -362,6 +364,24 @@ def grab_most_wanted(albums):
                         unfinished += 1
 
         if unfinished == 0:
+            logger.info("All tracks finished downloading!")
+            time.sleep(5)
+            break
+
+        time_count += 10
+
+        if(time_count > stalled_timeout):
+            logger.info("Stall timeout reached! Removing stuck downloads...")
+
+            for directory in downloads["directories"]:
+                if directory["directory"] == dir["name"]:
+                    pending_files = [file for file in directory["files"] if not 'Completed' in file["state"]]
+
+                    if len(pending_files) > 0:
+                        logger.error(f"Removing Stalled Download: Username: {username} Directory: {dir['name']}")
+                        cancel_and_delete(artist_folder['dir'], artist_folder['username'], directory["files"])
+                        grab_list.remove(artist_folder)
+
             logger.info("All tracks finished downloading!")
             time.sleep(5)
             break
@@ -513,6 +533,8 @@ try:
 
     lidarr_host_url = config['Lidarr']['host_url']
     slskd_host_url = config['Slskd']['host_url']
+
+    stalled_timeout = config['Slskd'].getint('stalled_timeout', 3600)
 
     delete_searches = config['Slskd'].getboolean('delete_searches', True)
 
