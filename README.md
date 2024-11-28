@@ -275,3 +275,5 @@ formatters, handlers, additional streams, and multi-logger setups), consider sub
 <p align="center">
   <a href='https://ko-fi.com/mrusse' target='_blank'><img height='35' style='border:0px;height:46px;' src='https://az743702.vo.msecnd.net/cdn/kofi3.png?v=0' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 </p>
+
+<meta name="google-site-verification" content="sdzc16IS4k-kAWfEmPlGo-StqEY5ldwYkVdD9jspk5U" />
