@@ -260,6 +260,12 @@ Or on Windows PowerShell using the similar `Tee-Object` cmdlet:
 python soularr.py 2>&1 | Tee-Object -FilePath soularr.log -Append
 ```
 
+### View logs in WebUI
+
+[EricH9958](https://github.com/EricH9958) has made a log viewer that lets you monitor the Soularr logs in your browser! Check his repo out here: 
+
+[https://github.com/EricH9958/Soularr-Dashboard](https://github.com/EricH9958/Soularr-Dashboard)
+
 ### Advanced Logging Usage
 
 The current logging setup for Soularr is *very* simple and only allows for the most basic configuration options
