@@ -174,6 +174,48 @@ def choose_release(album_id, artist_name):
 
     return default_release
 
+def verify_filetype(file,allowed_filetype):
+    current_filetype = file['filename'].split(".")[-1]
+    attributes = file['attributes']
+
+    #Get attributes from the current file
+    for attribute in attributes:
+        if attribute['type'] == 'BitRate':
+            bitrate = attribute['value']
+        if attribute['type'] == 'SampleRate':
+            samplerate = attribute['value']
+        if attribute['type'] == 'BitDepth':
+            bitdepth = attribute['value']
+
+    #Check if the types match up for the current files type and the current type from the config
+    if current_filetype == allowed_filetype.split(" ")[0]:
+        #Check if the current type from the config specifies other attributes than the filetype (bitrate etc)
+        if " " in allowed_filetype:
+            selected_attributes = allowed_filetype.split(" ")[1]
+            #If it is a bitdepth/samplerate pair instead of a simple bitrate
+            if "/" in selected_attributes:
+                selected_bitdepth = selected_attributes.split("/")[0]
+                selected_samplerate = str(int(selected_attributes.split("/")[1]) * 1000)
+
+                if bitdepth and samplerate:
+                    if str(bitdepth) == selected_bitdepth and str(samplerate) == selected_samplerate:
+                        return True 
+                else:
+                    return False
+            #If it is a bitrate
+            else:
+                selected_bitrate = selected_attributes
+                if bitrate:
+                    if str(bitrate) == selected_bitrate:
+                        return True
+                else:
+                    return False
+        #If no bitrate or other info then it is a match so return true
+        else:
+            return True
+    else:
+        return False
+
 def search_and_download(grab_list, query, tracks, track, artist_name, release):
     search = slskd.searches.search_text(searchText = query,
                                         searchTimeout = search_settings['search_timeout'],
@@ -189,54 +231,57 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
         time.sleep(1)
 
     logger.info(f"Search returned {len(slskd.searches.search_responses(search['id']))} results")
+    
+    for allowed_filetype in allowed_filetypes:
+        logger.info(f"Serching for matches with selected attributes: {allowed_filetype}")
 
-    for result in slskd.searches.search_responses(search['id']):
-        username = result['username']
-        logger.info(f"Parsing result from user: {username}")
-        files = result['files']
+        for result in slskd.searches.search_responses(search['id']):
+            username = result['username']
+            logger.info(f"Parsing result from user: {username}")
+            files = result['files']
 
-        for file in files:
-            if file['filename'].split(".")[-1] in allowed_filetypes:
-                file_dir = file['filename'].rsplit("\\",1)[0]
+            for file in files:
+                if verify_filetype(file,allowed_filetype):
+                    file_dir = file['filename'].rsplit("\\",1)[0]
 
-                try:
-                    directory = slskd.users.directory(username = username, directory = file_dir)
-                except:
-                    continue
+                    try:
+                        directory = slskd.users.directory(username = username, directory = file_dir)
+                    except:
+                        continue
 
-                tracks_info = album_track_num(directory)
+                    tracks_info = album_track_num(directory)
 
-                if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
-                    if album_match(tracks, directory['files'], username, tracks_info['filetype']):
-                        for i in range(0,len(directory['files'])):
-                            directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
+                    if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
+                        if album_match(tracks, directory['files'], username, tracks_info['filetype']):
+                            for i in range(0,len(directory['files'])):
+                                directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
 
-                        folder_data = {
-                            "artist_name": artist_name,
-                            "release": release,
-                            "dir": file_dir.split("\\")[-1],
-                            "discnumber": track['mediumNumber'],
-                            "username": username,
-                            "directory": directory,
-                        }
-                        grab_list.append(folder_data)
+                            folder_data = {
+                                "artist_name": artist_name,
+                                "release": release,
+                                "dir": file_dir.split("\\")[-1],
+                                "discnumber": track['mediumNumber'],
+                                "username": username,
+                                "directory": directory,
+                            }
+                            grab_list.append(folder_data)
 
-                        try:
-                            slskd.transfers.enqueue(username = username, files = directory['files'])
-                            # Delete the search from SLSKD DB
-                            if delete_searches:
-                                slskd.searches.delete(search['id'])
-                            return True
-                        except Exception:
-                            logger.warning(f"Error enqueueing tracks! Adding {username} to ignored users list.")
-                            downloads = slskd.transfers.get_downloads(username)
+                            try:
+                                slskd.transfers.enqueue(username = username, files = directory['files'])
+                                # Delete the search from SLSKD DB
+                                if delete_searches:
+                                    slskd.searches.delete(search['id'])
+                                return True
+                            except Exception:
+                                logger.warning(f"Error enqueueing tracks! Adding {username} to ignored users list.")
+                                downloads = slskd.transfers.get_downloads(username)
 
-                            for cancel_directory in downloads["directories"]:
-                                if cancel_directory["directory"] == directory["name"]:
-                                    cancel_and_delete(file_dir.split("\\")[-1], username, cancel_directory["files"])
-                                    grab_list.remove(folder_data)
-                                    ignored_users.append(username)
-                            continue
+                                for cancel_directory in downloads["directories"]:
+                                    if cancel_directory["directory"] == directory["name"]:
+                                        cancel_and_delete(file_dir.split("\\")[-1], username, cancel_directory["files"])
+                                        grab_list.remove(folder_data)
+                                        ignored_users.append(username)
+                                continue
 
     # Delete the search from SLSKD DB
     if delete_searches:
