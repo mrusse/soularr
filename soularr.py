@@ -72,29 +72,16 @@ def check_ratio(separator, ratio, lidarr_filename, slskd_filename):
         return ratio
     return ratio
 
-def album_track_num(directory):
+def album_track_num(directory,allowed_filetype):
     files = directory['files']
     count = 0
-    index = -1
-    filetype = ""
+
     for file in files:
-        if file['filename'].split(".")[-1] in allowed_filetypes:
-            new_index = allowed_filetypes.index(file['filename'].split(".")[-1])
-
-            if index == -1:
-                index = new_index
-                filetype = allowed_filetypes[index]
-            elif new_index != index:
-                filetype = ""
-                break
-
+        #logger.info(file)
+        if verify_filetype(file,allowed_filetype):
             count += 1
 
-    return_data =	{
-        "count": count,
-        "filetype": filetype
-    }
-    return return_data
+    return count
 
 def sanitize_folder_name(folder_name):
     valid_characters = re.sub(r'[<>:."/\\|?*]', '', folder_name)
@@ -176,16 +163,16 @@ def choose_release(album_id, artist_name):
 
 def verify_filetype(file,allowed_filetype):
     current_filetype = file['filename'].split(".")[-1]
-    attributes = file['attributes']
+    bitdepth = None
+    samplerate = None
+    bitrate = None
 
-    #Get attributes from the current file
-    for attribute in attributes:
-        if attribute['type'] == 'BitRate':
-            bitrate = attribute['value']
-        if attribute['type'] == 'SampleRate':
-            samplerate = attribute['value']
-        if attribute['type'] == 'BitDepth':
-            bitdepth = attribute['value']
+    if 'bitRate' in file:
+        bitrate = file['bitRate']
+    if 'sampleRate' in file:
+        samplerate = file['sampleRate']
+    if 'bitDepth' in file:
+        bitdepth = file['bitDepth']
 
     #Check if the types match up for the current files type and the current type from the config
     if current_filetype == allowed_filetype.split(" ")[0]:
@@ -195,10 +182,14 @@ def verify_filetype(file,allowed_filetype):
             #If it is a bitdepth/samplerate pair instead of a simple bitrate
             if "/" in selected_attributes:
                 selected_bitdepth = selected_attributes.split("/")[0]
-                selected_samplerate = str(int(selected_attributes.split("/")[1]) * 1000)
+                try:
+                    selected_samplerate = str(int(float(selected_attributes.split("/")[1]) * 1000))
+                except (ValueError, IndexError):
+                    logger.warning("Invalid samplerate in selected_attributes")
+                    return False
 
                 if bitdepth and samplerate:
-                    if str(bitdepth) == selected_bitdepth and str(samplerate) == selected_samplerate:
+                    if str(bitdepth) == str(selected_bitdepth)and str(samplerate) == str(selected_samplerate):
                         return True 
                 else:
                     return False
@@ -206,7 +197,7 @@ def verify_filetype(file,allowed_filetype):
             else:
                 selected_bitrate = selected_attributes
                 if bitrate:
-                    if str(bitrate) == selected_bitrate:
+                    if str(bitrate) == str(selected_bitrate):
                         return True
                 else:
                     return False
@@ -242,17 +233,19 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
 
             for file in files:
                 if verify_filetype(file,allowed_filetype):
+                    
                     file_dir = file['filename'].rsplit("\\",1)[0]
 
                     try:
                         directory = slskd.users.directory(username = username, directory = file_dir)
                     except:
                         continue
+                    
+                    count = album_track_num(directory,allowed_filetype)
+                    #logger.info(f"Parsed album count: {count} vs lidarr count: {track_num}")
 
-                    tracks_info = album_track_num(directory)
-
-                    if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
-                        if album_match(tracks, directory['files'], username, tracks_info['filetype']):
+                    if album_track_num(directory,allowed_filetype) == track_num:
+                        if album_match(tracks, directory['files'], username, allowed_filetype.split(" ")[0]):
                             for i in range(0,len(directory['files'])):
                                 directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
 
