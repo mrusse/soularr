@@ -29,6 +29,10 @@ DEFAULT_LOGGING_CONF = {
 def album_match(lidarr_tracks, slskd_tracks, username, filetype):
     counted = []
     total_match = 0.0
+    
+    lidarr_album = lidarr.get_album(lidarr_tracks[0]['albumId'])
+    lidarr_album_name = lidarr_album['title']
+    lidarr_artist_name = lidarr_album['artist']['artistName']
 
     for lidarr_track in lidarr_tracks:
         lidarr_filename = lidarr_track['title'] + "." + filetype.split(" ")[0]
@@ -42,9 +46,21 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
 
             #If ratio is a bad match try and split off (with " " as the seperator) the garbage at the start of the slskd_filename and try again
             ratio = check_ratio(" ", ratio, lidarr_filename, slskd_filename)
-
             #Same but with "_" as the seperator
             ratio = check_ratio("_", ratio, lidarr_filename, slskd_filename)
+
+            #Same checks but preappend album name, artist name, then album and artist name.
+            ratio = check_ratio("", ratio, lidarr_album_name + " " + lidarr_filename, slskd_filename)
+            ratio = check_ratio(" ", ratio, lidarr_album_name + " " + lidarr_filename, slskd_filename)
+            ratio = check_ratio("_", ratio, lidarr_album_name + " " + lidarr_filename, slskd_filename)
+
+            ratio = check_ratio("", ratio, lidarr_artist_name + " " + lidarr_filename, slskd_filename)
+            ratio = check_ratio(" ", ratio, lidarr_artist_name + " " + lidarr_filename, slskd_filename)
+            ratio = check_ratio("_", ratio, lidarr_artist_name + " " + lidarr_filename, slskd_filename)
+
+            ratio = check_ratio("", ratio, lidarr_artist_name + " " + lidarr_album_name + " "+ lidarr_filename, slskd_filename)
+            ratio = check_ratio(" ", ratio, lidarr_artist_name + " " + lidarr_album_name + " "+ lidarr_filename, slskd_filename)
+            ratio = check_ratio("_", ratio, lidarr_artist_name + " " + lidarr_album_name + " "+ lidarr_filename, slskd_filename)
 
             if ratio > best_match:
                 best_match = ratio
@@ -64,9 +80,12 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
 
 def check_ratio(separator, ratio, lidarr_filename, slskd_filename):
     if ratio < 0.5:
-        lidarr_filename_word_count = len(lidarr_filename.split()) * -1
-        truncated_slskd_filename = " ".join(slskd_filename.split(separator)[lidarr_filename_word_count:])
-        ratio = difflib.SequenceMatcher(None, lidarr_filename, truncated_slskd_filename).ratio()
+        if separator != "":
+            lidarr_filename_word_count = len(lidarr_filename.split()) * -1
+            truncated_slskd_filename = " ".join(slskd_filename.split(separator)[lidarr_filename_word_count:])
+            ratio = difflib.SequenceMatcher(None, lidarr_filename, truncated_slskd_filename).ratio()
+        else:
+            ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
         return ratio
     return ratio
