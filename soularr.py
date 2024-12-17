@@ -28,16 +28,15 @@ DEFAULT_LOGGING_CONF = {
 
 def album_match(lidarr_tracks, slskd_tracks, username, filetype):
     counted = []
-    mp3 = False
     total_match = 0.0
 
     for lidarr_track in lidarr_tracks:
-        lidarr_filename = lidarr_track['title'] + filetype
+        lidarr_filename = lidarr_track['title'] + "." + filetype
         best_match = 0.0
 
         for slskd_track in slskd_tracks:
             slskd_filename = slskd_track['filename']
-
+            
             #Try to match the ratio with the exact filenames
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
@@ -54,7 +53,7 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
             counted.append(lidarr_filename)
             total_match += best_match
 
-    if len(counted) == len(lidarr_tracks) and not mp3 and username not in ignored_users:
+    if len(counted) == len(lidarr_tracks) and username not in ignored_users:
         logger.info(f"Found match from user: {username} for {len(counted)} tracks!")
         logger.info(f"Average sequence match ratio: {total_match/len(counted)}")
         logger.info("SUCCESSFUL MATCH")
@@ -72,16 +71,30 @@ def check_ratio(separator, ratio, lidarr_filename, slskd_filename):
         return ratio
     return ratio
 
-def album_track_num(directory,allowed_filetype):
+def album_track_num(directory):
     files = directory['files']
+    allowed_filetypes_no_attributes = [item.split(" ")[0] for item in allowed_filetypes]
     count = 0
-
+    index = -1
+    filetype = ""
     for file in files:
-        #logger.info(file)
-        if verify_filetype(file,allowed_filetype):
+        if file['filename'].split(".")[-1] in allowed_filetypes_no_attributes:
+            new_index = allowed_filetypes_no_attributes.index(file['filename'].split(".")[-1])
+
+            if index == -1:
+                index = new_index
+                filetype = allowed_filetypes_no_attributes[index]
+            elif new_index != index:
+                filetype = ""
+                break
+
             count += 1
 
-    return count
+    return_data =	{
+        "count": count,
+        "filetype": filetype
+    }
+    return return_data
 
 def sanitize_folder_name(folder_name):
     valid_characters = re.sub(r'[<>:."/\\|?*]', '', folder_name)
@@ -241,10 +254,9 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                     except:
                         continue
                     
-                    count = album_track_num(directory,allowed_filetype)
-                    #logger.info(f"Parsed album count: {count} vs lidarr count: {track_num}")
+                    tracks_info = album_track_num(directory)
 
-                    if album_track_num(directory,allowed_filetype) == track_num:
+                    if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
                         if album_match(tracks, directory['files'], username, allowed_filetype.split(" ")[0]):
                             for i in range(0,len(directory['files'])):
                                 directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
