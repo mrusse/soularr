@@ -31,7 +31,7 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
     total_match = 0.0
 
     for lidarr_track in lidarr_tracks:
-        lidarr_filename = lidarr_track['title'] + "." + filetype
+        lidarr_filename = lidarr_track['title'] + "." + filetype.split(" ")[0]
         best_match = 0.0
 
         for slskd_track in slskd_tracks:
@@ -54,7 +54,7 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
             total_match += best_match
 
     if len(counted) == len(lidarr_tracks) and username not in ignored_users:
-        logger.info(f"Found match from user: {username} for {len(counted)} tracks!")
+        logger.info(f"Found match from user: {username} for {len(counted)} tracks! Track attributes: {filetype}")
         logger.info(f"Average sequence match ratio: {total_match/len(counted)}")
         logger.info("SUCCESSFUL MATCH")
         logger.info("-------------------")
@@ -257,7 +257,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                     tracks_info = album_track_num(directory)
 
                     if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
-                        if album_match(tracks, directory['files'], username, allowed_filetype.split(" ")[0]):
+                        if album_match(tracks, directory['files'], username, allowed_filetype):
                             for i in range(0,len(directory['files'])):
                                 directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
 
