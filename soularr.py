@@ -577,19 +577,21 @@ try:
     delete_searches = config['Slskd'].getboolean('delete_searches', True)
 
     search_settings = config['Search Settings']
-    ignored_users = search_settings['ignored_users'].split(",")
+    ignored_users = search_settings.get('ignored_users','').split(",")
     search_type = search_settings.get('search_type', 'first_page').lower().strip()
     page_size = search_settings.getint('number_of_albums_to_grab', 10)
     remove_wanted_on_failure = search_settings.getboolean('remove_wanted_on_failure', True)
 
     release_settings = config['Release Settings']
-    use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum')
-    allow_multi_disc = release_settings.getboolean('allow_multi_disc')
+    use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum', True)
+    allow_multi_disc = release_settings.getboolean('allow_multi_disc', True)
 
-    accepted_countries = release_settings['accepted_countries'].split(",")
-    accepted_formats = release_settings['accepted_formats'].split(",")
+    default_accepted_countries = "Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada"
+    default_accepted_formats = "CD,Digital Media,Vinyl"
+    accepted_countries = release_settings.get('accepted_countries',default_accepted_countries).split(",")
+    accepted_formats = release_settings.get('accepted_formats',default_accepted_formats).split(",")
 
-    raw_filetypes = search_settings['allowed_filetypes']
+    raw_filetypes = search_settings.get('allowed_filetypes','flac,mp3')
 
     if "," in raw_filetypes:
         allowed_filetypes = raw_filetypes.split(",")
