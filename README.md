@@ -73,8 +73,11 @@ search_timeout = 5000
 maximum_peer_queue = 50
 #Min upload speed in bit/s
 minimum_peer_upload_speed = 0
-#Replace "flac,mp3" with "flac" if you just want flacs.
-allowed_filetypes = flac,mp3
+#Specify the file types you prefer from most to least. As well as their attributes such as bitrate / samplerate / bitdepth.
+#For flacs you can choose the bitdepth/samplerate. And for mp3s the bitrate.
+#If you do not care about the specific quality you can still just put "flac" or "mp3".
+#Soularr will then just look at the filetype and ignore file attributes.
+allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3
 ignored_users = User1,User2,Fred,Bob
 #Set to False if you only want to search for complete albums
 search_for_tracks = True
