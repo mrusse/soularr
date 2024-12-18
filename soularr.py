@@ -444,6 +444,8 @@ def grab_most_wanted(albums):
 
             for directory in downloads["directories"]:
                 if directory["directory"] == dir["name"]:
+                    #TODO: This does not seem to account for directories where the whole dir is stuck as queued.
+                    #Either it needs to account for those or maybe soularr should just force clear out the downloads screen when it exits.
                     pending_files = [file for file in directory["files"] if not 'Completed' in file["state"]]
 
                     if len(pending_files) > 0:
