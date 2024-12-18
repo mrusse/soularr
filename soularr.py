@@ -29,7 +29,7 @@ DEFAULT_LOGGING_CONF = {
 def album_match(lidarr_tracks, slskd_tracks, username, filetype):
     counted = []
     total_match = 0.0
-    
+
     lidarr_album = lidarr.get_album(lidarr_tracks[0]['albumId'])
     lidarr_album_name = lidarr_album['title']
     lidarr_artist_name = lidarr_album['artist']['artistName']
@@ -371,25 +371,25 @@ def grab_most_wanted(albums):
                     if success:
                         break
 
-                if not success:
-                    if remove_wanted_on_failure:
-                        logger.error(f"Failed to grab album: {album['title']} for artist: {artist_name}."
-                            + ' Failed album removed from wanted list and added to "failure_list.txt"')
+        if not success:
+            if remove_wanted_on_failure:
+                logger.error(f"Failed to grab album: {album['title']} for artist: {artist_name}."
+                    + ' Failed album removed from wanted list and added to "failure_list.txt"')
 
-                        album['monitored'] = False
-                        lidarr.upd_album(album)
+                album['monitored'] = False
+                lidarr.upd_album(album)
 
-                        current_datetime = datetime.now()
-                        current_datetime_str = current_datetime.strftime("%d/%m/%Y %H:%M:%S")
+                current_datetime = datetime.now()
+                current_datetime_str = current_datetime.strftime("%d/%m/%Y %H:%M:%S")
 
-                        failure_string = current_datetime_str + " - " + artist_name + ", " + album['title'] + ", " + str(album_id) + "\n"
+                failure_string = current_datetime_str + " - " + artist_name + ", " + album['title'] + ", " + str(album_id) + "\n"
 
-                        with open(failure_file_path, "a") as file:
-                            file.write(failure_string)
-                    else:
-                        logger.error(f"Failed to grab album: {album['title']} for artist: {artist_name}")
+                with open(failure_file_path, "a") as file:
+                    file.write(failure_string)
+            else:
+                logger.error(f"Failed to grab album: {album['title']} for artist: {artist_name}")
 
-                    failed_download += 1
+            failed_download += 1
 
         success = False
 
