@@ -40,7 +40,7 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
 
         for slskd_track in slskd_tracks:
             slskd_filename = slskd_track['filename']
-            
+
             #Try to match the ratio with the exact filenames
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
@@ -222,7 +222,7 @@ def verify_filetype(file,allowed_filetype):
 
                 if bitdepth and samplerate:
                     if str(bitdepth) == str(selected_bitdepth)and str(samplerate) == str(selected_samplerate):
-                        return True 
+                        return True
                 else:
                     return False
             #If it is a bitrate
@@ -254,7 +254,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
         time.sleep(1)
 
     logger.info(f"Search returned {len(slskd.searches.search_responses(search['id']))} results")
-    
+
     for allowed_filetype in allowed_filetypes:
         logger.info(f"Serching for matches with selected attributes: {allowed_filetype}")
 
@@ -265,14 +265,14 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
 
             for file in files:
                 if verify_filetype(file,allowed_filetype):
-                    
+
                     file_dir = file['filename'].rsplit("\\",1)[0]
 
                     try:
                         directory = slskd.users.directory(username = username, directory = file_dir)
                     except:
                         continue
-                    
+
                     tracks_info = album_track_num(directory)
 
                     if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
@@ -610,6 +610,8 @@ try:
     search_settings = config['Search Settings']
     ignored_users = search_settings.get('ignored_users','').split(",")
     search_type = search_settings.get('search_type', 'first_page').lower().strip()
+    cutoff_unmet = search_settings.getboolean('cutoff_unmet', False)
+
     page_size = search_settings.getint('number_of_albums_to_grab', 10)
     remove_wanted_on_failure = search_settings.getboolean('remove_wanted_on_failure', True)
 
@@ -654,7 +656,7 @@ try:
         with open(path, 'w') as file:
                 file.write(page)
 
-    wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title')
+    wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=not cutoff_unmet)
     total_wanted = wanted['totalRecords']
 
     if search_type == 'all':
@@ -662,13 +664,13 @@ try:
         wanted_records = []
 
         while len(wanted_records) < total_wanted:
-            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title')
+            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=not cutoff_unmet)
             wanted_records.extend(wanted['records'])
             page += 1
 
     elif search_type == 'incrementing_page':
         page = get_current_page(current_page_file_path)
-        wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title')['records']
+        wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=not cutoff_unmet)['records']
         page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
         update_current_page(current_page_file_path, str(page))
 

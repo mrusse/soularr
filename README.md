@@ -26,7 +26,7 @@ After the downloads are complete in Slskd the script will tell Lidarr to import 
 **Lidarr**
 [https://lidarr.audio/](https://lidarr.audio/)
 
-Make sure Lidarr can see your Slskd download directory, if you are running Lidarr in a Docker container you may need to mount the directory. You will then need add it to your config (see "download_dir" under "Lidarr" in the example config). 
+Make sure Lidarr can see your Slskd download directory, if you are running Lidarr in a Docker container you may need to mount the directory. You will then need add it to your config (see "download_dir" under "Lidarr" in the example config).
 
 **Slskd**
 [https://github.com/slskd/slskd](https://github.com/slskd/slskd)
@@ -92,11 +92,14 @@ track_prepend_artist = True
 search_type = incrementing_page
 #How mancy records to grab each run, must be a number between 1 - 2,147,483,647
 number_of_albums_to_grab = 10
-#Unmonitors the album if Soularr can't find it and places it in "failure_list.txt". 
+#Unmonitors the album if Soularr can't find it and places it in "failure_list.txt".
 #Failed albums can be re monitored by filtering "Unmonitored" in the Lidarr wanted list.
 remove_wanted_on_failure = False
 #Comma separated list of words that can't be in the title of albums or tracks. Case insensitive.
 title_blacklist = BlacklistWord1,blacklistword2
+#flag indicating whether to search for missing albums or unmet cutoff. Ture indicates that soularr should search for unmet cutoff only
+# There is no internal logical that ensures that cutoff will be met so be sure to have allowed filetypes set appropriately
+cutoff_unmet = False
 
 [Logging]
 #These options are passed into the logger's basicConfig() method as-is.
@@ -125,16 +128,16 @@ The best way to run the script is through Docker. A Docker image is available th
 Example docker run command:
 ```shell
 docker run -d \
-  --name soularr \                           
-  --restart unless-stopped \                 
-  --hostname soularr \                       
-  -e PUID=1000 \                            
-  -e PGID=1000 \                            
-  -e TZ=Etc/UTC \                           
-  -e SCRIPT_INTERVAL=300 \                  
-  -v /path/to/slskd/downloads:/downloads \   
+  --name soularr \
+  --restart unless-stopped \
+  --hostname soularr \
+  -e PUID=1000 \
+  -e PGID=1000 \
+  -e TZ=Etc/UTC \
+  -e SCRIPT_INTERVAL=300 \
+  -v /path/to/slskd/downloads:/downloads \
   -v /path/to/config/dir:/data \
-  --user 1000:1000 \         
+  --user 1000:1000 \
   mrusse08/soularr:latest
 ```
 
@@ -156,13 +159,13 @@ services:
     volumes:
       #"You can set /downloads to whatever you want but will then need to change the Slskd download dir in your config file"
       - /path/to/slskd/downloads:/downloads
-      #Select where you are storing your config file. 
+      #Select where you are storing your config file.
       #Leave "/data" since thats where the script expects the config file to be
       - /path/to/config/dir:/data
     image: mrusse08/soularr:latest
 ```
 
-Note: You **must** edit both volumes in the docker compose above. 
+Note: You **must** edit both volumes in the docker compose above.
 
 - `/path/to/slskd/downloads:/downloads`
 
@@ -211,7 +214,7 @@ fi
 
 **Example cron job setup:**
 
-Edit crontab file with 
+Edit crontab file with
 
 ```
 crontab -e
@@ -221,7 +224,7 @@ Then enter in your schedule followed by the command. For example:
 
 ```
 */5 * * * * /path/to/run.sh
-``` 
+```
 
 This would run the bash script every 5 minutes.
 
@@ -265,7 +268,7 @@ python soularr.py 2>&1 | Tee-Object -FilePath soularr.log -Append
 
 ### View logs in WebUI
 
-[EricH9958](https://github.com/EricH9958) has made a log viewer that lets you monitor the Soularr logs in your browser! Check his repo out here: 
+[EricH9958](https://github.com/EricH9958) has made a log viewer that lets you monitor the Soularr logs in your browser! Check his repo out here:
 
 [https://github.com/EricH9958/Soularr-Dashboard](https://github.com/EricH9958/Soularr-Dashboard)
 
