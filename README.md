@@ -97,7 +97,7 @@ number_of_albums_to_grab = 10
 remove_wanted_on_failure = False
 #Comma separated list of words that can't be in the title of albums or tracks. Case insensitive.
 title_blacklist = BlacklistWord1,blacklistword2
-#lidarr list to use as source of search. possible values are "missing" or "cutoff_unmet". The default value is "missing".
+#Lidarr source to use for searching. Accepted values are "missing" or "cutoff_unmet". The default value is "missing".
 search_source = missing
 
 [Logging]
