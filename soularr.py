@@ -610,7 +610,9 @@ try:
     search_settings = config['Search Settings']
     ignored_users = search_settings.get('ignored_users','').split(",")
     search_type = search_settings.get('search_type', 'first_page').lower().strip()
-    cutoff_unmet = search_settings.getboolean('cutoff_unmet', False)
+    search_source = search_settings.get('search_source', 'missing').lower().strip()
+
+    missing = search_source == 'missing'
 
     page_size = search_settings.getint('number_of_albums_to_grab', 10)
     remove_wanted_on_failure = search_settings.getboolean('remove_wanted_on_failure', True)
@@ -656,7 +658,7 @@ try:
         with open(path, 'w') as file:
                 file.write(page)
 
-    wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=not cutoff_unmet)
+    wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
     total_wanted = wanted['totalRecords']
 
     if search_type == 'all':
@@ -664,13 +666,13 @@ try:
         wanted_records = []
 
         while len(wanted_records) < total_wanted:
-            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=not cutoff_unmet)
+            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
             wanted_records.extend(wanted['records'])
             page += 1
 
     elif search_type == 'incrementing_page':
         page = get_current_page(current_page_file_path)
-        wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=not cutoff_unmet)['records']
+        wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)['records']
         page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
         update_current_page(current_page_file_path, str(page))
 

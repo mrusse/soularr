@@ -97,9 +97,8 @@ number_of_albums_to_grab = 10
 remove_wanted_on_failure = False
 #Comma separated list of words that can't be in the title of albums or tracks. Case insensitive.
 title_blacklist = BlacklistWord1,blacklistword2
-#flag indicating whether to search for missing albums or unmet cutoff. Ture indicates that soularr should search for unmet cutoff only
-# There is no internal logical that ensures that cutoff will be met so be sure to have allowed filetypes set appropriately
-cutoff_unmet = False
+#lidarr list to use as source of search. possible values are "missing" or "cutoff_unmet". The default value is "missing".
+search_source = missing
 
 [Logging]
 #These options are passed into the logger's basicConfig() method as-is.
