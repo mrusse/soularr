@@ -701,7 +701,7 @@ try:
                 os.remove(lock_file_path)
             sys.exit(0)
         if failed == 0:
-            logger.info("Solarr finished. Exiting...")
+            logger.info("Soularr finished. Exiting...")
             slskd.transfers.remove_completed_downloads()
         else:
             if remove_wanted_on_failure:
