@@ -73,6 +73,8 @@ search_timeout = 5000
 maximum_peer_queue = 50
 #Min upload speed in bit/s
 minimum_peer_upload_speed = 0
+#Min match ratio accepted when comparing lidarr track names to soulseek filenames.
+minimum_filename_match_ratio = 0.5
 #Specify the file types you prefer from most to least. As well as their attributes such as bitrate / samplerate / bitdepth.
 #For flacs you can choose the bitdepth/samplerate. And for mp3s the bitrate.
 #If you do not care about the specific quality you can still just put "flac" or "mp3".

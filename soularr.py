@@ -65,7 +65,7 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
             if ratio > best_match:
                 best_match = ratio
 
-        if best_match > 0.5:
+        if best_match > minimum_match_ratio:
             counted.append(lidarr_filename)
             total_match += best_match
 
@@ -616,6 +616,7 @@ try:
 
     missing = search_source == 'missing'
 
+    minimum_match_ratio = search_settings.getfloat('minimum_filename_match_ratio', 0.5)
     page_size = search_settings.getint('number_of_albums_to_grab', 10)
     remove_wanted_on_failure = search_settings.getboolean('remove_wanted_on_failure', True)
 
