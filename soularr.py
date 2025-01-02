@@ -71,7 +71,7 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
     return False
 
 def check_ratio(separator, ratio, lidarr_filename, slskd_filename):
-    if ratio < 0.5:
+    if ratio < minimum_match_ratio:
         if separator != "":
             lidarr_filename_word_count = len(lidarr_filename.split()) * -1
             truncated_slskd_filename = " ".join(slskd_filename.split(separator)[lidarr_filename_word_count:])
