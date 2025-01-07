@@ -20,5 +20,6 @@ RUN chmod +x run.sh
 ENV PYTHONUNBUFFERED=1
 ENV IN_DOCKER=Yes
 
-# Command to run your script
-CMD ["bash", "run.sh"]
+# SIGINT works better for Python and bash
+STOPSIGNAL SIGINT
+ENTRYPOINT ["bash", "run.sh"]
