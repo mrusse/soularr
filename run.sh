@@ -9,7 +9,8 @@ while true; do
     if ps aux | grep "[s]oularr.py" > /dev/null; then
         echo "Soularr is already running. Exiting..."
     else
-        python -u /app/soularr.py
+        # Pass in the arguments given to the bash script over to the Python script
+        python -u /app/soularr.py "$@"
     fi
 
     dt=$(date '+%d/%m/%Y %H:%M:%S');
