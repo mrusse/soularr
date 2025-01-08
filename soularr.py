@@ -596,7 +596,7 @@ try:
             logger.error('Config file does not exist! Please mount "/data" and place your "config.ini" file there. Alternatively, pass `--config-dir /directory/of/your/liking` as post arguments to store the config somewhere else.')
             logger.error("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
         else:
-            logger.error("Config file does not exist! Please place it in the working directory.")
+            logger.error("Config file does not exist! Please place it in the working directory. Alternatively, pass `--config-dir /directory/of/your/liking` as post arguments to store the config somewhere else.")
             logger.error("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
         if os.path.exists(lock_file_path) and not is_docker():
             os.remove(lock_file_path)
