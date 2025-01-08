@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import math
 import re
 import os
@@ -550,18 +551,32 @@ def setup_logging(config):
     logging.basicConfig(**log_config)   # type: ignore
 
 
-if is_docker():
-    lock_file_path = ""
-    config_file_path = os.path.join(os.getcwd(), "/data/config.ini")
-    failure_file_path = os.path.join(os.getcwd(), "/data/failure_list.txt")
-    current_page_file_path = os.path.join(os.getcwd(), "/data/.current_page.txt")
-else:
-    lock_file_path = os.path.join(os.getcwd(), ".soularr.lock")
-    config_file_path = os.path.join(os.getcwd(), "config.ini")
-    failure_file_path = os.path.join(os.getcwd(), "failure_list.txt")
-    current_page_file_path = os.path.join(os.getcwd(), ".current_page.txt")
+# Let's allow some overrides to be passed to the script
+parser = argparse.ArgumentParser(
+    description="""Soularr reads all of your "wanted" albums/artists from Lidarr and downloads them using Slskd"""
+)
 
-if os.path.exists(lock_file_path) and not is_docker():
+default_data_directory = os.getcwd()
+if is_docker():
+    default_data_directory = "/data"
+
+parser.add_argument(
+    "-c",
+    "--config-dir",
+    default=default_data_directory,
+    const=default_data_directory,
+    nargs="?",
+    type=str,
+    help="Config directory (default: %(default)s)",
+)
+args = parser.parse_args()
+
+lock_file_path = os.path.join(args.config_dir, ".soularr.lock")
+config_file_path = os.path.join(args.config_dir, "config.ini")
+failure_file_path = os.path.join(args.config_dir, "failure_list.txt")
+current_page_file_path = os.path.join(args.config_dir, ".current_page.txt")
+
+if not is_docker() and os.path.exists(lock_file_path):
     logger.info(f"Soularr instance is already running.")
     sys.exit(1)
 
@@ -578,7 +593,7 @@ try:
         config.read(config_file_path)
     else:
         if is_docker():
-            logger.error('Config file does not exist! Please mount "/data" and place your "config.ini" file there.')
+            logger.error('Config file does not exist! Please mount "/data" and place your "config.ini" file there. Alternatively, pass `--config-dir /directory/of/your/liking` as post arguments to store the config somewhere else.')
             logger.error("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
         else:
             logger.error("Config file does not exist! Please place it in the working directory.")

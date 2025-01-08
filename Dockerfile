@@ -21,4 +21,4 @@ ENV PYTHONUNBUFFERED=1
 ENV IN_DOCKER=Yes
 
 # Command to run your script
-CMD ["bash", "run.sh"]
+ENTRYPOINT ["bash", "run.sh"]
