@@ -611,6 +611,8 @@ try:
 
     minimum_match_ratio = search_settings.getfloat('minimum_filename_match_ratio', 0.5)
     page_size = search_settings.getint('number_of_albums_to_grab', 10)
+    number_of_albums_to_grab = search_settings.getint('number_of_albums_to_grab', 10)
+
     remove_wanted_on_failure = search_settings.getboolean('remove_wanted_on_failure', True)
 
     release_settings = config['Release Settings']
@@ -658,13 +660,8 @@ try:
     total_wanted = wanted['totalRecords']
 
     if search_type == 'all':
-        page = 1
-        wanted_records = []
-
-        while len(wanted_records) < total_wanted:
-            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
-            wanted_records.extend(wanted['records'])
-            page += 1
+        # get a random selection of wanted albums. either number_of_albums_to_grab or all of them if there are less than that
+        wanted_records = random.sample(wanted['records'], min(number_of_albums_to_grab, total_wanted))       
 
     elif search_type == 'incrementing_page':
         page = get_current_page(current_page_file_path)
