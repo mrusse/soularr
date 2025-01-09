@@ -682,6 +682,14 @@ try:
 
         sys.exit(0)
 
+    # remove results where albumType is "Single"
+    unwanted_records = [record for record in wanted_records if record['albums']['albumType'] == 'Single']
+    # display a message for each unwanted record
+    for record in unwanted_records:
+        logger.info(f"Skipping single: {record['albums']['title']} by {record['artist']['artistName']}")
+
+    wanted_records = [record for record in wanted_records if record['albums']['albumType'] != 'Single']
+
     if len(wanted_records) > 0:
         try:
             failed = grab_most_wanted(wanted_records)
