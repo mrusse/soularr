@@ -701,7 +701,7 @@ try:
 
     logger.info(f"Resultant list of wanted records: ")
     for record in wanted_records:
-        logger.info(f"Resultant: {record['title']} by {record['artist']['artistName']}")
+        logger.info(f"Resultant: {record['title']} by {record['artist']['artistName']} - albumType: {record['albumType']}")
 
     if len(wanted_records) > 0:
         try:
