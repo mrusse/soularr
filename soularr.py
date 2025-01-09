@@ -689,7 +689,7 @@ try:
         logger.info(f"Skipping single: {record['title']} by {record['artist']['artistName']}")
 
     # remove results where albumArtist is "Various Artists"
-    unwanted_artists += [record for record in wanted_records if record['artist']['artistName'] == 'Various Artists']
+    unwanted_artists = [record for record in wanted_records if record['artist']['artistName'] == 'Various Artists']
     for record in unwanted_artists:
         logger.info(f"Skipping Various Artists: {record['title']} by {record['artist']['artistName']}")
 
