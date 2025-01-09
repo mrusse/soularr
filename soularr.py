@@ -692,7 +692,12 @@ try:
     wanted_records = [record for record in wanted_records if record['albumType'] != 'Single']
 
     #randomize the order of the wanted records
+    logger.info(f"Randomizing order of {len(wanted_records)} wanted records")
     random.shuffle(wanted_records)
+
+    logger.info(f"Resultant list of wanted records: ")
+    for record in wanted_records:
+        logger.info(f"Resultant: {record['title']} by {record['artist']['artistName']}")
 
     if len(wanted_records) > 0:
         try:
