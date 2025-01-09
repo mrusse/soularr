@@ -660,6 +660,7 @@ try:
     total_wanted = wanted['totalRecords']
 
     if search_type == 'all':
+        logger.info(f"Searching for a random selection of {number_of_albums_to_grab} wanted albums out of {total_wanted} total wanted albums...")
         # get a random selection of wanted albums. either number_of_albums_to_grab or all of them if there are less than that
         wanted_records = random.sample(wanted['records'], min(number_of_albums_to_grab, total_wanted))       
 
