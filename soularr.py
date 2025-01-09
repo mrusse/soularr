@@ -690,6 +690,9 @@ try:
 
     wanted_records = [record for record in wanted_records if record['albumType'] != 'Single']
 
+    #randomize the order of the wanted records
+    random.shuffle(wanted_records)
+
     if len(wanted_records) > 0:
         try:
             failed = grab_most_wanted(wanted_records)
