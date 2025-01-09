@@ -684,12 +684,16 @@ try:
         sys.exit(0)
 
     # remove results where albumType is "Single"
-    unwanted_records = [record for record in wanted_records if record['albumType'] == 'Single']
-    # display a message for each unwanted record
-    for record in unwanted_records:
+    unwanted_singles = [record for record in wanted_records if record['albumType'] == 'Single']
+    for record in unwanted_singles:
         logger.info(f"Skipping single: {record['title']} by {record['artist']['artistName']}")
 
-    wanted_records = [record for record in wanted_records if record['albumType'] != 'Single']
+    # remove results where albumArtist is "Various Artists"
+    unwanted_artists += [record for record in wanted_records if record['artist']['artistName'] == 'Various Artists']
+    for record in unwanted_artists:
+        logger.info(f"Skipping Various Artists: {record['title']} by {record['artist']['artistName']}")
+
+    wanted_records = [record for record in wanted_records if record['artist']['artistName'] != 'Various Artists' and record['albumType'] != 'Single']
 
     #randomize the order of the wanted records
     logger.info(f"Randomizing order of {len(wanted_records)} wanted records")
