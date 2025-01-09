@@ -661,6 +661,7 @@ try:
 
     if search_type == 'all':
         wanted = lidarr.get_wanted(page=1, page_size=99999999, sort_dir='ascending',sort_key='albums.title', missing=missing)
+        total_wanted = wanted['totalRecords']
 
         logger.info(f"Searching for a random selection of {number_of_albums_to_grab} wanted albums out of {total_wanted} total wanted albums...")
         wanted_records = random.sample(wanted['records'], min(number_of_albums_to_grab, total_wanted))       
