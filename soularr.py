@@ -686,7 +686,7 @@ try:
     unwanted_records = [record for record in wanted_records if record['albumType'] == 'Single']
     # display a message for each unwanted record
     for record in unwanted_records:
-        logger.info(f"Skipping single: {record['title']} by {record['artistName']}")
+        logger.info(f"Skipping single: {record['title']} by {record['artist']['artistName']}")
 
     wanted_records = [record for record in wanted_records if record['albumType'] != 'Single']
 
