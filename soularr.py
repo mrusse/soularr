@@ -683,12 +683,12 @@ try:
         sys.exit(0)
 
     # remove results where albumType is "Single"
-    unwanted_records = [record for record in wanted_records if record['album']['albumType'] == 'Single']
+    unwanted_records = [record for record in wanted_records if record['albumType'] == 'Single']
     # display a message for each unwanted record
     for record in unwanted_records:
-        logger.info(f"Skipping single: {record['album']['title']} by {record['artist']['artistName']}")
+        logger.info(f"Skipping single: {record['title']} by {record['artistName']}")
 
-    wanted_records = [record for record in wanted_records if record['album']['albumType'] != 'Single']
+    wanted_records = [record for record in wanted_records if record['albumType'] != 'Single']
 
     if len(wanted_records) > 0:
         try:
