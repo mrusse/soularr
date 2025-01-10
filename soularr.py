@@ -656,6 +656,8 @@ try:
     def update_current_page(path: str, page: int) -> None:
         with open(path, 'w') as file:
                 file.write(page)
+                
+    logger.info("search_type: " + search_type)
 
     if search_type != 'lucky_dip':
         wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
