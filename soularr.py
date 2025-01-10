@@ -610,8 +610,9 @@ try:
     missing = search_source == 'missing'
 
     minimum_match_ratio = search_settings.getfloat('minimum_filename_match_ratio', 0.5)
-    page_size = search_settings.getint('number_of_albums_to_grab', 10)
+
     number_of_albums_to_grab = search_settings.getint('number_of_albums_to_grab', 10)
+    page_size = number_of_albums_to_grab
 
     remove_wanted_on_failure = search_settings.getboolean('remove_wanted_on_failure', True)
 
@@ -656,15 +657,25 @@ try:
         with open(path, 'w') as file:
                 file.write(page)
 
-    wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
-    total_wanted = wanted['totalRecords']
+    if search_type != 'lucky_dip':
+        wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
+        total_wanted = wanted['totalRecords']
 
-    if search_type == 'all':
+    if search_type == 'lucky_dip':
         wanted = lidarr.get_wanted(page=1, page_size=99999999, sort_dir='ascending',sort_key='albums.title', missing=missing)
         total_wanted = wanted['totalRecords']
 
         logger.info(f"Searching for a random selection of {number_of_albums_to_grab} wanted albums out of {total_wanted} total wanted albums...")
-        wanted_records = random.sample(wanted['records'], min(number_of_albums_to_grab, total_wanted))       
+        wanted_records = random.sample(wanted['records'], min(number_of_albums_to_grab, total_wanted))
+
+    elif search_type == 'all':
+        page = 1
+        wanted_records = []
+
+        while len(wanted_records) < total_wanted:
+            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
+            wanted_records.extend(wanted['records'])
+            page += 1
 
     elif search_type == 'incrementing_page':
         page = get_current_page(current_page_file_path)
@@ -694,10 +705,6 @@ try:
         logger.info(f"Skipping Various Artists: {record['title']} by {record['artist']['artistName']}")
 
     wanted_records = [record for record in wanted_records if record['artist']['artistName'] != 'Various Artists' and record['albumType'] != 'Single']
-
-    #randomize the order of the wanted records
-    logger.info(f"Randomizing order of {len(wanted_records)} wanted records")
-    random.shuffle(wanted_records)
 
     logger.info(f"Resultant list of wanted records: ")
     for record in wanted_records:
