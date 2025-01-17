@@ -234,10 +234,10 @@ def verify_filetype(file,allowed_filetype):
 
 def search_and_download(grab_list, query, tracks, track, artist_name, release):
     search = slskd.searches.search_text(searchText = query,
-                                        searchTimeout = search_settings['search_timeout'],
+                                        searchTimeout = config.getint('Search Settings', 'search_timeout', fallback=5000),
                                         filterResponses = True,
-                                        maximumPeerQueueLength = search_settings['maximum_peer_queue'],
-                                        minimumPeerUploadSpeed = search_settings['minimum_peer_upload_speed'])
+                                        maximumPeerQueueLength = config.getint('Search Settings', 'maximum_peer_queue', fallback=50),
+                                        minimumPeerUploadSpeed = config.getint('Search Settings', 'minimum_peer_upload_speed', fallback=0))
 
     track_num = len(tracks)
 
@@ -306,7 +306,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
     return False
 
 def is_blacklisted(title: str) -> bool:
-    blacklist = search_settings.get('title_blacklist', '').lower().split(",")
+    blacklist = config.get('Search Settings', 'title_blacklist', fallback='').lower().split(",")
     for word in blacklist:
         if word != '' and word in title.lower():
             logger.info(f"Skipping {title} due to blacklisted word: {word}")
@@ -337,12 +337,12 @@ def grab_most_wanted(albums):
             if len(album_title) == 1:
                 query = artist_name + " " + album_title
             else:
-                query = artist_name + " " + album_title if search_settings.getboolean('album_prepend_artist', False) else album_title
+                query = artist_name + " " + album_title if config.getboolean('Search Settings', 'album_prepend_artist', fallback=False) else album_title
 
             logger.info(f"Searching album: {query}")
             success = search_and_download(grab_list, query, all_tracks, all_tracks[0], artist_name, release)
 
-        if not success and search_settings.getboolean('search_for_tracks', True):
+        if not success and config.getboolean('Search Settings', 'search_for_tracks', fallback=True):
             for media in release['media']:
                 tracks = []
                 for track in all_tracks:
@@ -356,7 +356,7 @@ def grab_most_wanted(albums):
                     if len(track['title']) == 1:
                         query = artist_name + " " + track['title']
                     else:
-                        query = artist_name + " " + track['title'] if search_settings.getboolean('track_prepend_artist', True) else track['title']
+                        query = artist_name + " " + track['title'] if config.getboolean('Search Settings', 'track_prepend_artist', fallback=True) else track['title']
 
                     logger.info(f"Searching track: {query}")
                     success = search_and_download(grab_list, query, tracks, track, artist_name, release)
@@ -393,9 +393,8 @@ def grab_most_wanted(albums):
         username = download['username']
         for dir in download['directories']:
             logger.info(f"Username: {username} Directory: {dir['directory']}")
-
     logger.info("-------------------")
-    logger.info(f"Waiting for downloads... monitor at: {slskd_host_url}/downloads")
+    logger.info(f"Waiting for downloads... monitor at: {'/'.join([slskd_host_url, slskd_url_base, 'downloads'])}")
 
     time_count = 0
 
@@ -612,31 +611,31 @@ try:
     lidarr_host_url = config['Lidarr']['host_url']
     slskd_host_url = config['Slskd']['host_url']
 
-    stalled_timeout = config['Slskd'].getint('stalled_timeout', 3600)
+    stalled_timeout = config.getint('Slskd', 'stalled_timeout', fallback=3600)
 
-    delete_searches = config['Slskd'].getboolean('delete_searches', True)
+    delete_searches = config.getboolean('Slskd', 'delete_searches', fallback=True)
 
-    search_settings = config['Search Settings']
-    ignored_users = search_settings.get('ignored_users','').split(",")
-    search_type = search_settings.get('search_type', 'first_page').lower().strip()
-    search_source = search_settings.get('search_source', 'missing').lower().strip()
+    slskd_url_base = config.get('Slskd', 'url_base', fallback='/')
+
+    ignored_users = config.get('Search Settings', 'ignored_users', fallback='').split(",")
+    search_type = config.get('Search Settings', 'search_type', fallback='first_page').lower().strip()
+    search_source = config.get('Search Settings', 'search_source', fallback='missing').lower().strip()
 
     missing = search_source == 'missing'
 
-    minimum_match_ratio = search_settings.getfloat('minimum_filename_match_ratio', 0.5)
-    page_size = search_settings.getint('number_of_albums_to_grab', 10)
-    remove_wanted_on_failure = search_settings.getboolean('remove_wanted_on_failure', True)
+    minimum_match_ratio = config.getfloat('Search Settings', 'minimum_filename_match_ratio', fallback=0.5)
+    page_size = config.getint('Search Settings', 'number_of_albums_to_grab', fallback=10)
+    remove_wanted_on_failure = config.getboolean('Search Settings', 'remove_wanted_on_failure', fallback=True)
 
-    release_settings = config['Release Settings']
-    use_most_common_tracknum = release_settings.getboolean('use_most_common_tracknum', True)
-    allow_multi_disc = release_settings.getboolean('allow_multi_disc', True)
+    use_most_common_tracknum = config.getboolean('Release Settings', 'use_most_common_tracknum', fallback=True)
+    allow_multi_disc = config.getboolean('Release Settings', 'allow_multi_disc', fallback=True)
 
     default_accepted_countries = "Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada"
     default_accepted_formats = "CD,Digital Media,Vinyl"
-    accepted_countries = release_settings.get('accepted_countries',default_accepted_countries).split(",")
-    accepted_formats = release_settings.get('accepted_formats',default_accepted_formats).split(",")
+    accepted_countries = config.get('Release Settings', 'accepted_countries', fallback=default_accepted_countries).split(",")
+    accepted_formats = config.get('Release Settings', 'accepted_formats', fallback=default_accepted_formats).split(",")
 
-    raw_filetypes = search_settings.get('allowed_filetypes','flac,mp3')
+    raw_filetypes = config.get('Search Settings', 'allowed_filetypes', fallback='flac,mp3')
 
     if "," in raw_filetypes:
         allowed_filetypes = raw_filetypes.split(",")
@@ -645,7 +644,7 @@ try:
 
     setup_logging(config)
 
-    slskd = slskd_api.SlskdClient(slskd_host_url, slskd_api_key, '/')
+    slskd = slskd_api.SlskdClient(host=slskd_host_url, api_key=slskd_api_key, url_base=slskd_url_base)
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
     def get_current_page(path: str, default_page=1) -> int:
