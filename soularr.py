@@ -720,6 +720,7 @@ try:
     wanted_records = []
     try:
         for source in search_sources:
+            logging.debug(f'Getting records from {source}')
             missing = source == 'missing'
             wanted_records.extend(get_records(missing))
     except ValueError as ex:
