@@ -27,6 +27,7 @@ DEFAULT_LOGGING_CONF = {
     'datefmt': '%Y-%m-%dT%H:%M:%S%z',
 }
 
+
 def album_match(lidarr_tracks, slskd_tracks, username, filetype):
     counted = []
     total_match = 0.0
@@ -71,6 +72,7 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
 
     return False
 
+
 def check_ratio(separator, ratio, lidarr_filename, slskd_filename):
     if ratio < minimum_match_ratio:
         if separator != "":
@@ -82,6 +84,7 @@ def check_ratio(separator, ratio, lidarr_filename, slskd_filename):
 
         return ratio
     return ratio
+
 
 def album_track_num(directory):
     files = directory['files']
@@ -108,9 +111,11 @@ def album_track_num(directory):
     }
     return return_data
 
+
 def sanitize_folder_name(folder_name):
     valid_characters = re.sub(r'[<>:."/\\|?*]', '', folder_name)
     return valid_characters.strip()
+
 
 def cancel_and_delete(delete_dir, username, files):
     for file in files:
@@ -120,6 +125,7 @@ def cancel_and_delete(delete_dir, username, files):
 
     if os.path.exists(delete_dir):
         shutil.rmtree(delete_dir)
+
 
 def release_trackcount_mode(releases):
     track_count = {}
@@ -140,6 +146,7 @@ def release_trackcount_mode(releases):
             most_common_trackcount = trackcount
 
     return most_common_trackcount
+
 
 def choose_release(album_id, artist_name):
     releases = lidarr.get_album(album_id)['releases']
@@ -186,6 +193,7 @@ def choose_release(album_id, artist_name):
 
     return default_release
 
+
 def verify_filetype(file,allowed_filetype):
     current_filetype = file['filename'].split(".")[-1]
     bitdepth = None
@@ -231,6 +239,7 @@ def verify_filetype(file,allowed_filetype):
             return True
     else:
         return False
+
 
 def search_and_download(grab_list, query, tracks, track, artist_name, release):
     search = slskd.searches.search_text(searchText = query,
@@ -305,6 +314,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
         slskd.searches.delete(search['id'])
     return False
 
+
 def is_blacklisted(title: str) -> bool:
     blacklist = config.get('Search Settings', 'title_blacklist', fallback='').lower().split(",")
     for word in blacklist:
@@ -312,6 +322,7 @@ def is_blacklisted(title: str) -> bool:
             logger.info(f"Skipping {title} due to blacklisted word: {word}")
             return True
     return False
+
 
 def grab_most_wanted(albums):
     grab_list = []
@@ -521,6 +532,7 @@ def grab_most_wanted(albums):
 
     return failed_download
 
+
 def move_failed_import(src_path):
     failed_imports_dir = "failed_imports"
 
@@ -539,8 +551,10 @@ def move_failed_import(src_path):
         shutil.move(folder_name, target_path)
         logger.info(f"Failed import moved to: {target_path}")
 
+
 def is_docker():
     return os.getenv('IN_DOCKER') is not None
+
 
 def setup_logging(config):
     if 'Logging' in config:
@@ -548,6 +562,60 @@ def setup_logging(config):
     else:
         log_config = DEFAULT_LOGGING_CONF
     logging.basicConfig(**log_config)   # type: ignore
+
+
+def get_current_page(path: str, default_page=1) -> int:
+    if os.path.exists(path):
+        with open(path, 'r') as file:
+            page_string = file.read().strip()
+
+            if page_string:
+                return int(page_string)
+            else:
+                with open(path, 'w') as file:
+                    file.write(str(default_page))
+                return default_page
+    else:
+        with open(path, 'w') as file:
+            file.write(str(default_page))
+        return default_page
+
+
+def update_current_page(path: str, page: int) -> None:
+    with open(path, 'w') as file:
+            file.write(page)
+
+
+def get_records(missing: bool) -> list:
+    wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
+    total_wanted = wanted['totalRecords']
+
+    if search_type == 'all':
+        page = 1
+        wanted_records = []
+
+        while len(wanted_records) < total_wanted:
+            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
+            wanted_records.extend(wanted['records'])
+            page += 1
+
+    elif search_type == 'incrementing_page':
+        page = get_current_page(current_page_file_path)
+        wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)['records']
+        page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
+        update_current_page(current_page_file_path, str(page))
+
+    elif search_type == 'first_page':
+        wanted_records = wanted['records']
+
+    else:
+        if os.path.exists(lock_file_path) and not is_docker():
+                os.remove(lock_file_path)
+
+        raise ValueError(f'[Search Settings] - {search_type = } is not valid')
+
+    return wanted_records
+
 
 
 # Let's allow some overrides to be passed to the script
@@ -621,7 +689,9 @@ try:
     search_type = config.get('Search Settings', 'search_type', fallback='first_page').lower().strip()
     search_source = config.get('Search Settings', 'search_source', fallback='missing').lower().strip()
 
-    missing = search_source == 'missing'
+    search_sources = [search_source]
+    if search_sources[0] == 'all':
+        search_sources = ['missing', 'cutoff_unmet']
 
     minimum_match_ratio = config.getfloat('Search Settings', 'minimum_filename_match_ratio', fallback=0.5)
     page_size = config.getint('Search Settings', 'number_of_albums_to_grab', fallback=10)
@@ -647,53 +717,15 @@ try:
     slskd = slskd_api.SlskdClient(host=slskd_host_url, api_key=slskd_api_key, url_base=slskd_url_base)
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
 
-    def get_current_page(path: str, default_page=1) -> int:
-        if os.path.exists(path):
-            with open(path, 'r') as file:
-                page_string = file.read().strip()
-
-                if page_string:
-                    return int(page_string)
-                else:
-                    with open(path, 'w') as file:
-                        file.write(str(default_page))
-                    return default_page
-        else:
-            with open(path, 'w') as file:
-                file.write(str(default_page))
-            return default_page
-
-    def update_current_page(path: str, page: int) -> None:
-        with open(path, 'w') as file:
-                file.write(page)
-
-    wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
-    total_wanted = wanted['totalRecords']
-
-    if search_type == 'all':
-        page = 1
-        wanted_records = []
-
-        while len(wanted_records) < total_wanted:
-            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
-            wanted_records.extend(wanted['records'])
-            page += 1
-
-    elif search_type == 'incrementing_page':
-        page = get_current_page(current_page_file_path)
-        wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)['records']
-        page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
-        update_current_page(current_page_file_path, str(page))
-
-    elif search_type == 'first_page':
-        wanted_records = wanted['records']
-
-    else:
-        logger.error(f'[Search Settings] - search_type = {search_type} is not valid. Exiting...')
-
-        if os.path.exists(lock_file_path) and not is_docker():
-                os.remove(lock_file_path)
-
+    wanted_records = []
+    try:
+        for source in search_sources:
+            logging.debug(f'Getting records from {source}')
+            missing = source == 'missing'
+            wanted_records.extend(get_records(missing))
+    except ValueError as ex:
+        logger.error(f'An error occured: {ex}')
+        logger.error('Exiting...')
         sys.exit(0)
 
     if len(wanted_records) > 0:
