@@ -27,7 +27,6 @@ DEFAULT_LOGGING_CONF = {
     'datefmt': '%Y-%m-%dT%H:%M:%S%z',
 }
 
-
 def album_match(lidarr_tracks, slskd_tracks, username, filetype):
     counted = []
     total_match = 0.0
@@ -615,7 +614,6 @@ def get_records(missing: bool) -> list:
         raise ValueError(f'[Search Settings] - {search_type = } is not valid')
 
     return wanted_records
-
 
 
 # Let's allow some overrides to be passed to the script
