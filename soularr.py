@@ -586,21 +586,31 @@ def update_current_page(path: str, page: int) -> None:
 
 
 def get_records(missing: bool) -> list:
-    wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
+    try:
+        wanted = lidarr.get_wanted(page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
+    except ConnectionError as ex:
+        logger.error(f"An error occurred when attempting to get records: {ex}")
+        return []
+
     total_wanted = wanted['totalRecords']
 
+    wanted_records = []
     if search_type == 'all':
         page = 1
-        wanted_records = []
-
         while len(wanted_records) < total_wanted:
-            wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
+            try:
+                wanted = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)
+            except ConnectionError as ex:
+                logger.error(f"Failed to grab record: {ex}")
             wanted_records.extend(wanted['records'])
             page += 1
 
     elif search_type == 'incrementing_page':
         page = get_current_page(current_page_file_path)
-        wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)['records']
+        try:
+            wanted_records = lidarr.get_wanted(page=page, page_size=page_size, sort_dir='ascending',sort_key='albums.title', missing=missing)['records']
+        except ConnectionError as ex:
+            logger.error(f"Failed to grab record: {ex}")
         page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
         update_current_page(current_page_file_path, str(page))
 
