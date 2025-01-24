@@ -632,6 +632,7 @@ parser = argparse.ArgumentParser(
 )
 
 default_data_directory = os.getcwd()
+
 if is_docker():
     default_data_directory = "/data"
 
