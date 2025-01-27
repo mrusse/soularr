@@ -725,7 +725,6 @@ try:
 
     slskd = slskd_api.SlskdClient(host=slskd_host_url, api_key=slskd_api_key, url_base=slskd_url_base)
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
-
     wanted_records = []
     try:
         for source in search_sources:
