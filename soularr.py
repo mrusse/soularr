@@ -404,7 +404,7 @@ def grab_most_wanted(albums):
         for dir in download['directories']:
             logger.info(f"Username: {username} Directory: {dir['directory']}")
     logger.info("-------------------")
-    logger.info(f"Waiting for downloads... monitor at: {'/'.join([slskd_host_url, slskd_url_base, 'downloads'])}")
+    logger.info(f"Waiting for downloads... monitor at: {''.join([slskd_host_url, slskd_url_base, 'downloads'])}")
 
     time_count = 0
 
