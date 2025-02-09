@@ -625,140 +625,140 @@ def get_records(missing: bool) -> list:
 
     return wanted_records
 
+if __name__ == '__main__':
+    # Let's allow some overrides to be passed to the script
+    parser = argparse.ArgumentParser(
+        description="""Soularr reads all of your "wanted" albums/artists from Lidarr and downloads them using Slskd"""
+    )
 
-# Let's allow some overrides to be passed to the script
-parser = argparse.ArgumentParser(
-    description="""Soularr reads all of your "wanted" albums/artists from Lidarr and downloads them using Slskd"""
-)
+    default_data_directory = os.getcwd()
 
-default_data_directory = os.getcwd()
+    if is_docker():
+        default_data_directory = "/data"
 
-if is_docker():
-    default_data_directory = "/data"
+    parser.add_argument(
+        "-c",
+        "--config-dir",
+        default=default_data_directory,
+        const=default_data_directory,
+        nargs="?",
+        type=str,
+        help="Config directory (default: %(default)s)",
+    )
+    args = parser.parse_args()
 
-parser.add_argument(
-    "-c",
-    "--config-dir",
-    default=default_data_directory,
-    const=default_data_directory,
-    nargs="?",
-    type=str,
-    help="Config directory (default: %(default)s)",
-)
-args = parser.parse_args()
+    lock_file_path = os.path.join(args.config_dir, ".soularr.lock")
+    config_file_path = os.path.join(args.config_dir, "config.ini")
+    failure_file_path = os.path.join(args.config_dir, "failure_list.txt")
+    current_page_file_path = os.path.join(args.config_dir, ".current_page.txt")
 
-lock_file_path = os.path.join(args.config_dir, ".soularr.lock")
-config_file_path = os.path.join(args.config_dir, "config.ini")
-failure_file_path = os.path.join(args.config_dir, "failure_list.txt")
-current_page_file_path = os.path.join(args.config_dir, ".current_page.txt")
+    if not is_docker() and os.path.exists(lock_file_path):
+        logger.info(f"Soularr instance is already running.")
+        sys.exit(1)
 
-if not is_docker() and os.path.exists(lock_file_path):
-    logger.info(f"Soularr instance is already running.")
-    sys.exit(1)
-
-try:
-    if not is_docker():
-        with open(lock_file_path, "w") as lock_file:
-            lock_file.write("locked")
-
-    # Disable interpolation to make storing logging formats in the config file much easier
-    config = configparser.ConfigParser(interpolation=None)
-
-
-    if os.path.exists(config_file_path):
-        config.read(config_file_path)
-    else:
-        if is_docker():
-            logger.error('Config file does not exist! Please mount "/data" and place your "config.ini" file there. Alternatively, pass `--config-dir /directory/of/your/liking` as post arguments to store the config somewhere else.')
-            logger.error("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
-        else:
-            logger.error("Config file does not exist! Please place it in the working directory. Alternatively, pass `--config-dir /directory/of/your/liking` as post arguments to store the config somewhere else.")
-            logger.error("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
-        if os.path.exists(lock_file_path) and not is_docker():
-            os.remove(lock_file_path)
-        sys.exit(0)
-
-    slskd_api_key = config['Slskd']['api_key']
-    lidarr_api_key = config['Lidarr']['api_key']
-
-    lidarr_download_dir = config['Lidarr']['download_dir']
-
-    slskd_download_dir = config['Slskd']['download_dir']
-
-    lidarr_host_url = config['Lidarr']['host_url']
-    slskd_host_url = config['Slskd']['host_url']
-
-    stalled_timeout = config.getint('Slskd', 'stalled_timeout', fallback=3600)
-
-    delete_searches = config.getboolean('Slskd', 'delete_searches', fallback=True)
-
-    slskd_url_base = config.get('Slskd', 'url_base', fallback='/')
-
-    ignored_users = config.get('Search Settings', 'ignored_users', fallback='').split(",")
-    search_type = config.get('Search Settings', 'search_type', fallback='first_page').lower().strip()
-    search_source = config.get('Search Settings', 'search_source', fallback='missing').lower().strip()
-
-    search_sources = [search_source]
-    if search_sources[0] == 'all':
-        search_sources = ['missing', 'cutoff_unmet']
-
-    minimum_match_ratio = config.getfloat('Search Settings', 'minimum_filename_match_ratio', fallback=0.5)
-    page_size = config.getint('Search Settings', 'number_of_albums_to_grab', fallback=10)
-    remove_wanted_on_failure = config.getboolean('Search Settings', 'remove_wanted_on_failure', fallback=True)
-
-    use_most_common_tracknum = config.getboolean('Release Settings', 'use_most_common_tracknum', fallback=True)
-    allow_multi_disc = config.getboolean('Release Settings', 'allow_multi_disc', fallback=True)
-
-    default_accepted_countries = "Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada"
-    default_accepted_formats = "CD,Digital Media,Vinyl"
-    accepted_countries = config.get('Release Settings', 'accepted_countries', fallback=default_accepted_countries).split(",")
-    accepted_formats = config.get('Release Settings', 'accepted_formats', fallback=default_accepted_formats).split(",")
-
-    raw_filetypes = config.get('Search Settings', 'allowed_filetypes', fallback='flac,mp3')
-
-    if "," in raw_filetypes:
-        allowed_filetypes = raw_filetypes.split(",")
-    else:
-        allowed_filetypes = [raw_filetypes]
-
-    setup_logging(config)
-
-    slskd = slskd_api.SlskdClient(host=slskd_host_url, api_key=slskd_api_key, url_base=slskd_url_base)
-    lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
-    wanted_records = []
     try:
-        for source in search_sources:
-            logging.debug(f'Getting records from {source}')
-            missing = source == 'missing'
-            wanted_records.extend(get_records(missing))
-    except ValueError as ex:
-        logger.error(f'An error occured: {ex}')
-        logger.error('Exiting...')
-        sys.exit(0)
+        if not is_docker():
+            with open(lock_file_path, "w") as lock_file:
+                lock_file.write("locked")
 
-    if len(wanted_records) > 0:
-        try:
-            failed = grab_most_wanted(wanted_records)
-        except Exception:
-            logger.error(traceback.format_exc())
-            logger.error("\n Fatal error! Exiting...")
+        # Disable interpolation to make storing logging formats in the config file much easier
+        config = configparser.ConfigParser(interpolation=None)
 
+
+        if os.path.exists(config_file_path):
+            config.read(config_file_path)
+        else:
+            if is_docker():
+                logger.error('Config file does not exist! Please mount "/data" and place your "config.ini" file there. Alternatively, pass `--config-dir /directory/of/your/liking` as post arguments to store the config somewhere else.')
+                logger.error("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
+            else:
+                logger.error("Config file does not exist! Please place it in the working directory. Alternatively, pass `--config-dir /directory/of/your/liking` as post arguments to store the config somewhere else.")
+                logger.error("See: https://github.com/mrusse/soularr/blob/main/config.ini for an example config file.")
             if os.path.exists(lock_file_path) and not is_docker():
                 os.remove(lock_file_path)
             sys.exit(0)
-        if failed == 0:
-            logger.info("Soularr finished. Exiting...")
-            slskd.transfers.remove_completed_downloads()
-        else:
-            if remove_wanted_on_failure:
-                logger.info(f'{failed}: releases failed and were removed from wanted list. View "failure_list.txt" for list of failed albums.')
-            else:
-                logger.info(f"{failed}: releases failed while downloading and are still wanted.")
-            slskd.transfers.remove_completed_downloads()
-    else:
-        logger.info("No releases wanted. Exiting...")
 
-finally:
-    # Remove the lock file after activity is done
-    if os.path.exists(lock_file_path) and not is_docker():
-        os.remove(lock_file_path)
+        slskd_api_key = config['Slskd']['api_key']
+        lidarr_api_key = config['Lidarr']['api_key']
+
+        lidarr_download_dir = config['Lidarr']['download_dir']
+
+        slskd_download_dir = config['Slskd']['download_dir']
+
+        lidarr_host_url = config['Lidarr']['host_url']
+        slskd_host_url = config['Slskd']['host_url']
+
+        stalled_timeout = config.getint('Slskd', 'stalled_timeout', fallback=3600)
+
+        delete_searches = config.getboolean('Slskd', 'delete_searches', fallback=True)
+
+        slskd_url_base = config.get('Slskd', 'url_base', fallback='/')
+
+        ignored_users = config.get('Search Settings', 'ignored_users', fallback='').split(",")
+        search_type = config.get('Search Settings', 'search_type', fallback='first_page').lower().strip()
+        search_source = config.get('Search Settings', 'search_source', fallback='missing').lower().strip()
+
+        search_sources = [search_source]
+        if search_sources[0] == 'all':
+            search_sources = ['missing', 'cutoff_unmet']
+
+        minimum_match_ratio = config.getfloat('Search Settings', 'minimum_filename_match_ratio', fallback=0.5)
+        page_size = config.getint('Search Settings', 'number_of_albums_to_grab', fallback=10)
+        remove_wanted_on_failure = config.getboolean('Search Settings', 'remove_wanted_on_failure', fallback=True)
+
+        use_most_common_tracknum = config.getboolean('Release Settings', 'use_most_common_tracknum', fallback=True)
+        allow_multi_disc = config.getboolean('Release Settings', 'allow_multi_disc', fallback=True)
+
+        default_accepted_countries = "Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada"
+        default_accepted_formats = "CD,Digital Media,Vinyl"
+        accepted_countries = config.get('Release Settings', 'accepted_countries', fallback=default_accepted_countries).split(",")
+        accepted_formats = config.get('Release Settings', 'accepted_formats', fallback=default_accepted_formats).split(",")
+
+        raw_filetypes = config.get('Search Settings', 'allowed_filetypes', fallback='flac,mp3')
+
+        if "," in raw_filetypes:
+            allowed_filetypes = raw_filetypes.split(",")
+        else:
+            allowed_filetypes = [raw_filetypes]
+
+        setup_logging(config)
+
+        slskd = slskd_api.SlskdClient(host=slskd_host_url, api_key=slskd_api_key, url_base=slskd_url_base)
+        lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
+        wanted_records = []
+        try:
+            for source in search_sources:
+                logging.debug(f'Getting records from {source}')
+                missing = source == 'missing'
+                wanted_records.extend(get_records(missing))
+        except ValueError as ex:
+            logger.error(f'An error occured: {ex}')
+            logger.error('Exiting...')
+            sys.exit(0)
+
+        if len(wanted_records) > 0:
+            try:
+                failed = grab_most_wanted(wanted_records)
+            except Exception:
+                logger.error(traceback.format_exc())
+                logger.error("\n Fatal error! Exiting...")
+
+                if os.path.exists(lock_file_path) and not is_docker():
+                    os.remove(lock_file_path)
+                sys.exit(0)
+            if failed == 0:
+                logger.info("Soularr finished. Exiting...")
+                slskd.transfers.remove_completed_downloads()
+            else:
+                if remove_wanted_on_failure:
+                    logger.info(f'{failed}: releases failed and were removed from wanted list. View "failure_list.txt" for list of failed albums.')
+                else:
+                    logger.info(f"{failed}: releases failed while downloading and are still wanted.")
+                slskd.transfers.remove_completed_downloads()
+        else:
+            logger.info("No releases wanted. Exiting...")
+
+    finally:
+        # Remove the lock file after activity is done
+        if os.path.exists(lock_file_path) and not is_docker():
+            os.remove(lock_file_path)
