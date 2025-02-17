@@ -499,6 +499,9 @@ def grab_most_wanted(albums):
         elif os.path.exists(folder):
             shutil.move(folder,artist_name_sanitized)
 
+    if lidarr_disable_sync:
+        return failed_download
+
     artist_folders = next(os.walk('.'))[1]
     artist_folders = [folder for folder in artist_folders if folder != 'failed_imports']
 
@@ -682,6 +685,7 @@ try:
     lidarr_api_key = config['Lidarr']['api_key']
 
     lidarr_download_dir = config['Lidarr']['download_dir']
+    lidarr_disable_sync = config.getboolean('Lidarr', 'disable_sync', fallback=False)
 
     slskd_download_dir = config['Slskd']['download_dir']
 
