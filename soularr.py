@@ -13,10 +13,10 @@ import traceback
 import configparser
 import logging
 from datetime import datetime
-
 import music_tag
 import slskd_api
 from pyarr import LidarrAPI
+
 
 logger = logging.getLogger('soularr')
 #Allows backwards compatability for users updating an older version of Soularr
@@ -240,7 +240,7 @@ def verify_filetype(file,allowed_filetype):
         return False
 
 
-def search_and_download(grab_list, query, tracks, track, artist_name, release):
+def search_and_download(grab_list, query, tracks, track, artist_name, release,retry_list):
     search = slskd.searches.search_text(searchText = query,
                                         searchTimeout = config.getint('Search Settings', 'search_timeout', fallback=5000),
                                         filterResponses = True,
@@ -296,8 +296,14 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                                 # Delete the search from SLSKD DB
                                 if delete_searches:
                                     slskd.searches.delete(search['id'])
+                                logger.info(f"Adding {username} to retry list")
+                                retry_list[username] = {}
+                                for file in directory['files']:
+                                    logger.info(f"Adding {file['filename']} to retry list")
+                                    retry_list[username][file['filename']] = 0
                                 return True
-                            except Exception:
+                            except Exception as e:
+                                logger.warning(f"Exception {e}")
                                 logger.warning(f"Error enqueueing tracks! Adding {username} to ignored users list.")
                                 downloads = slskd.transfers.get_downloads(username)
 
@@ -327,6 +333,7 @@ def grab_most_wanted(albums):
     grab_list = []
     failed_download = 0
     success = False
+    retry_list = {}
 
     for album in albums:
         artist_name = album['artist']['artistName']
@@ -350,7 +357,7 @@ def grab_most_wanted(albums):
                 query = artist_name + " " + album_title if config.getboolean('Search Settings', 'album_prepend_artist', fallback=False) else album_title
 
             logger.info(f"Searching album: {query}")
-            success = search_and_download(grab_list, query, all_tracks, all_tracks[0], artist_name, release)
+            success = search_and_download(grab_list, query, all_tracks, all_tracks[0], artist_name, release,retry_list)
 
         if not success and config.getboolean('Search Settings', 'search_for_tracks', fallback=True):
             for media in release['media']:
@@ -369,7 +376,7 @@ def grab_most_wanted(albums):
                         query = artist_name + " " + track['title'] if config.getboolean('Search Settings', 'track_prepend_artist', fallback=True) else track['title']
 
                     logger.info(f"Searching track: {query}")
-                    success = search_and_download(grab_list, query, tracks, track, artist_name, release)
+                    success = search_and_download(grab_list, query, tracks, track, artist_name, release,retry_list)
 
                     if success:
                         break
@@ -420,9 +427,20 @@ def grab_most_wanted(albums):
                     errored_files = [file for file in directory["files"] if file["state"] in [
                         'Completed, Cancelled',
                         'Completed, TimedOut',
-                        'Completed, Errored',
+                       #'Completed, Errored',
                         'Completed, Rejected',
                     ]]
+
+                    for file in directory["files"]:
+                        if file["state"] == 'Completed, Errored':
+                            if file['filename'] in retry_list[username]:
+                                retry_list[username][file['filename']] += 1
+                            if retry_list[username][file['filename']] > 2:
+                                errored_files.append(file)
+                            else:
+                                slskd.transfers.enqueue(username = username, files = [file])
+                                file['state'] = 'Restart'
+
                     # Generate list of downloads still pending
                     pending_files = [file for file in directory["files"] if not 'Completed' in file["state"]]
 
@@ -431,12 +449,17 @@ def grab_most_wanted(albums):
                         logger.error(f"FAILED: Username: {username} Directory: {dir['name']}")
                         cancel_and_delete(artist_folder['dir'], artist_folder['username'], directory["files"])
                         grab_list.remove(artist_folder)
+                        for file in directory['files']:
+                            del retry_list[username][file['filename']]
+                            if len(retry_list[username]) > 0:
+                                del retry_list[username]
                     elif len(pending_files) > 0:
                         unfinished += 1
 
         if unfinished == 0:
             logger.info("All tracks finished downloading!")
             time.sleep(5)
+            retry_list={}
             break
 
         time_count += 10
@@ -477,11 +500,12 @@ def grab_most_wanted(albums):
 
                 if filename.split(".")[-1] in allowed_filetypes:
                     song = music_tag.load_file(os.path.join(folder,filename))
-                    song['artist'] = artist_name
-                    song['albumartist'] = artist_name
-                    song['album'] = album_name
-                    song['discnumber'] = artist_folder['discnumber']
-                    song.save()
+                    if song is not None:
+                        song['artist'] = artist_name
+                        song['albumartist'] = artist_name
+                        song['album'] = album_name
+                        song['discnumber'] = artist_folder['discnumber']
+                        song.save()
 
                 new_dir = os.path.join(artist_name_sanitized,sanitize_folder_name(album_name))
 
@@ -726,6 +750,7 @@ try:
     slskd = slskd_api.SlskdClient(host=slskd_host_url, api_key=slskd_api_key, url_base=slskd_url_base)
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
     wanted_records = []
+    
     try:
         for source in search_sources:
             logging.debug(f'Getting records from {source}')
