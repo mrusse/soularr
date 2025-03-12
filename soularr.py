@@ -451,8 +451,8 @@ def grab_most_wanted(albums):
                         grab_list.remove(artist_folder)
                         for file in directory['files']:
                             del retry_list[username][file['filename']]
-                            if len(retry_list[username]) > 0:
-                                del retry_list[username]
+                        if len(retry_list[username]) <= 0:
+                             del retry_list[username]
                     elif len(pending_files) > 0:
                         unfinished += 1
 
