@@ -17,11 +17,11 @@ Soularr reads all of your "wanted" albums/artists from Lidarr and downloads them
 
 ![Soularr_small](https://github.com/user-attachments/assets/15c47a82-ddf2-40e3-b143-2ad7f570730f)
 
-
 After the downloads are complete in Slskd the script will tell Lidarr to import the downloaded files, making it a truly hands off process.
+
 # Setup
 
-### Install and configure Lidarr and Slskd
+## Install and configure Lidarr and Slskd
 
 **Lidarr**
 [https://lidarr.audio/](https://lidarr.audio/)
@@ -33,170 +33,216 @@ Make sure Lidarr can see your Slskd download directory, if you are running Lidar
 
 The script requires an api key from Slskd. Take a look at their [docs](https://github.com/slskd/slskd/blob/master/docs/config.md#authentication) on how to set it up (all you have to do is add it to the yml file under `web, authentication, api_keys, my_api_key`).
 
-### Configure your config file
-
-The config file has a bunch of different settings that affect how the script runs. Any lists in the config such as "accepted_countries" need to be comma separated with no spaces (e.g. `","` not `" , "` or `" ,"`).
-
-**Example config:**
-
-```ini
-[Lidarr]
-api_key = yourlidarrapikeygoeshere
-host_url = http://localhost:8686
-#This should be the path mounted in lidarr that points to your slskd download directory.
-#If Lidarr is not running in Docker then this may just be the same dir as Slskd is using below.
-download_dir = /lidarr/path/to/slskd/downloads
-
-[Slskd]
-#Api key from Slskd. Need to set this up manually. See link to Slskd docs above.
-api_key = yourslskdapikeygoeshere
-host_url = http://localhost:5030
-#Slskd download directory. Should have set it up when installing Slskd.
-download_dir = /path/to/your/Slskd/downloads
-#Removes searches from Slskd after the search finishes.
-delete_searches = False
-#Maximum time (in seconds) that the script will wait for downloads to complete.
-#This is used to prevent the script from running forever due to a stalled download. Defaults to 1 hour.
-stalled_timeout = 3600
-
-[Release Settings]
-#Selects the release with the most common amount of tracks out of all the releases.
-use_most_common_tracknum = True
-allow_multi_disc = True
-#See full list of countries below.
-accepted_countries = Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada
-#See full list of formats below.
-accepted_formats = CD,Digital Media,Vinyl
-
-[Search Settings]
-search_timeout = 5000
-maximum_peer_queue = 50
-#Min upload speed in bit/s
-minimum_peer_upload_speed = 0
-#Min match ratio accepted when comparing lidarr track names to soulseek filenames.
-minimum_filename_match_ratio = 0.5
-#Specify the file types you prefer from most to least. As well as their attributes such as bitrate / samplerate / bitdepth.
-#For flacs you can choose the bitdepth/samplerate. And for mp3s the bitrate.
-#If you do not care about the specific quality you can still just put "flac" or "mp3".
-#Soularr will then just look at the filetype and ignore file attributes.
-allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3
-ignored_users = User1,User2,Fred,Bob
-#Set to False if you only want to search for complete albums
-search_for_tracks = True
-#Set to True if you want to add the artist's name to the beginning of the search for albums
-album_prepend_artist = False
-track_prepend_artist = True
-#Valid search types: all || incrementing_page || first_page
-  #"all" will search for every wanted record everytime soularr is run.
-  #"incrementing_page" will start with the first page and increment to the next on each run.
-  #"first_page" will repeatedly search the first page.
-#If using the search type "first_page" remove_wanted_on_failure should be enabled.
-search_type = incrementing_page
-#How mancy records to grab each run, must be a number between 1 - 2,147,483,647
-number_of_albums_to_grab = 10
-#Unmonitors the album if Soularr can't find it and places it in "failure_list.txt".
-#Failed albums can be re monitored by filtering "Unmonitored" in the Lidarr wanted list.
-remove_wanted_on_failure = False
-#Comma separated list of words that can't be in the title of albums or tracks. Case insensitive.
-title_blacklist = BlacklistWord1,blacklistword2
-#Lidarr source to use for searching. Accepted values are "all", "missing", or "cutoff_unmet". If "all" is selected
-# then both missing and cutoff_unme will be searched. The default value is "missing".
-search_source = missing
-
-[Logging]
-#These options are passed into the logger's basicConfig() method as-is.
-#This means, if you're familiar with Python's logging module, you can configure
-#the logger with options beyond what's listed here by default.
-#For more information on available options  --  https://docs.python.org/3/library/logging.html#logging.basicConfig
-level = INFO
-# Format of log message  --  https://docs.python.org/3/library/logging.html#logrecord-attributes
-format = [%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s
-# Format of datetimes  --  https://docs.python.org/3/library/time.html#time.strftime
-datefmt = %Y-%m-%dT%H:%M:%S%z
-```
-
-[Full list of countries from Musicbrainz.](https://musicbrainz.org/doc/Release/Country)
-
-[Full list of formats (also from Musicbrainz but for some reason they don't have a nice list)](https://pastebin.com/raw/pzGVUgaE)
-
-
-I have included this [example config](https://github.com/mrusse/soularr/blob/main/config.ini) in the repo.
-
-
 ## Docker
 
 The best way to run the script is through Docker. A Docker image is available through [dockerhub](https://hub.docker.com/r/mrusse08/soularr).
 
-Example docker run command:
+Assuming, your user and group is `1000:1000` and that you have a directory structure similar to the following:
+
+```bash
+/
+├── Media
+│   ├── Downloads
+│   ├── Music
+│   └── slskd_downloads
+└── Containers
+    ├── lidarr
+    ├── slskd
+    └── soularr
+```
+
+Where `Downloads` could be any music download directory, `slskd_downloads` is your slskd download directory, and finally `Music` is the location for you music files then an example docker run command might be:
+
 ```shell
 docker run -d \
   --name soularr \
   --restart unless-stopped \
   --hostname soularr \
-  -e PUID=1000 \
-  -e PGID=1000 \
-  -e TZ=Etc/UTC \
+  -e TZ=ETC/UTC \
   -e SCRIPT_INTERVAL=300 \
-  -v /path/to/slskd/downloads:/downloads \
-  -v /path/to/config/dir:/data \
+  -v /Media/slskd_downloads:/downloads \
+  -v /Containers/soularr:/data \
   --user 1000:1000 \
   mrusse08/soularr:latest
 ```
 
 Or you can also set it up with the provided [Docker Compose](https://github.com/mrusse/soularr/blob/main/docker-compose.yml).
+
 ```yml
-version: "3"
 services:
   soularr:
-    restart: unless-stopped
+    image: mrusse08/soularr:latest
     container_name: soularr
     hostname: soularr
+  user: 1000:1000 # this should be set to your UID and GID, which can be determined via `id -u` and `id -g`, respectively
     environment:
-      - PUID=1000
-      - PGID=1000
       - TZ=Etc/UTC
-      #Script interval in seconds
-      - SCRIPT_INTERVAL=300
-    user: "1000:1000"
+      - SCRIPT_INTERVAL=300 # Script interval in seconds
     volumes:
-      #"You can set /downloads to whatever you want but will then need to change the Slskd download dir in your config file"
-      - /path/to/slskd/downloads:/downloads
-      #Select where you are storing your config file.
-      #Leave "/data" since thats where the script expects the config file to be
-      - /path/to/config/dir:/data
-    image: mrusse08/soularr:latest
+      # "You can set /downloads to whatever you want but will then need to change the Slskd download dir in your config file"
+      - /Media/slskd_downloads:/downloads
+      # Select where you are storing your config file.
+      # Leave "/data" since thats where the script expects the config file to be
+      - /Containers/soularr:/data
+    restart: unless-stopped
 ```
 
 Note: You **must** edit both volumes in the docker compose above.
 
 - `/path/to/slskd/downloads:/downloads`
 
-  + This is where you put your Slskd downloads path.
+  - This is where you put your Slskd downloads path.
 
-  + You can point it to whatever dir you want but make sure to put the same dir in your config file under `[Slskd] -> download_dir`.
+  - You can point it to whatever dir you want but make sure to put the same dir in your config file under `[Slskd] -> download_dir`.
 
-  + For example you could leave it as `/downloads` then in your config your entry would be `download_dir = /downloads`.
+  - For example you could leave it as `/downloads` then in your config your entry would be `download_dir = /downloads`.
 
 - `/path/to/config/dir:/data`
 
-  + This is where put the path you are storing your config file. It must point to `/data`.
+  - This is where put the path you are storing your config file. It must point to `/data`.
 
-You can also edit `SCRIPT_INTERVAL` to choose how often (in seconds) you want the script to run (default is every 300 seconds). Another thing to note is that by default the user perms are set to PUID:1000 and PGID:1000. If you wish to edit this change `user: "1000:1000"` in the Docker compose to whatever you prefer.
+You can also edit `SCRIPT_INTERVAL` to choose how often (in seconds) you want the script to run (default is every 300 seconds). Another thing to note is that by default the user is set to appropriate user on your system. If you wish to edit this change `user: 1000:1000` in the Docker compose to whatever you prefer. You can determine the user via the command `id -u` and the group vi `id -g`.
+
+It is important that `lidarr` and `slskd` agree on the user/group. If they do not agree then it is unlikely you will have successful imports. Also, it is important to note that lidarr will need access to the downloads directory of slskd.
+
+For a more complete example see the compose file bellow which contains `lidarr`, `slskd`, and `soularr`:
+
+```yml
+services
+  lidarr:
+    image: ghcr.io/hotio/lidarr:latest
+    container_name: lidarr
+    hostname: lidarr
+    environment:
+      - TZ=ETC/UTC
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - /Containers/lidarr:/config
+      - /Media:/data
+    ports:
+      - 8686:8686
+    restart: unless-stopped
+
+  slskd:
+    image: slskd/slskd
+    container_name: slskd
+    hostname: slskd
+    user: 1000:1000
+    environment:
+      - TZ=ETC/UTC
+      - SLSKD_REMOTE_CONFIGURATION=true
+    ports:
+      - 5030:5030
+      - 5031:5031
+      - 50300:50300
+    volumes:
+      - /Containers/slskd:/app
+      - /Media:/data
+    restart: unless-stopped
+
+  soularr:
+    image: mrusse08/soularr:latest
+    container_name: soularr
+    hostname: soularr
+    user: 1000:1000
+    environment:
+      - TZ=ETC/UTC
+      - SCRIPT_INTERVAL=300
+    volumes:
+      - /Media/slskd_downloads:/downloads
+      - /Container/soularr:/data
+    restart: unless-stopped
+```
+
+## Configure your config file
+
+The config file has a bunch of different settings that affect how the script runs. Any lists in the config such as "accepted_countries" need to be comma separated with no spaces (e.g. `","` not `" , "` or `" ,"`).
+
+Given the directory structure above you can use the following configuration
+
+**Example config:**
+
+```ini
+[Lidarr]
+api_key = yourlidarrapikeygoeshere   # get this from lidarr settings > general > security > API Key
+host_url = http://lidarr:8686        # A safe bet would be to use the url you use to connect manually
+download_dir = /data/slskd_downloads # this should be the path to slskd downloads in the lidarr container
+
+[Slskd]
+api_key = yourslskdapikeygoeshere    # generate this key manually see documentation above
+host_url = http://slskd:5030         # A safe bet would be to use the url that you use to manually connect to slskd
+url_base = /
+download_dir = /downloads            # slskd download directory from within the slskd container
+delete_searches = False              # delete the search after each soularr search
+stalled_timeout = 3600               # Maximum time (in seconds) that the script will wait for downloads to complete.
+                                     # This is used to prevent the script from running forever due to a stalled download.
+                                     # Defaults to 1 hour.
+
+[Release Settings]
+use_most_common_tracknum = True      # Selects the release with the most common amount of tracks out of all the releases.
+allow_multi_disc = True
+accepted_countries = Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada # See full list of countries below.
+accepted_formats = CD,Digital Media,Vinyl      # See full list of formats below.
+
+[Search Settings]
+search_timeout = 5000
+maximum_peer_queue = 50
+minimum_peer_upload_speed = 0        # Min upload speed in bit/s
+minimum_filename_match_ratio = 0.5   # Min match ratio accepted when comparing lidarr track names to soulseek filenames.
+allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3 # Specify the file types you prefer from most to least. As well as their attributes such as bitrate / samplerate / bitdepth.
+                                                              # For flacs you can choose the bitdepth/samplerate. And for mp3s the bitrate.
+                                                              # If you do not care about the specific quality you can still just put "flac" or "mp3".
+                                                              # Soularr will then just look at the filetype and ignore file attributes.
+ignored_users = User1,User2,Fred,Bob
+search_for_tracks = True            # Set to False if you only want to search for complete albums
+album_prepend_artist = False        # Set to True if you want to add the artist's name to the beginning of the search for albums
+track_prepend_artist = True
+search_type = incrementing_page     # Valid search types: all || incrementing_page || first_page
+                                    # "all" will search for every wanted record everytime soularr is run.
+                                    # "incrementing_page" will start with the first page and increment to the next on each run.
+                                    # "first_page" will repeatedly search the first page.
+                                    # If using the search type "first_page" remove_wanted_on_failure should be enabled.
+number_of_albums_to_grab = 10       # How mancy records to grab each run, must be a number between 1 - 2,147,483,647
+remove_wanted_on_failure = False    # Unmonitors the album if Soularr can't find it and places it in "failure_list.txt".
+                                    # Failed albums can be re monitored by filtering "Unmonitored" in the Lidarr wanted list.
+title_blacklist = Word1,word2       # Comma separated list of words that can't be in the title of albums or tracks. Case insensitive.
+search_source = missing             # Lidarr source to use for searching. Accepted values are "missing" or "cutoff_unmet".
+                                    # Default value is "missing".
+
+[Logging]
+# These options are passed into the logger's basicConfig() method as-is.
+# This means, if you're familiar with Python's logging module, you can configure
+# the logger with options beyond what's listed here by default.
+# For more information on available options  --  https://docs.python.org/3/library/logging.html#logging.basicConfig
+level = INFO                       # Logging level valid values are INFO, WARN, DEBUG, ERROR, CRITICAL
+format = [%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s # Format of log message  --  https://docs.python.org/3/library/logging.html#logrecord-attributes
+datefmt = %Y-%m-%dT%H:%M:%S%z      # Format of datetimes  --  https://docs.python.org/3/library/time.html#time.strftime
+```
+
+[Full list of countries from Musicbrainz.](https://musicbrainz.org/doc/Release/Country)
+
+[Full list of formats (also from Musicbrainz but for some reason they don't have a nice list)](https://pastebin.com/raw/pzGVUgaE)
+
+An [example config](https://github.com/mrusse/soularr/blob/main/config.ini) is included in the repo.
 
 ## Running Manually
 
 Install the requirements:
-```
+
+```bash
 python -m pip install -r requirements.txt
 ```
 
 You can simply run the script with:
-```
+
+```bash
 python soularr.py
 ```
+
 Note: the `config.ini` file needs to be in the same directory as `soularr.py`.
 
-### Scheduling the script:
+### Scheduling the script
 
 Even if you are not using Docker you can still schedule the script. I have included an example bash script below that can be scheduled using a [cron job](https://crontab.guru/every-5-minutes).
 
@@ -218,13 +264,13 @@ fi
 
 Edit crontab file with
 
-```
+```bash
 crontab -e
 ```
 
 Then enter in your schedule followed by the command. For example:
 
-```
+```cron
 */5 * * * * /path/to/run.sh
 ```
 
@@ -286,6 +332,7 @@ formatters, handlers, additional streams, and multi-logger setups), consider sub
 [the official discord](https://discord.gg/EznhgYBayN) or [submitting an Issue in the GitHub repository itself](https://github.com/mrusse/soularr/issues).
 
 ##
+
 <p align="center">
   <a href='https://ko-fi.com/mrusse' target='_blank'><img height='35' style='border:0px;height:46px;' src='https://az743702.vo.msecnd.net/cdn/kofi3.png?v=0' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 </p>
