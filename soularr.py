@@ -12,6 +12,7 @@ import operator
 import traceback
 import configparser
 import logging
+import copy
 
 from datetime import datetime
 import music_tag
