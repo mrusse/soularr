@@ -292,14 +292,14 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release,re
                     search_cache[username] = {}
 
                 if file_dir not in search_cache[username]:
-                    logger.info(f"Cache miss user: {username}   folder: {file_dir}")
+                    logger.info(f"Cache miss. User: {username}   folder: {file_dir}")
                     try:
                         directory = slskd.users.directory(username = username, directory = file_dir)
                     except: 
                         continue
                     search_cache[username][file_dir] = directory
                 else:
-                    logger.info(f"Pulling from cache: {username} folder: {file_dir}")
+                    logger.info(f"Pulling from cache. User: {username} folder: {file_dir}")
                 
                 directory = copy.deepcopy(search_cache[username][file_dir])
 
