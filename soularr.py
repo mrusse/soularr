@@ -430,15 +430,19 @@ def grab_most_wanted(albums):
     logger.info(f"Waiting for downloads... monitor at: {''.join([slskd_host_url, slskd_url_base, 'downloads'])}")
 
     time_count = 0
+    previous_total = sys.maxsize
 
     while True:
         unfinished = 0
+        total_remaining = 0
         for artist_folder in list(grab_list):
             username, dir = artist_folder['username'], artist_folder['directory']
             downloads = slskd.transfers.get_downloads(username)
 
             for directory in downloads["directories"]:
                 if directory["directory"] == dir["name"]:
+                    for file in directory['files']:
+                        total_remaining += file['bytesRemaining']
                     # Generate list of errored or failed downloads
                     errored_files = [file for file in directory["files"] if file["state"] in [
                         'Completed, Cancelled',
@@ -477,8 +481,11 @@ def grab_most_wanted(albums):
             time.sleep(5)
             retry_list={}
             break
-
-        time_count += 10
+            
+        if previous_total > total_remaining:
+            previous_total = total_remaining
+        else:
+            time_count += 10
 
         if(time_count > stalled_timeout):
             logger.info("Stall timeout reached! Removing stuck downloads...")
