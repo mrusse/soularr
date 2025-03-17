@@ -12,6 +12,7 @@ import operator
 import traceback
 import configparser
 import logging
+import copy
 
 from datetime import datetime
 import music_tag
@@ -196,6 +197,7 @@ def choose_release(album_id, artist_name):
 
 def verify_filetype(file,allowed_filetype):
     current_filetype = file['filename'].split(".")[-1]
+    logger.debug(f"Current file type: {current_filetype}")
     bitdepth = None
     samplerate = None
     bitrate = None
@@ -252,7 +254,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release,re
 
     time.sleep(5)
     while True:
-        if slskd.searches.state(search['id'])['state'] != 'InProgress':
+        if slskd.searches.state(search['id'],False)['state'] != 'InProgress':
             break
         time.sleep(1)
 
@@ -266,7 +268,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release,re
             dir_cache[username] = {}
         logger.info(f"Truncating directory count of user: {username}")
         init_files = result['files']
-        for file in init_files:                   
+        for file in init_files:
             file_dir = file['filename'].rsplit('\\',1)[0]
             for allowed_filetype in allowed_filetypes:
                 if verify_filetype(file, allowed_filetype):
@@ -294,6 +296,31 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release,re
 
                 if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
                     if album_match(tracks, directory['files'], username, allowed_filetype):
+
+                        if download_filtering:
+                            if use_extension_whitelist:
+                                whitelist = copy.deepcopy(extensions_whitelist)
+                            else:
+                                whitelist = []
+                            whitelist.append(allowed_filetype.split(" ")[0])
+                            unwanted = []
+                            logger.debug(f"Accepted extensions: {whitelist}")
+                            for file in directory['files']:
+                                match = False
+                                for extension in whitelist:
+                                    if file['filename'].split(".")[-1].lower() == extension.lower():
+                                        match = True
+                                if not match:
+                                    unwanted.append(file['filename'])
+                                    logger.debug(f"File: {file['filename']} is unwanted")
+                            if len(unwanted) > 0:
+                                temp = []
+                                for file in directory['files']:
+                                    if file['filename'] not in unwanted:
+                                        logger.debug(f"File: {file['filename']} added to modified directory listing")
+                                        temp.append(file)
+                                directory['files'] = temp
+
                         for i in range(0,len(directory['files'])):
                             directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
 
@@ -368,9 +395,9 @@ def grab_most_wanted(albums):
                 continue
 
             if len(album_title) == 1:
-                query = artist_name + " " + album_title
+                query = '"' + artist_name + '"' + " " + album_title
             else:
-                query = artist_name + " " + album_title if config.getboolean('Search Settings', 'album_prepend_artist', fallback=False) else album_title
+                query = '"' + artist_name + '"' + " " + album_title if config.getboolean('Search Settings', 'album_prepend_artist', fallback=False) else album_title
 
             logger.info(f"Searching album: {query}")
             success = search_and_download(grab_list, query, all_tracks, all_tracks[0], artist_name, release,retry_list)
@@ -760,6 +787,10 @@ try:
 
     raw_filetypes = config.get('Search Settings', 'allowed_filetypes', fallback='flac,mp3')
 
+    download_filtering = config.get('Download Settings', 'download_filtering', fallback=False)
+    use_extension_whitelist = config.get('Download Settings', 'use_extension_whitelist', fallback=False)
+    extensions_whitelist = config.get('Download Settings', 'extensions_whitelist', fallback='txt,nfo,jpg').split(',')
+
     if "," in raw_filetypes:
         allowed_filetypes = raw_filetypes.split(",")
     else:
@@ -767,10 +798,11 @@ try:
 
     setup_logging(config)
 
+
     slskd = slskd_api.SlskdClient(host=slskd_host_url, api_key=slskd_api_key, url_base=slskd_url_base)
     lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
     wanted_records = []
-    
+
     try:
         for source in search_sources:
             logging.debug(f'Getting records from {source}')
