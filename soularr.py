@@ -273,7 +273,7 @@ def check_for_match(dir_cache, search_cache, tracks, allowed_filetype):
                         if album_match(tracks, directory['files'], username, allowed_filetype):
                             return True, username, directory, file_dir
                         else:
-                            return False, '', {}, ''
+                            continue
             return False, "", {}, ""
 
 def search_and_download(grab_list, album, retry_list):
@@ -824,14 +824,14 @@ config_file_path = os.path.join(args.config_dir, "config.ini")
 failure_file_path = os.path.join(args.config_dir, "failure_list.txt")
 current_page_file_path = os.path.join(args.config_dir, ".current_page.txt")
 
-#if not is_docker() and os.path.exists(lock_file_path):
-#    logger.info(f"Soularr instance is already running.")
-#    sys.exit(1)
+if not is_docker() and os.path.exists(lock_file_path):
+    logger.info(f"Soularr instance is already running.")
+    sys.exit(1)
 
 try:
-    #if not is_docker():
-    #    with open(lock_file_path, "w") as lock_file:
-    #        lock_file.write("locked")
+    if not is_docker():
+        with open(lock_file_path, "w") as lock_file:
+            lock_file.write("locked")
 
     # Disable interpolation to make storing logging formats in the config file much easier
     config = configparser.ConfigParser(interpolation=None)
