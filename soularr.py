@@ -576,12 +576,20 @@ def grab_most_wanted(albums):
                             logger.info(f"File: {file['filename']} has an error.")
                             if file['filename'] in retry_list[username]:
                                 retry_list[username][file['filename']] += 1
-                            if retry_list[username][file['filename']] > 2:
-                                logger.info(f"Too many retries: {file['filename']}")
-                                errored_files.append(file)
+                                if retry_list[username][file['filename']] > 2:
+                                    logger.info(f"Too many retries: {file['filename']}")
+                                    errored_files.append(file)
+                                else:
+                                    logger.info(f"Retry file: {file['filename']} ")
+                                    try:
+                                        slskd.transfers.enqueue(username = username, files = [file])
+                                        logger.info(f"Retry of file: {file['filename']} successful")
+                                    except:
+                                        logger.info(f"Retry of file: {file['filename']} unsuccessful")
                             else:
-                                logger.info(f"Retry file: {file['filename']} ")
+                                retry_list[username][file['filename']] = 1
                                 slskd.transfers.enqueue(username = username, files = [file])
+
 
                     # Generate list of downloads still pending
                     pending_files = [file for file in directory["files"] if not 'Completed' in file["state"]]
@@ -592,13 +600,15 @@ def grab_most_wanted(albums):
                         cancel_and_delete(artist_folder['dir'], artist_folder['username'], directory["files"])
                         grab_list.remove(artist_folder)
                         for file in directory['files']:
-                            del retry_list[username][file['filename']]
+                            if file['filename'] in retry_list[username]:
+                                del retry_list[username][file['filename']]
                         if len(retry_list[username]) <= 0:
                             del retry_list[username]
                     elif len(pending_files) > 0:
                         unfinished += 1
 
         if unfinished == 0:
+            retry_list = {}
             logger.info("All tracks finished downloading!")
             time.sleep(5)
             retry_list={}
@@ -631,8 +641,8 @@ def grab_most_wanted(albums):
 
     os.chdir(slskd_download_dir)
     commands = []
-    grab_list.sort(key=operator.itemgetter('artist_name'))
-
+    #grab_list.sort(key=operator.itemgetter('artist_name'))
+    artist_folders = []
     for artist_folder in grab_list:
         artist_name = artist_folder['artist_name']
         artist_name_sanitized = sanitize_folder_name(artist_name)
@@ -656,23 +666,49 @@ def grab_most_wanted(albums):
 
                 if not os.path.exists(artist_name_sanitized):
                     os.mkdir(artist_name_sanitized)
+                    if artist_name_sanitized not in artist_folders:
+                        logger.info(f"Adding: {artist_name_sanitized} to import list")
+                        artist_folders.append(artist_name_sanitized)
+                if not os.path.exists(new_dir):
+                    os.mkdir(new_dir)
+              
+                new_dir = os.path.join(new_dir,str(artist_folder['discnumber']))
                 if not os.path.exists(new_dir):
                     os.mkdir(new_dir)
 
                 if os.path.exists(os.path.join(folder,filename)) and not os.path.exists(os.path.join(new_dir,filename)):
+                    logger.info(f"Moving: {filename}")
                     shutil.move(os.path.join(folder,filename),new_dir)
 
             if os.path.exists(folder):
                 shutil.rmtree(folder)
 
         elif os.path.exists(folder):
-            shutil.move(folder,artist_name_sanitized)
+            for filename in os.listdir(folder):
+                album_name = lidarr.get_album(albumIds = artist_folder['release']['albumId'])['title']
+                new_dir = os.path.join(artist_name_sanitized,sanitize_folder_name(album_name))
+
+                if not os.path.exists(artist_name_sanitized):
+                    os.mkdir(artist_name_sanitized)
+                    if artist_name_sanitized not in artist_folders:
+                        logger.info(f"Adding: {artist_name_sanitized} to import list")
+                        artist_folders.append(artist_name_sanitized)
+                if not os.path.exists(new_dir):
+                    os.mkdir(new_dir)
+ 
+                if os.path.exists(os.path.join(folder,filename)) and not os.path.exists(os.path.join(new_dir,filename)):
+                    logger.info(f"Moving: {filename}")
+                    shutil.move(os.path.join(folder,filename),new_dir)
+
+            if os.path.exists(folder):
+                shutil.rmtree(folder)
 
     if lidarr_disable_sync:
         return failed_download
 
-    artist_folders = next(os.walk('.'))[1]
-    artist_folders = [folder for folder in artist_folders if folder != 'failed_imports']
+    #artist_folders = next(os.walk('.'))[1]
+    #artist_folders = [folder for folder in artist_folders if folder != 'failed_imports']
+    logger.info(f"Starting to process {len(artist_folders)} download folders")
 
     for artist_folder in artist_folders:
         download_dir = os.path.join(lidarr_download_dir,artist_folder)
