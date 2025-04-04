@@ -328,7 +328,7 @@ def search_and_download(grab_list, album, retry_list):
         logger.info(f"Serching for matches with selected attributes: {allowed_filetype}")
         releases = lidarr.get_album(album_id)['releases']
         num_releases = len(releases)
-        for i in range(0,num_releases):
+        for _ in range(0,num_releases):
             if len(releases) == 0:
                 break
             release = choose_release(artist_name, releases)
