@@ -372,6 +372,10 @@ def grab_most_wanted(albums):
                     success = search_and_download(grab_list, query, tracks, track, artist_name, release)
 
                     if success:
+                        # Unmonitor the album in Lidarr if it is successfully downloaded
+                        if unmonitor_on_success:
+                            album['monitored'] = False
+                            lidarr.upd_album(album)
                         break
 
         if not success:
