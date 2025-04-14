@@ -275,6 +275,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                         else:
                             directory = slskd.users.directory(username = username, directory = file_dir)
                     except:
+                        logger.info("Error checking slskd version number. This would most likely be fixed by updating your slskd.")
                         continue
 
                     tracks_info = album_track_num(directory)
@@ -561,9 +562,9 @@ def is_docker():
     return os.getenv('IN_DOCKER') is not None
 
 def slskd_version_check(version, target="0.22.2"):
-    version_tuple = tuple(map(int, version.split('.')))
-    target_tuple = tuple(map(int, target.split('.')))
-    return version_tuple >= target_tuple
+    version_tuple = tuple(map(int, version.split('.')[:3]))
+    target_tuple = tuple(map(int, target.split('.')[:3]))
+    return version_tuple > target_tuple
 
 def setup_logging(config):
     if 'Logging' in config:
