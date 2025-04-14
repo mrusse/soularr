@@ -270,7 +270,10 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                     file_dir = file['filename'].rsplit("\\",1)[0]
 
                     try:
-                        directory = slskd.users.directory(username = username, directory = file_dir)
+                        if(slskd_version_check(slskd.application.version())):
+                            directory = slskd.users.directory(username = username, directory = file_dir)[0]
+                        else:
+                            directory = slskd.users.directory(username = username, directory = file_dir)
                     except:
                         continue
 
@@ -554,6 +557,10 @@ def move_failed_import(src_path):
 def is_docker():
     return os.getenv('IN_DOCKER') is not None
 
+def slskd_version_check(version, target="0.22.2"):
+    version_tuple = tuple(map(int, version.split('.')))
+    target_tuple = tuple(map(int, target.split('.')))
+    return version_tuple >= target_tuple
 
 def setup_logging(config):
     if 'Logging' in config:
