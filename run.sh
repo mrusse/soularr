@@ -1,11 +1,14 @@
 #!/bin/bash
 
+trap '[[ $pid ]] && kill "$pid"' EXIT
+
 #This script is used when running the app through docker. It handles scheduling the script.
 
 #Default interval is 300 seconds (5 minutes) if not set
 
 INTERVAL=${SCRIPT_INTERVAL:-300}
 
+pid=
 while true; do
     if ps aux | grep "[s]oularr.py" > /dev/null; then
         echo "Soularr is already running. Exiting..."
@@ -16,5 +19,6 @@ while true; do
 
     dt=$(date '+%d/%m/%Y %H:%M:%S');
     echo "$dt - Waiting for $INTERVAL seconds before checking again..."
-    sleep $INTERVAL
+    sleep $INTERVAL & pid=$!
+    wait $pid
 done
