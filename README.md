@@ -168,6 +168,8 @@ Given the directory structure above you can use the following configuration
 api_key = yourlidarrapikeygoeshere   # get this from lidarr settings > general > security > API Key
 host_url = http://lidarr:8686        # A safe bet would be to use the url you use to connect manually
 download_dir = /data/slskd_downloads # this should be the path to slskd downloads in the lidarr container
+#If true Lidarr will not attempt to import the downloads from Slskd
+disable_sync = False
 
 [Slskd]
 api_key = yourslskdapikeygoeshere    # generate this key manually see documentation above
