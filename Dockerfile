@@ -2,17 +2,17 @@ FROM python:3.11
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY requirements.txt soularr.py run.sh .
 
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-RUN sed -i 's/\r$//' run.sh
-
-RUN chmod +x run.sh
+RUN apt-get update \
+    && apt-get install -y tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir -r requirements.txt \
+    && sed -i 's/\r$//' run.sh \
+    && chmod +x run.sh
 
 ENV PYTHONUNBUFFERED=1
 ENV IN_DOCKER=Yes
 
-ENTRYPOINT ["bash", "run.sh"]
+ENTRYPOINT ["tini", "-g", "--"]
+CMD ["/app/run.sh"]
