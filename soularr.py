@@ -270,12 +270,19 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                     file_dir = file['filename'].rsplit("\\",1)[0]
 
                     try:
-                        if(slskd_version_check(slskd.application.version())):
+                        version = slskd.application.version()
+                        version_check = slskd_version_check(version)
+                    except:
+                        logger.info(f"Error checking slskd version number: {version}. Version check > 0.22.2: {version_check}. This would most likely be fixed by updating your slskd.")
+                        continue
+                    
+                    try:
+                        if version_check:
                             directory = slskd.users.directory(username = username, directory = file_dir)[0]
                         else:
                             directory = slskd.users.directory(username = username, directory = file_dir)
-                    except:
-                        logger.info("Error checking slskd version number. This would most likely be fixed by updating your slskd.")
+                    except Exception as E:
+                        logger.info(f"Error getting directory from user: \"{username}\"\n{traceback.format_exc()}")
                         continue
 
                     tracks_info = album_track_num(directory)
