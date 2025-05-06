@@ -108,7 +108,7 @@ It is important that `lidarr` and `slskd` agree on the user/group. If they do no
 For a more complete example see the compose file bellow which contains `lidarr`, `slskd`, and `soularr`:
 
 ```yml
-services
+services:
   lidarr:
     image: ghcr.io/hotio/lidarr:latest
     container_name: lidarr
