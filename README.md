@@ -165,61 +165,71 @@ Given the directory structure above you can use the following configuration
 
 ```ini
 [Lidarr]
-api_key = yourlidarrapikeygoeshere   # get this from lidarr settings > general > security > API Key
-host_url = http://lidarr:8686        # A safe bet would be to use the url you use to connect manually
-download_dir = /data/slskd_downloads # this should be the path to slskd downloads in the lidarr container
-#If true Lidarr will not attempt to import the downloads from Slskd
+# Get from Lidarr: Settings > General > Security
+api_key = yourlidarrapikeygoeshere
+# URL Lidarr uses (e.g., what you use in your browser)
+host_url = http://lidarr:8686
+# Path to slskd downloads inside the Lidarr container
+download_dir = /data/slskd_downloads
+# If true, Lidarr won't auto-import from Slskd
 disable_sync = False
 
 [Slskd]
-api_key = yourslskdapikeygoeshere    # generate this key manually see documentation above
-host_url = http://slskd:5030         # A safe bet would be to use the url that you use to manually connect to slskd
+# Create manually (see docs)
+api_key = yourslskdapikeygoeshere
+# URL Slskd uses
+host_url = http://slskd:5030
 url_base = /
-download_dir = /downloads            # slskd download directory from within the slskd container
-delete_searches = False              # delete the search after each soularr search
-stalled_timeout = 3600               # Maximum time (in seconds) that the script will wait for downloads to complete.
-                                     # This is used to prevent the script from running forever due to a stalled download.
-                                     # Defaults to 1 hour.
+# Download path inside Slskd container
+download_dir = /downloads
+# Delete search after Soularr runs
+delete_searches = False
+# Max seconds to wait for downloads (prevents infinite hangs)
+stalled_timeout = 3600
 
 [Release Settings]
-use_most_common_tracknum = True      # Selects the release with the most common amount of tracks out of all the releases.
+# Pick release with most common track count
+use_most_common_tracknum = True
 allow_multi_disc = True
-accepted_countries = Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada # See full list of countries below.
-accepted_formats = CD,Digital Media,Vinyl      # See full list of formats below.
+# Accepted release countries
+accepted_countries = Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada
+# Accepted formats
+accepted_formats = CD,Digital Media,Vinyl
 
 [Search Settings]
 search_timeout = 5000
 maximum_peer_queue = 50
-minimum_peer_upload_speed = 0        # Min upload speed in bit/s
-minimum_filename_match_ratio = 0.5   # Min match ratio accepted when comparing lidarr track names to soulseek filenames.
-allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3 # Specify the file types you prefer from most to least. As well as their attributes such as bitrate / samplerate / bitdepth.
-                                                              # For flacs you can choose the bitdepth/samplerate. And for mp3s the bitrate.
-                                                              # If you do not care about the specific quality you can still just put "flac" or "mp3".
-                                                              # Soularr will then just look at the filetype and ignore file attributes.
+# Minimum upload speed (bits/sec)
+minimum_peer_upload_speed = 0
+# Minimum match ratio between Lidarr track and Soulseek filename
+minimum_filename_match_ratio = 0.8
+# Preferred file types and qualities (most to least preferred)
+# Use "flac" or "mp3" to ignore quality details
+allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3
 ignored_users = User1,User2,Fred,Bob
-search_for_tracks = True            # Set to False if you only want to search for complete albums
-album_prepend_artist = False        # Set to True if you want to add the artist's name to the beginning of the search for albums
+# Set to False to only search for album titles (Note Soularr does not search for individual tracks, this setting searches for track titles but still tries to match to the full album). 
+search_for_tracks = True
+# Prepend artist name when searching for albums
+album_prepend_artist = False
 track_prepend_artist = True
-search_type = incrementing_page     # Valid search types: all || incrementing_page || first_page
-                                    # "all" will search for every wanted record everytime soularr is run.
-                                    # "incrementing_page" will start with the first page and increment to the next on each run.
-                                    # "first_page" will repeatedly search the first page.
-                                    # If using the search type "first_page" remove_wanted_on_failure should be enabled.
-number_of_albums_to_grab = 10       # How mancy records to grab each run, must be a number between 1 - 2,147,483,647
-remove_wanted_on_failure = False    # Unmonitors the album if Soularr can't find it and places it in "failure_list.txt".
-                                    # Failed albums can be re monitored by filtering "Unmonitored" in the Lidarr wanted list.
-title_blacklist = Word1,word2       # Comma separated list of words that can't be in the title of albums or tracks. Case insensitive.
-search_source = missing             # Lidarr source to use for searching. Accepted values are "missing" or "cutoff_unmet".
-                                    # Default value is "missing".
+# Search modes: all, incrementing_page, first_page
+# "all": search for every wanted record, "first_page": repeatedly searchs the first page, "incrementing_page": starts with the first page and increments on each run.
+search_type = incrementing_page
+# Albums to process per run
+number_of_albums_to_grab = 10
+# Unmonitor album on failure; logs to failure_list.txt
+remove_wanted_on_failure = False
+# Blacklist words in album or track titles (case-insensitive)
+title_blacklist = Word1,word2
+# Lidarr search source: "missing" or "cutoff_unmet"
+search_source = missing
 
 [Logging]
-# These options are passed into the logger's basicConfig() method as-is.
-# This means, if you're familiar with Python's logging module, you can configure
-# the logger with options beyond what's listed here by default.
-# For more information on available options  --  https://docs.python.org/3/library/logging.html#logging.basicConfig
-level = INFO                       # Logging level valid values are INFO, WARN, DEBUG, ERROR, CRITICAL
-format = [%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s # Format of log message  --  https://docs.python.org/3/library/logging.html#logrecord-attributes
-datefmt = %Y-%m-%dT%H:%M:%S%z      # Format of datetimes  --  https://docs.python.org/3/library/time.html#time.strftime
+# Passed to Python's logging.basicConfig()
+# See: https://docs.python.org/3/library/logging.html
+level = INFO
+format = [%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s
+datefmt = %Y-%m-%dT%H:%M:%S%z
 ```
 
 [Full list of countries from Musicbrainz.](https://musicbrainz.org/doc/Release/Country)
