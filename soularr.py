@@ -336,7 +336,7 @@ def is_blacklisted(title: str) -> bool:
 
 def grab_most_wanted(albums):
     grab_list = []
-    failed_download = 0
+    failed_searches = 0
     success = False
 
     for album in albums:
@@ -387,8 +387,8 @@ def grab_most_wanted(albums):
 
         if not success:
             if remove_wanted_on_failure:
-                logger.error(f"Failed to grab album: {album['title']} for artist: {artist_name}."
-                    + ' Failed album removed from wanted list and added to "failure_list.txt"')
+                logger.error(f"Failed to find match for: {album['title']} from artist: {artist_name}."
+                    + ' Album removed from wanted list and added to "failure_list.txt"')
 
                 album['monitored'] = False
                 lidarr.upd_album(album)
@@ -401,9 +401,9 @@ def grab_most_wanted(albums):
                 with open(failure_file_path, "a") as file:
                     file.write(failure_string)
             else:
-                logger.error(f"Failed to grab album: {album['title']} for artist: {artist_name}")
+                logger.error(f"Failed to find match for: {album['title']} from artist: {artist_name}")
 
-            failed_download += 1
+            failed_searches += 1
 
         success = False
 
@@ -511,7 +511,7 @@ def grab_most_wanted(albums):
             shutil.move(folder,artist_name_sanitized)
 
     if lidarr_disable_sync:
-        return failed_download
+        return failed_searches
 
     artist_folders = next(os.walk('.'))[1]
     artist_folders = [folder for folder in artist_folders if folder != 'failed_imports']
@@ -543,7 +543,7 @@ def grab_most_wanted(albums):
             logger.error("Error printing lidarr task message. Printing full unparsed message.")
             logger.error(current_task)
 
-    return failed_download
+    return failed_searches
 
 
 def move_failed_import(src_path):
@@ -770,9 +770,9 @@ try:
             slskd.transfers.remove_completed_downloads()
         else:
             if remove_wanted_on_failure:
-                logger.info(f'{failed}: releases failed and were removed from wanted list. View "failure_list.txt" for list of failed albums.')
+                logger.info(f'{failed}: releases failed to find a match in the search results. View "failure_list.txt" for list of failed albums.')
             else:
-                logger.info(f"{failed}: releases failed while downloading and are still wanted.")
+                logger.info(f"{failed}: releases failed to find a match in the search results and are still wanted.")
             slskd.transfers.remove_completed_downloads()
     else:
         logger.info("No releases wanted. Exiting...")
