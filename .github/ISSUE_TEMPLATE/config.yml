@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: slskd GitHub
+    url: https://github.com/slskd/slskd
+    about: Please redirect slskd issues to the slskd repo (we are not affiliated with them).
