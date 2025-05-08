@@ -16,4 +16,4 @@ services:
       - /path/to/slskd/downloads:/downloads
       #Select where you are storing your config file. Leave "/data" since thats where the script expects the config file to be
       - /path/to/config/dir:/data
-    image: mrusse08/soularr:latest
+    image: ghcr.io/mrusse/soularr:latest

@@ -35,7 +35,7 @@ The script requires an api key from Slskd. Take a look at their [docs](https://g
 
 ## Docker
 
-The best way to run the script is through Docker. A Docker image is available through [dockerhub](https://hub.docker.com/r/mrusse08/soularr).
+The best way to run the script is through Docker. A Docker image is available through [ghcr.io](https://github.com/mrusse/soularr/pkgs/container/soularr).
 
 Assuming, your user and group is `1000:1000` and that you have a directory structure similar to the following:
 
@@ -63,7 +63,7 @@ docker run -d \
   -v /Media/slskd_downloads:/downloads \
   -v /Containers/soularr:/data \
   --user 1000:1000 \
-  mrusse08/soularr:latest
+  ghcr.io/mrusse/soularr:latest
 ```
 
 Or you can also set it up with the provided [Docker Compose](https://github.com/mrusse/soularr/blob/main/docker-compose.yml).
@@ -71,7 +71,7 @@ Or you can also set it up with the provided [Docker Compose](https://github.com/
 ```yml
 services:
   soularr:
-    image: mrusse08/soularr:latest
+    image: ghcr.io/mrusse/soularr:latest
     container_name: soularr
     hostname: soularr
   user: 1000:1000 # this should be set to your UID and GID, which can be determined via `id -u` and `id -g`, respectively
@@ -142,7 +142,7 @@ services:
     restart: unless-stopped
 
   soularr:
-    image: mrusse08/soularr:latest
+    image: ghcr.io/mrusse/soularr:latest
     container_name: soularr
     hostname: soularr
     user: 1000:1000
