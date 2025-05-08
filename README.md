@@ -213,7 +213,7 @@ search_for_tracks = True
 album_prepend_artist = False
 track_prepend_artist = True
 # Search modes: all, incrementing_page, first_page
-# "all": search for every wanted record, "first_page": repeatedly searchs the first page, "incrementing_page": starts with the first page and increments on each run.
+# "all": search for every wanted record, "first_page": repeatedly searches the first page, "incrementing_page": starts with the first page and increments on each run.
 search_type = incrementing_page
 # Albums to process per run
 number_of_albums_to_grab = 10

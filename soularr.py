@@ -19,7 +19,7 @@ import slskd_api
 from pyarr import LidarrAPI
 
 logger = logging.getLogger('soularr')
-#Allows backwards compatability for users updating an older version of Soularr
+#Allows backwards compatibility for users updating an older version of Soularr
 #without using the new [Logging] section in the config.ini file.
 DEFAULT_LOGGING_CONF = {
     'level': 'INFO',
@@ -45,9 +45,9 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
             #Try to match the ratio with the exact filenames
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
 
-            #If ratio is a bad match try and split off (with " " as the seperator) the garbage at the start of the slskd_filename and try again
+            #If ratio is a bad match try and split off (with " " as the separator) the garbage at the start of the slskd_filename and try again
             ratio = check_ratio(" ", ratio, lidarr_filename, slskd_filename)
-            #Same but with "_" as the seperator
+            #Same but with "_" as the separator
             ratio = check_ratio("_", ratio, lidarr_filename, slskd_filename)
 
             #Same checks but preappend album name.
@@ -257,7 +257,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
     logger.info(f"Search returned {len(slskd.searches.search_responses(search['id']))} results")
 
     for allowed_filetype in allowed_filetypes:
-        logger.info(f"Serching for matches with selected attributes: {allowed_filetype}")
+        logger.info(f"Searching for matches with selected attributes: {allowed_filetype}")
 
         for result in slskd.searches.search_responses(search['id']):
             username = result['username']
@@ -751,7 +751,7 @@ try:
             missing = source == 'missing'
             wanted_records.extend(get_records(missing))
     except ValueError as ex:
-        logger.error(f'An error occured: {ex}')
+        logger.error(f'An error occurred: {ex}')
         logger.error('Exiting...')
         sys.exit(0)
 
