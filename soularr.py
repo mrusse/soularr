@@ -18,6 +18,17 @@ import music_tag
 import slskd_api
 from pyarr import LidarrAPI
 
+
+class EnvInterpolation(configparser.ExtendedInterpolation):
+    """
+    Interpolation which expands environment variables in values.
+    Borrowed from https://stackoverflow.com/a/68068943
+    """
+
+    def before_read(self, parser, section, option, value):
+        value = super().before_read(parser, section, option, value)
+        return os.path.expandvars(value)
+
 logger = logging.getLogger('soularr')
 #Allows backwards compatability for users updating an older version of Soularr
 #without using the new [Logging] section in the config.ini file.
@@ -680,7 +691,7 @@ try:
             lock_file.write("locked")
 
     # Disable interpolation to make storing logging formats in the config file much easier
-    config = configparser.ConfigParser(interpolation=None)
+    config = configparser.ConfigParser(interpolation=EnvInterpolation())
 
 
     if os.path.exists(config_file_path):
