@@ -663,12 +663,23 @@ parser.add_argument(
     type=str,
     help="Config directory (default: %(default)s)",
 )
+
+parser.add_argument(
+    "-v",
+    "--var-dir",
+    default=default_data_directory,
+    const=default_data_directory,
+    nargs="?",
+    type=str,
+    help="Var directory (default: %(default)s)",
+)
+
 args = parser.parse_args()
 
-lock_file_path = os.path.join(args.config_dir, ".soularr.lock")
+lock_file_path = os.path.join(args.var_dir, ".soularr.lock")
 config_file_path = os.path.join(args.config_dir, "config.ini")
-failure_file_path = os.path.join(args.config_dir, "failure_list.txt")
-current_page_file_path = os.path.join(args.config_dir, ".current_page.txt")
+failure_file_path = os.path.join(args.var_dir, "failure_list.txt")
+current_page_file_path = os.path.join(args.var_dir, ".current_page.txt")
 
 if not is_docker() and os.path.exists(lock_file_path):
     logger.info(f"Soularr instance is already running.")
