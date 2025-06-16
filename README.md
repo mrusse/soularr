@@ -35,7 +35,7 @@ The script requires an api key from Slskd. Take a look at their [docs](https://g
 
 ## Docker
 
-The best way to run the script is through Docker. A Docker image is available through [dockerhub](https://hub.docker.com/r/mrusse08/soularr).
+The best way to run the script is through Docker. A Docker image is available through [ghcr.io](https://github.com/mrusse/soularr/pkgs/container/soularr) and [dockerhub](https://hub.docker.com/r/mrusse08/soularr).
 
 Assuming, your user and group is `1000:1000` and that you have a directory structure similar to the following:
 
