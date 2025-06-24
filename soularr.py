@@ -178,7 +178,7 @@ def choose_release(album_id, artist_name):
         else:
             track_count_bool = True
 
-        if (country in accepted_countries
+        if ((skip_region_check or country in accepted_countries)
             and format_accepted
             and release['status'] == "Official"
             and track_count_bool):
@@ -753,6 +753,7 @@ try:
     default_accepted_countries = "Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada"
     default_accepted_formats = "CD,Digital Media,Vinyl"
     accepted_countries = config.get('Release Settings', 'accepted_countries', fallback=default_accepted_countries).split(",")
+    skip_region_check = config.getboolean('Release Settings', 'skip_region_check', fallback=False)
     accepted_formats = config.get('Release Settings', 'accepted_formats', fallback=default_accepted_formats).split(",")
 
     raw_filetypes = config.get('Search Settings', 'allowed_filetypes', fallback='flac,mp3')
