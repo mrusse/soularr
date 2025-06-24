@@ -35,7 +35,7 @@ The script requires an api key from Slskd. Take a look at their [docs](https://g
 
 ## Docker
 
-The best way to run the script is through Docker. A Docker image is available through [dockerhub](https://hub.docker.com/r/mrusse08/soularr).
+The best way to run the script is through Docker. A Docker image is available through [ghcr.io](https://github.com/mrusse/soularr/pkgs/container/soularr) and [dockerhub](https://hub.docker.com/r/mrusse08/soularr).
 
 Assuming, your user and group is `1000:1000` and that you have a directory structure similar to the following:
 
@@ -213,7 +213,7 @@ search_for_tracks = True
 album_prepend_artist = False
 track_prepend_artist = True
 # Search modes: all, incrementing_page, first_page
-# "all": search for every wanted record, "first_page": repeatedly searchs the first page, "incrementing_page": starts with the first page and increments on each run.
+# "all": search for every wanted record, "first_page": repeatedly searches the first page, "incrementing_page": starts with the first page and increments on each run.
 search_type = incrementing_page
 # Albums to process per run
 number_of_albums_to_grab = 10
