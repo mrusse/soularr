@@ -193,6 +193,8 @@ use_most_common_tracknum = True
 allow_multi_disc = True
 # Accepted release countries
 accepted_countries = Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada
+# Don't check the region of the release
+skip_region_check = False 
 # Accepted formats
 accepted_formats = CD,Digital Media,Vinyl
 
