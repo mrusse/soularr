@@ -8,10 +8,13 @@ assignees: ''
 ---
 
 **Describe the bug**
-**THE ISSUES PAGE IS NOT FOR TROUBLESHOOTING. IF YOU HAVE AN ISSUE, PLEASE CONSULT THE TROUBLESHOOTING SECTION, CREATE A POST IN THE DISCUSSIONS TAB, OR CONTACT US IN THE SOULARR DISCORD SERVER. ISSUES THAT ARE NOT ISSUES WILL BE IGNORED**
+
+**The issues page is not for troubleshooting! If you need troubleshooting help, please create a post in the Discussions tab or contact us in the Soularr Discord server: https://discord.gg/EznhgYBayN.**
+
 A clear and concise description of what the bug is.
 
 **To Reproduce**
+
 Steps to reproduce the behavior:
 1. Go to '...'
 2. Click on '....'
@@ -19,15 +22,16 @@ Steps to reproduce the behavior:
 4. See error
 
 **Expected behavior**
+
 A clear and concise description of what you expected to happen.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Screenshots / Log Files**
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+If applicable, add screenshots and log file output to help explain your problem.
+
+**System Information (please complete the following information):**
+ - OS: [e.g. Unraid, Linux, Windows]
+ - Using Docker?: [e.g. Yes, No]
 
 **Additional context**
 Add any other context about the problem here.
