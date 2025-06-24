@@ -8,14 +8,22 @@ assignees: ''
 ---
 
 **Is your feature request related to a problem? Please describe.**
-**THE ISSUES PAGE IS NOT FOR TROUBLESHOOTING. IF YOU HAVE AN ISSUE, PLEASE CONSULT THE TROUBLESHOOTING SECTION, CREATE A POST IN THE DISCUSSIONS TAB, OR CONTACT US IN THE SOULARR DISCORD SERVER. ISSUES THAT ARE NOT ISSUES WILL BE IGNORED**
+
+**The issues page is not for troubleshooting! If you need troubleshooting help, please create a post in the Discussions tab or contact us in the Soularr Discord server: https://discord.gg/EznhgYBayN.**
+
 A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
 
-**Describe the solution you'd like**
+
+**Describe the solution you'd like:**
+
 A clear and concise description of what you want to happen.
 
-**Describe alternatives you've considered**
+
+**Describe alternatives you've considered:**
+
 A clear and concise description of any alternative solutions or features you've considered.
 
-**Additional context**
+
+**Additional context:**
+
 Add any other context or screenshots about the feature request here.
