@@ -685,6 +685,14 @@ parser.add_argument(
     help="Var directory (default: %(default)s)",
 )
 
+parser.add_argument(
+    "--no-lock-file",
+    action="store_false",
+    dest="lock_file",
+    default=True,
+    help="Disable lock file creation",
+)
+
 args = parser.parse_args()
 
 lock_file_path = os.path.join(args.var_dir, ".soularr.lock")
@@ -692,12 +700,12 @@ config_file_path = os.path.join(args.config_dir, "config.ini")
 failure_file_path = os.path.join(args.var_dir, "failure_list.txt")
 current_page_file_path = os.path.join(args.var_dir, ".current_page.txt")
 
-if not is_docker() and os.path.exists(lock_file_path):
+if not is_docker() and os.path.exists(lock_file_path) and args.lock_file:
     logger.info(f"Soularr instance is already running.")
     sys.exit(1)
 
 try:
-    if not is_docker():
+    if not is_docker() and args.lock_file:
         with open(lock_file_path, "w") as lock_file:
             lock_file.write("locked")
 
