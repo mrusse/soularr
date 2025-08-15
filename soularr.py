@@ -434,7 +434,12 @@ def grab_most_wanted(albums):
         unfinished = 0
         for artist_folder in list(grab_list):
             username, dir = artist_folder['username'], artist_folder['directory']
-            downloads = slskd.transfers.get_downloads(username)
+            
+            try:
+                downloads = slskd.transfers.get_downloads(username)
+            except Exception as E:
+                logger.info(f"Error getting directory from user: \"{username}\"\n{traceback.format_exc()}")
+                continue
 
             for directory in downloads["directories"]:
                 if directory["directory"] == dir["name"]:
