@@ -437,7 +437,7 @@ def grab_most_wanted(albums):
             
             try:
                 downloads = slskd.transfers.get_downloads(username)
-            except Exception as E:
+            except Exception:
                 logger.info(f"Error getting directory from user: \"{username}\"\n{traceback.format_exc()}")
                 continue
 
