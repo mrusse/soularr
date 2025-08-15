@@ -292,7 +292,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                             directory = slskd.users.directory(username = username, directory = file_dir)[0]
                         else:
                             directory = slskd.users.directory(username = username, directory = file_dir)
-                    except Exception as E:
+                    except Exception:
                         logger.info(f"Error getting directory from user: \"{username}\"\n{traceback.format_exc()}")
                         continue
 
