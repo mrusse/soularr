@@ -209,7 +209,7 @@ minimum_filename_match_ratio = 0.8
 # Use "flac" or "mp3" to ignore quality details
 allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3
 ignored_users = User1,User2,Fred,Bob
-# Set to False to only search for album titles (Note Soularr does not search for individual tracks, this setting searches for track titles but still tries to match to the full album). 
+# Set to False to only search for album titles. Set to True to fallback to search for track titles, then match the directory that contains the track to the album title.
 search_for_tracks = True
 # Prepend artist name when searching for albums
 album_prepend_artist = False
