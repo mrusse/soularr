@@ -12,6 +12,7 @@ import operator
 import traceback
 import configparser
 import logging
+import json
 from datetime import datetime
 
 import music_tag
@@ -349,11 +350,19 @@ def grab_most_wanted(albums):
     grab_list = []
     failed_searches = 0
     success = False
+    search_denylist = {}
+
+    if enable_search_denylist:
+        search_denylist = load_search_denylist(denylist_file_path)
 
     for album in albums:
         artist_name = album['artist']['artistName']
         artist_id = album['artistId']
         album_id = album['id']
+
+        if enable_search_denylist and is_search_denylisted(search_denylist, album_id, max_search_failures):
+            logger.info(f"Skipping denylisted album: {artist_name} - {album['title']} (ID: {album_id})")
+            continue
 
         release = choose_release(album_id, artist_name)
 
@@ -395,6 +404,9 @@ def grab_most_wanted(albums):
 
                     if success:
                         break
+
+        if enable_search_denylist:
+            update_search_denylist(search_denylist, album_id, success)
 
         if not success:
             if remove_wanted_on_failure:
@@ -559,6 +571,9 @@ def grab_most_wanted(albums):
             logger.error("Error printing lidarr task message. Printing full unparsed message.")
             logger.error(current_task)
 
+    if enable_search_denylist:
+        save_search_denylist(denylist_file_path, search_denylist)
+
     return failed_searches
 
 
@@ -660,6 +675,53 @@ def get_records(missing: bool) -> list:
     return wanted_records
 
 
+def load_search_denylist(file_path):
+    if not os.path.exists(file_path):
+        return {}
+
+    try:
+        with open(file_path, 'r') as file:
+            return json.load(file)
+    except (json.JSONDecodeError, IOError) as ex:
+        logger.warning(f"Error loading search denylist: {ex}. Starting with empty denylist.")
+        return {}
+
+
+def save_search_denylist(file_path, denylist):
+    try:
+        with open(file_path, 'w') as file:
+            json.dump(denylist, file, indent=2)
+    except IOError as ex:
+        logger.error(f"Error saving search denylist: {ex}")
+
+
+def is_search_denylisted(denylist, album_id, max_failures):
+    album_key = str(album_id)
+    if album_key in denylist:
+        return denylist[album_key]['failures'] >= max_failures
+    return False
+
+
+def update_search_denylist(denylist, album_id, success):
+    album_key = str(album_id)
+    current_datetime = datetime.now()
+    current_datetime_str = current_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+
+    if success:
+        if album_key in denylist:
+            del denylist[album_key]
+    else:
+        if album_key in denylist:
+            denylist[album_key]['failures'] += 1
+            denylist[album_key]['last_attempt'] = current_datetime_str
+        else:
+            denylist[album_key] = {
+                'failures': 1,
+                'last_attempt': current_datetime_str,
+                'album_id': album_id
+            }
+
+
 # Let's allow some overrides to be passed to the script
 parser = argparse.ArgumentParser(
     description="""Soularr reads all of your "wanted" albums/artists from Lidarr and downloads them using Slskd"""
@@ -704,6 +766,7 @@ lock_file_path = os.path.join(args.var_dir, ".soularr.lock")
 config_file_path = os.path.join(args.config_dir, "config.ini")
 failure_file_path = os.path.join(args.var_dir, "failure_list.txt")
 current_page_file_path = os.path.join(args.var_dir, ".current_page.txt")
+denylist_file_path = os.path.join(args.var_dir, "search_denylist.json")
 
 if not is_docker() and os.path.exists(lock_file_path) and args.lock_file:
     logger.info(f"Soularr instance is already running.")
@@ -759,6 +822,8 @@ try:
     minimum_match_ratio = config.getfloat('Search Settings', 'minimum_filename_match_ratio', fallback=0.5)
     page_size = config.getint('Search Settings', 'number_of_albums_to_grab', fallback=10)
     remove_wanted_on_failure = config.getboolean('Search Settings', 'remove_wanted_on_failure', fallback=True)
+    enable_search_denylist = config.getboolean('Search Settings', 'enable_search_denylist', fallback=True)
+    max_search_failures = config.getint('Search Settings', 'max_search_failures', fallback=3)
 
     use_most_common_tracknum = config.getboolean('Release Settings', 'use_most_common_tracknum', fallback=True)
     allow_multi_disc = config.getboolean('Release Settings', 'allow_multi_disc', fallback=True)
