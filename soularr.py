@@ -709,8 +709,10 @@ def update_search_denylist(denylist, album_id, success):
 
     if success:
         if album_key in denylist:
+            logger.info("Removing album from denylist: " + denylist[album_key]['album_id'])
             del denylist[album_key]
     else:
+        logger.info("Adding album to denylist: " + album_key)
         if album_key in denylist:
             denylist[album_key]['failures'] += 1
             denylist[album_key]['last_attempt'] = current_datetime_str
