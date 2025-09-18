@@ -822,7 +822,7 @@ try:
     minimum_match_ratio = config.getfloat('Search Settings', 'minimum_filename_match_ratio', fallback=0.5)
     page_size = config.getint('Search Settings', 'number_of_albums_to_grab', fallback=10)
     remove_wanted_on_failure = config.getboolean('Search Settings', 'remove_wanted_on_failure', fallback=True)
-    enable_search_denylist = config.getboolean('Search Settings', 'enable_search_denylist', fallback=True)
+    enable_search_denylist = config.getboolean('Search Settings', 'enable_search_denylist', fallback=False)
     max_search_failures = config.getint('Search Settings', 'max_search_failures', fallback=3)
 
     use_most_common_tracknum = config.getboolean('Release Settings', 'use_most_common_tracknum', fallback=True)
