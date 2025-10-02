@@ -74,7 +74,7 @@ services:
     image: mrusse08/soularr:latest
     container_name: soularr
     hostname: soularr
-  user: 1000:1000 # this should be set to your UID and GID, which can be determined via `id -u` and `id -g`, respectively
+    user: 1000:1000 # this should be set to your UID and GID, which can be determined via `id -u` and `id -g`, respectively
     environment:
       - TZ=Etc/UTC
       - SCRIPT_INTERVAL=300 # Script interval in seconds
