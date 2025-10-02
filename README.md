@@ -225,6 +225,10 @@ remove_wanted_on_failure = False
 title_blacklist = Word1,word2
 # Lidarr search source: "missing" or "cutoff_unmet"
 search_source = missing
+# Enable search denylist to skip albums that repeatedly fail
+enable_search_denylist = False
+# Number of consecutive search failures before denylisting
+max_search_failures = 3
 
 [Logging]
 # Passed to Python's logging.basicConfig()
