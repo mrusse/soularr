@@ -2,7 +2,7 @@ FROM python:3.11
 
 WORKDIR /app
 
-COPY requirements.txt soularr.py run.sh .
+COPY requirements.txt soularr.py argparser.py soularr_types.py utils.py main.py config.py run.sh .
 
 RUN apt-get update \
     && apt-get install -y tini \
