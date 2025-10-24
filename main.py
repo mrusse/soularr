@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import traceback
+
 import slskd_api
 from pyarr import LidarrAPI
 
@@ -9,7 +10,7 @@ from argparser import SoularrArgParser
 from config import SoularrConfig
 from soularr import Soularr
 from soularr_types import Record, map_raw_record_to_record
-from utils import (MISSING, is_docker, logger, setup_logging)
+from utils import MISSING, is_docker, logger, setup_logging
 
 if __name__ == "__main__":
 
@@ -61,7 +62,7 @@ if __name__ == "__main__":
         else:
             logger.info(f"Using Slskd download directory: {slskd_download_dir}")
 
-        wanted_records = []
+        wanted_records: list[Record] = []
         try:
             for source in soularr_config.get_search_sources():
                 logging.debug(f'Getting records from {source}')
@@ -74,9 +75,33 @@ if __name__ == "__main__":
             logger.error('Exiting...')
             sys.exit(0)
 
+        # Fetch queued records to avoid getting an album already being downloaded by another download client
+        queued_album_ids: list[int] = []
+        try:
+            logging.info(f'Getting records from "Queue" source')
+            queued_records = soularr.get_queued_records()
+            queued_album_ids = [record['albumId'] for record in queued_records]
+            logging.info(f'Found {len(queued_records)} queued record(s): {queued_album_ids}')
+        except Exception as ex:
+            queued_album_ids = []
+            logger.error(f'An error occurred getting Queued records: {ex}')
+
+
         if len(wanted_records) > 0:
+            # Exclude wanted_records that have a release with albumId in queued_album_ids
+            wanted_records_not_queued = []
+            for record in wanted_records:
+                is_queued = False
+                for release in record.releases:
+                    if int(release.albumId) in queued_album_ids:
+                        is_queued = True
+                        logging.info(f"Skipping record '{record.title}' because it is already queued")
+                        break
+                if not is_queued:
+                    wanted_records_not_queued.append(record)
+
             try:
-                failed = soularr.grab_most_wanted(wanted_records)
+                failed = soularr.grab_most_wanted(wanted_records_not_queued)
             except Exception:
                 logger.error(traceback.format_exc())
                 logger.error("\n Fatal error! Exiting...")
