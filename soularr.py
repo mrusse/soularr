@@ -260,8 +260,8 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                                         minimumPeerUploadSpeed = config.getint('Search Settings', 'minimum_peer_upload_speed', fallback=0))
 
     track_num = len(tracks)
-    #Add timeout here to increase reliablity with Slskd. Sometimes it doesn't update search status fast enough. More of an issue with lots of historical searches in slskd
-    time.slee(5)
+    #Add timeout here to increase reliability with Slskd. Sometimes it doesn't update search status fast enough. More of an issue with lots of historical searches in slskd
+    time.sleep(5)
 
     while True:
         if slskd.searches.state(search['id'])['state'] != 'InProgress':
@@ -273,7 +273,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
     #Init directory cache. The wide search returns all the data we need. This prevents us from hammering the users on the Soulseek network 
     dir_cache = {}
 
-    for result in slskd.searchs.search_responses(search['id']):
+    for result in slskd.searches.search_responses(search['id']):
         username = result['username']
         if username not in dir_cache:
             #If we don't currently have a cache for a user set one up
@@ -283,7 +283,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
         #Search the returned files and only cache files that are of the allowed_filetypes
         for file in init_files:
             file_dir = file['filename'].rsplit('\\',1)[0] #split dir/filenames on \
-            fpr allowed_filetype in allowed_filetypes:
+            for allowed_filetype in allowed_filetypes:
                 if verify_filetype(file,allowed_filetype):  #Check the filename for an allowed type
                     if allowed_filetype not in dir_cache[username]:
                         dir_cache[username][allowed_filetype] = [] #Init the cache for this allowed filetype
