@@ -260,6 +260,8 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                                         minimumPeerUploadSpeed = config.getint('Search Settings', 'minimum_peer_upload_speed', fallback=0))
 
     track_num = len(tracks)
+    #Add timeout here to increase reliability with Slskd. Sometimes it doesn't update search status fast enough. More of an issue with lots of historical searches in slskd
+    time.sleep(5)
 
     while True:
         if slskd.searches.state(search['id'])['state'] != 'InProgress':
@@ -268,68 +270,86 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
 
     logger.info(f"Search returned {len(slskd.searches.search_responses(search['id']))} results")
 
+    #Init directory cache. The wide search returns all the data we need. This prevents us from hammering the users on the Soulseek network 
+    dir_cache = {}
+
+    for result in slskd.searches.search_responses(search['id']):
+        username = result['username']
+        if username not in dir_cache:
+            #If we don't currently have a cache for a user set one up
+            dir_cache[username] = {}
+        logger.info(f"Caching and truncating results for user: {username}")
+        init_files = result['files'] #init_files short for initial files. Before truncating
+        #Search the returned files and only cache files that are of the allowed_filetypes
+        for file in init_files:
+            file_dir = file['filename'].rsplit('\\',1)[0] #split dir/filenames on \
+            for allowed_filetype in allowed_filetypes:
+                if verify_filetype(file,allowed_filetype):  #Check the filename for an allowed type
+                    if allowed_filetype not in dir_cache[username]:
+                        dir_cache[username][allowed_filetype] = [] #Init the cache for this allowed filetype
+                    if file_dir not in dir_cache[username][allowed_filetype]:
+                        dir_cache[username][allowed_filetype].append(file_dir)
+
     for allowed_filetype in allowed_filetypes:
         logger.info(f"Searching for matches with selected attributes: {allowed_filetype}")
 
-        for result in slskd.searches.search_responses(search['id']):
-            username = result['username']
+        for username in dir_cache:
+            if not allowed_filetype in dir_cache[username]:
+                continue
             logger.info(f"Parsing result from user: {username}")
-            files = result['files']
 
-            for file in files:
-                if verify_filetype(file,allowed_filetype):
+            for file_dir in dir_cache[username][allowed_filetype]:
 
-                    file_dir = file['filename'].rsplit("\\",1)[0]
 
-                    try:
-                        version = slskd.application.version()
-                        version_check = slskd_version_check(version)
-                    except:
-                        logger.info(f"Error checking slskd version number: {version}. Version check > 0.22.2: {version_check}. This would most likely be fixed by updating your slskd.")
-                        continue
+                try:
+                    version = slskd.application.version()
+                    version_check = slskd_version_check(version)
+                except:
+                    logger.info(f"Error checking slskd version number: {version}. Version check > 0.22.2: {version_check}. This would most likely be fixed by updating your slskd.")
+                    continue
                     
-                    try:
-                        if version_check:
-                            directory = slskd.users.directory(username = username, directory = file_dir)[0]
-                        else:
-                            directory = slskd.users.directory(username = username, directory = file_dir)
-                    except Exception:
-                        logger.info(f"Error getting directory from user: \"{username}\"\n{traceback.format_exc()}")
-                        continue
+                try:
+                    if version_check:
+                        directory = slskd.users.directory(username = username, directory = file_dir)[0]
+                    else:
+                        directory = slskd.users.directory(username = username, directory = file_dir)
+                except Exception:
+                    logger.info(f"Error getting directory from user: \"{username}\"\n{traceback.format_exc()}")
+                    continue
 
-                    tracks_info = album_track_num(directory)
+                tracks_info = album_track_num(directory)
 
-                    if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
-                        if album_match(tracks, directory['files'], username, allowed_filetype):
-                            for i in range(0,len(directory['files'])):
-                                directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
+                if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
+                    if album_match(tracks, directory['files'], username, allowed_filetype):
+                        for i in range(0,len(directory['files'])):
+                            directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
 
-                            folder_data = {
-                                "artist_name": artist_name,
-                                "release": release,
-                                "dir": file_dir.split("\\")[-1],
-                                "discnumber": track['mediumNumber'],
-                                "username": username,
-                                "directory": directory,
-                            }
-                            grab_list.append(folder_data)
+                        folder_data = {
+                            "artist_name": artist_name,
+                            "release": release,
+                            "dir": file_dir.split("\\")[-1],
+                            "discnumber": track['mediumNumber'],
+                            "username": username,
+                            "directory": directory,
+                        }
+                        grab_list.append(folder_data)
 
-                            try:
-                                slskd.transfers.enqueue(username = username, files = directory['files'])
-                                # Delete the search from SLSKD DB
-                                if delete_searches:
-                                    slskd.searches.delete(search['id'])
-                                return True
-                            except Exception:
-                                logger.warning(f"Error enqueueing tracks! Adding {username} to ignored users list.")
-                                downloads = slskd.transfers.get_downloads(username)
+                        try:
+                            slskd.transfers.enqueue(username = username, files = directory['files'])
+                            # Delete the search from SLSKD DB
+                            if delete_searches:
+                                slskd.searches.delete(search['id'])
+                            return True
+                        except Exception:
+                            logger.warning(f"Error enqueueing tracks! Adding {username} to ignored users list.")
+                            downloads = slskd.transfers.get_downloads(username)
 
-                                for cancel_directory in downloads["directories"]:
-                                    if cancel_directory["directory"] == directory["name"]:
-                                        cancel_and_delete(file_dir.split("\\")[-1], username, cancel_directory["files"])
-                                        grab_list.remove(folder_data)
-                                        ignored_users.append(username)
-                                continue
+                            for cancel_directory in downloads["directories"]:
+                                if cancel_directory["directory"] == directory["name"]:
+                                    cancel_and_delete(file_dir.split("\\")[-1], username, cancel_directory["files"])
+                                    grab_list.remove(folder_data)
+                                    ignored_users.append(username)
+                            continue
 
     # Delete the search from SLSKD DB
     if delete_searches:
@@ -516,11 +536,12 @@ def grab_most_wanted(albums):
 
                 if filename.split(".")[-1] in allowed_filetypes:
                     song = music_tag.load_file(os.path.join(folder,filename))
-                    song['artist'] = artist_name
-                    song['albumartist'] = artist_name
-                    song['album'] = album_name
-                    song['discnumber'] = artist_folder['discnumber']
-                    song.save()
+                    if song is not None:
+                        song['artist'] = artist_name
+                        song['albumartist'] = artist_name
+                        song['album'] = album_name
+                        song['discnumber'] = artist_folder['discnumber']
+                        song.save()
 
                 new_dir = os.path.join(artist_name_sanitized,sanitize_folder_name(album_name))
 
