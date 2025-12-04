@@ -692,6 +692,40 @@ def get_records(missing: bool) -> list:
                 os.remove(lock_file_path)
 
         raise ValueError(f'[Search Settings] - {search_type = } is not valid')
+    
+    try:
+
+        queued_records = lidarr.get_queue(sort_dir='ascending',sort_key='albums.title')
+        total_queued = queued_records['totalRecords']
+        current_queue = queued_records['records']
+
+        if queued_records['pageSize'] < total_queued:
+            page = 2
+            while len(current_queue) < total_queued:
+                try:
+                    next_page = lidarr.get_queue(page=page,sort_key='albums.title',sort_dir='ascending')
+                except ConnectionError as ex:
+                    logger.error(f"Failed to get queue details: {ex}")
+                    break
+                current_queue.extend(next_page['records'])
+                page += 1
+
+        queued_album_ids = [record['album_id'] for record in current_queue]
+        wanted_records_not_queued = []
+        for record in wanted_records:
+            for release in record['releases']:
+                if release['album_id'] in queued_album_ids:
+                    logging.info(f"Skipping record '{record['title']}' because it's already in download queue")
+                    break
+            else: #This only runs if the loop is broken out of. Saves on all the boolean found= stuff
+                wanted_records_not_queued.append(record)
+        if len(wanted_records_not_queued) > 0 :
+            wanted_records = wanted_records_not_queued
+        else:
+            logging.info("No records wanted that arent already queued")
+            wanted_records = []
+    except ConnectionError as ex:
+        logger.error(f"Failed to get queue details so not filtering based on queue: {ex}")
 
     return wanted_records
 
