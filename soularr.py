@@ -309,6 +309,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
 
     #Init directory cache. The wide search returns all the data we need. This prevents us from hammering the users on the Soulseek network 
     dir_cache = {}
+    folder_cache ={}
 
     for result in search_results: #Switching to cached version. One less API call
         username = result['username']
@@ -337,19 +338,30 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
 
             for file_dir in dir_cache[username][allowed_filetype]:
                 
-                version = slskd.application.version()
-                version_check = slskd_version_check(version)
-                if not version_check:
-                    logger.info(f"Error checking slskd version number: {version}. Version check > 0.22.2: {version_check}. This would most likely be fixed by updating your slskd.")
-                    
-                try:
-                    if version_check:
-                        directory = slskd.users.directory(username = username, directory = file_dir)[0]
-                    else:
-                        directory = slskd.users.directory(username = username, directory = file_dir)
-                except Exception:
-                    logger.info(f"Error getting directory from user: \"{username}\"\n{traceback.format_exc()}")
-                    continue
+                if username not in folder_cache:
+                    folder_cache[username] = {}
+                if file_dir not in folder_cache[username]:
+                    logger.info(f"User: {username} Folder: {file_dir} not in cache. Fetching from SLSKD")
+
+                    version = slskd.application.version()
+                    version_check = slskd_version_check(version)
+
+                    if not version_check:
+                        logger.info(f"Error checking slskd version number: {version}. Version check > 0.22.2: {version_check}. This would most likely be fixed by updating your slskd.")
+                       
+                    try:
+                        if version_check:
+                            directory = slskd.users.directory(username = username, directory = file_dir)[0]
+                        else:
+                            directory = slskd.users.directory(username = username, directory = file_dir)
+                    except Exception:
+                        logger.info(f"Error getting directory from user: \"{username}\"\n{traceback.format_exc()}")
+                        continue
+
+                    folder_cache[username][file_dir] = directory
+                else: 
+                    logger.info(f"User: {username} Folder: {file_dir} in cache. Using cached value")
+                    directory = folder_cache[username][file_dir]
 
                 tracks_info = album_track_num(directory)
 
