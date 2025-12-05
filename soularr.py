@@ -267,7 +267,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
     time.sleep(5)
 
     while True:
-        if slskd.searches.state(search['id'])['state'] != 'InProgress':
+        if slskd.searches.state(search['id'],False)['state'] != 'InProgress':   #Added False here as we don't want the search results here. Just the state.
             break
         time.sleep(1)
 
