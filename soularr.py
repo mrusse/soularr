@@ -271,12 +271,13 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
             break
         time.sleep(1)
 
-    logger.info(f"Search returned {len(slskd.searches.search_responses(search['id']))} results")
+    search_results = slskd.searches.search_responses(search['id']) #We use this API call twice. Let's just cache it locally. 
+    logger.info(f"Search returned {len(search_results)} results")
 
     #Init directory cache. The wide search returns all the data we need. This prevents us from hammering the users on the Soulseek network 
     dir_cache = {}
 
-    for result in slskd.searches.search_responses(search['id']):
+    for result in search_results: #Switching to cached version. One less API call
         username = result['username']
         if username not in dir_cache:
             #If we don't currently have a cache for a user set one up
