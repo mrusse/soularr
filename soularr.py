@@ -254,7 +254,7 @@ def verify_filetype(file,allowed_filetype):
 def download_filter(allowed_filetype,directory):
     """
     Filters the directory listing from SLSKD using the filetype whitelist.
-    If not unsing the whitelist it will only return the audio files of the allowed filetype.
+    If not using the whitelist it will only return the audio files of the allowed filetype.
     This is to prevent downloading m3u,cue,txt,jpg,etc. files that are sometimes stored in 
     the same folders as the music files.
     """
