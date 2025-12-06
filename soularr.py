@@ -14,7 +14,7 @@ import configparser
 import logging
 import json
 from datetime import datetime
-
+import copy
 import music_tag
 import slskd_api
 from pyarr import LidarrAPI
@@ -251,6 +251,39 @@ def verify_filetype(file,allowed_filetype):
     else:
         return False
 
+def download_filter(allowed_filetype,directory):
+    """
+    Filters the directory listing from SLSKD using the filetype whitelist.
+    If not unsing the whitelist it will only return the audio files of the allowed filetype.
+    This is to prevent downloading m3u,cue,txt,jpg,etc. files that are sometimes stored in 
+    the same folders as the music files.
+    """
+    
+    if download_filtering:
+        if use_extension_whitelist:
+            whitelist = copy.deepcopy(extensions_whitelist) #Copy the whitelist to allow us to append the allowed_filetype
+        else:
+            whitelist = [] #Init an empty list to take just the allowed_filetype
+        whitelist.append(allowed_filetype.split(" ")[0])
+        unwanted =[]
+        logger.debug(f"Accepted extensions: {whitelist}")
+        for file in directory['files']:
+            for extension in whitelist:
+                if file['filename'].split(".")[-1].lower() == extension.lower():
+                    break #Jump out and don't add wanted files to the unwanted list
+            else:
+                unwanted.append(file['filename']) #Add to list of files to remove from the wanted list
+                logger.debug(f"Unwanted file: {file['filename']}")
+        if len(unwanted) > 0:
+            temp = []
+            for file in directory['files']:
+                if file['filename'] not in unwanted:
+                    logger.debug(f"Added file to queue: {file['filenamee']}")
+                    temp.append(file) #Build the new list of files
+            directory['files'] = temp
+            return directory #Return the modified list
+    return directory #If we didn't find unwanted files or we aren't filtering just return the original list
+
 
 def search_and_download(grab_list, query, tracks, track, artist_name, release):
     search = slskd.searches.search_text(searchText = query,
@@ -321,6 +354,7 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
 
                 if tracks_info['count'] == track_num and tracks_info['filetype'] != "":
                     if album_match(tracks, directory['files'], username, allowed_filetype):
+                        directory = download_filter(allowed_filetype,directory) #Filter files if requested
                         for i in range(0,len(directory['files'])):
                             directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
 
@@ -837,6 +871,10 @@ try:
     ignored_users = config.get('Search Settings', 'ignored_users', fallback='').split(",")
     search_type = config.get('Search Settings', 'search_type', fallback='first_page').lower().strip()
     search_source = config.get('Search Settings', 'search_source', fallback='missing').lower().strip()
+    
+    download_filtering = config.get('Download Settings', 'download_filtering', fallback=False)
+    use_extension_whitelist = config.get('Download Settings', 'use_extension_whitelist', fallback=False)
+    extensions_whitelist = config.get('Download Settings', 'extensions_whitelist', fallback='txt,nfo,jpg').split(',')
 
     search_sources = [search_source]
     if search_sources[0] == 'all':
