@@ -198,7 +198,10 @@ def choose_release(album_id, artist_name):
     if use_most_common_tracknum:
         for release in releases:
             if release['trackCount'] == most_common_trackcount:
-                default_release = release
+                return release
+        else:
+            default_release = releases[0]
+            
     else:
         default_release = releases[0]
 
@@ -264,16 +267,17 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
     time.sleep(5)
 
     while True:
-        if slskd.searches.state(search['id'])['state'] != 'InProgress':
+        if slskd.searches.state(search['id'],False)['state'] != 'InProgress':   #Added False here as we don't want the search results here. Just the state.
             break
         time.sleep(1)
 
-    logger.info(f"Search returned {len(slskd.searches.search_responses(search['id']))} results")
+    search_results = slskd.searches.search_responses(search['id']) #We use this API call twice. Let's just cache it locally. 
+    logger.info(f"Search returned {len(search_results)} results")
 
     #Init directory cache. The wide search returns all the data we need. This prevents us from hammering the users on the Soulseek network 
     dir_cache = {}
 
-    for result in slskd.searches.search_responses(search['id']):
+    for result in search_results: #Switching to cached version. One less API call
         username = result['username']
         if username not in dir_cache:
             #If we don't currently have a cache for a user set one up
@@ -294,19 +298,16 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
         logger.info(f"Searching for matches with selected attributes: {allowed_filetype}")
 
         for username in dir_cache:
-            if not allowed_filetype in dir_cache[username]:
+            if allowed_filetype not in dir_cache[username]:
                 continue
             logger.info(f"Parsing result from user: {username}")
 
             for file_dir in dir_cache[username][allowed_filetype]:
-
-
-                try:
-                    version = slskd.application.version()
-                    version_check = slskd_version_check(version)
-                except:
+                
+                version = slskd.application.version()
+                version_check = slskd_version_check(version)
+                if not version_check:
                     logger.info(f"Error checking slskd version number: {version}. Version check > 0.22.2: {version_check}. This would most likely be fixed by updating your slskd.")
-                    continue
                     
                 try:
                     if version_check:
@@ -502,17 +503,19 @@ def grab_most_wanted(albums):
 
         if(time_count > stalled_timeout):
             logger.info("Stall timeout reached! Removing stuck downloads...")
+            for artist_folder in list(grab_list):
+                username, dir = artist_folder['username'], artist_folder['directory']
 
-            for directory in downloads["directories"]:
-                if directory["directory"] == dir["name"]:
-                    #TODO: This does not seem to account for directories where the whole dir is stuck as queued.
-                    #Either it needs to account for those or maybe soularr should just force clear out the downloads screen when it exits.
-                    pending_files = [file for file in directory["files"] if not 'Completed' in file["state"]]
+                for directory in downloads["directories"]:
+                    if directory["directory"] == dir["name"]:
+                        #TODO: This does not seem to account for directories where the whole dir is stuck as queued.
+                        #Either it needs to account for those or maybe soularr should just force clear out the downloads screen when it exits.
+                        pending_files = [file for file in directory["files"] if not 'Completed' in file["state"]]
 
-                    if len(pending_files) > 0:
-                        logger.error(f"Removing Stalled Download: Username: {username} Directory: {dir['name']}")
-                        cancel_and_delete(artist_folder['dir'], artist_folder['username'], directory["files"])
-                        grab_list.remove(artist_folder)
+                        if len(pending_files) > 0:
+                            logger.error(f"Removing Stalled Download: Username: {username} Directory: {dir['name']}")
+                            cancel_and_delete(artist_folder['dir'], artist_folder['username'], directory["files"])
+                            grab_list.remove(artist_folder)
 
             logger.info("All tracks finished downloading!")
             time.sleep(5)
@@ -650,7 +653,7 @@ def get_current_page(path: str, default_page=1) -> int:
         return default_page
 
 
-def update_current_page(path: str, page: int) -> None:
+def update_current_page(path: str, page: str) -> None:
     with open(path, 'w') as file:
             file.write(page)
 
