@@ -358,10 +358,10 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                         logger.info(f"Error getting directory from user: \"{username}\"\n{traceback.format_exc()}")
                         continue
 
-                    folder_cache[username][file_dir] = directory
+                    folder_cache[username][file_dir] =copy.deepcopy(directory)
                 else: 
                     logger.info(f"User: {username} Folder: {file_dir} in cache. Using cached value")
-                    directory = folder_cache[username][file_dir]
+                    directory = copy.deepcopy(folder_cache[username][file_dir])
 
                 tracks_info = album_track_num(directory)
 
