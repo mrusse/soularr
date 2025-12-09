@@ -763,7 +763,7 @@ def get_records(missing: bool) -> list:
         wanted_records_not_queued = []
         for record in wanted_records:
             for release in record['releases']:
-                if release['album_id'] in queued_album_ids:
+                if release['albumId'] in queued_album_ids:
                     logging.info(f"Skipping record '{record['title']}' because it's already in download queue")
                     break
             else: #This only runs if the loop is broken out of. Saves on all the boolean found= stuff
