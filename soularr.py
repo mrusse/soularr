@@ -343,22 +343,12 @@ def search_and_download(grab_list, query, tracks, track, artist_name, release):
                 if file_dir not in folder_cache[username]:
                     logger.info(f"User: {username} Folder: {file_dir} not in cache. Fetching from SLSKD")
 
-<<<<<<< HEAD
                     version = slskd.application.version()
                     version_check = slskd_version_check(version)
 
                     if not version_check:
                         logger.info(f"Error checking slskd version number: {version}. Version check > 0.22.2: {version_check}. This would most likely be fixed by updating your slskd.")
                        
-=======
-                    try:
-                        version = slskd.application.version()
-                        version_check = slskd_version_check(version)
-                    except:
-                        logger.info(f"Error checking slskd version number: {version}. Version check > 0.22.2: {version_check}. This would most likely be fixed by updating your slskd.")
-                        continue
-                        
->>>>>>> refs/remotes/origin/folder_caching
                     try:
                         if version_check:
                             directory = slskd.users.directory(username = username, directory = file_dir)[0]
