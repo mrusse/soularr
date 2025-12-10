@@ -123,6 +123,11 @@ services:
     ports:
       - 8686:8686
     restart: unless-stopped
+    healthcheck:
+      test: wget -O /dev/null http://localhost:8686
+      interval: 3s
+      timeout: 10s
+      retries: 10
 
   slskd:
     image: slskd/slskd
@@ -140,6 +145,11 @@ services:
       - /Containers/slskd:/app
       - /Media:/data
     restart: unless-stopped
+    healthcheck:
+      test: wget -O /dev/null http://localhost:5030
+      interval: 3s
+      timeout: 10s
+      retries: 10
 
   soularr:
     image: mrusse08/soularr:latest
@@ -153,6 +163,11 @@ services:
       - /Media/slskd_downloads:/downloads
       - /Container/soularr:/data
     restart: unless-stopped
+    depends_on:
+      lidarr:
+        condition: service_healthy
+      slskd:
+        condition: service_healthy
 ```
 
 ## Configure your config file
