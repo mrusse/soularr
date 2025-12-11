@@ -68,10 +68,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            # GHCR tags from metadata-action
             ${{ steps.meta.outputs.tags }}
-
-            # Docker Hub tag (branch or latest)
             ${{ steps.hubtag.outputs.dockerhub_image }}:${{ steps.hubtag.outputs.tag }}
 
           labels: ${{ steps.meta.outputs.labels }}
