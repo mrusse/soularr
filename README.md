@@ -230,6 +230,11 @@ enable_search_denylist = False
 # Number of consecutive search failures before denylisting
 max_search_failures = 3
 
+[Download Settings]
+download_filtering = True
+use_extension_whitelist = False
+extensions_whitelist = lrc,nfo,txt
+
 [Logging]
 # Passed to Python's logging.basicConfig()
 # See: https://docs.python.org/3/library/logging.html
