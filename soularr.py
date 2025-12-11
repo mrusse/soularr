@@ -281,7 +281,7 @@ def download_filter(allowed_filetype,directory):
             temp = []
             for file in directory['files']:
                 if file['filename'] not in unwanted:
-                    logger.debug(f"Added file to queue: {file['filenamee']}")
+                    logger.debug(f"Added file to queue: {file['filename']}")
                     temp.append(file) #Build the new list of files
             directory['files'] = temp
             return directory #Return the modified list
