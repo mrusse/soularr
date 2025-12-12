@@ -759,7 +759,7 @@ def get_records(missing: bool) -> list:
                 current_queue.extend(next_page['records'])
                 page += 1
 
-        queued_album_ids = [record['album_id'] for record in current_queue]
+        queued_album_ids = [record['albumId'] for record in current_queue]
         wanted_records_not_queued = []
         for record in wanted_records:
             for release in record['releases']:
