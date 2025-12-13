@@ -813,7 +813,7 @@ def update_search_denylist(denylist, album_id, success):
 
     if success:
         if album_key in denylist:
-            logger.info("Removing album from denylist: " + denylist[album_key]['album_id'])
+            logger.info("Removing album from denylist: %s", denylist[album_key]['album_id'])
             del denylist[album_key]
     else:
         logger.info("Adding album to denylist: " + album_key)
