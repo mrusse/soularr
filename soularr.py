@@ -580,30 +580,36 @@ def grab_most_wanted(albums):
         folder = artist_folder['dir']
 
         if artist_folder['release']['mediumCount'] > 1:
-            for filename in os.listdir(folder):
+            if os.path.exists(folder):
+                for filename in os.listdir(folder):
+                    album_name = lidarr.get_album(albumIds = artist_folder['release']['albumId'])['title']
+
+                    if filename.split(".")[-1] in allowed_filetypes:
+                        song = music_tag.load_file(os.path.join(folder,filename))
+                        if song is not None:
+                            song['artist'] = artist_name
+                            song['albumartist'] = artist_name
+                            song['album'] = album_name
+                            song['discnumber'] = artist_folder['discnumber']
+                            song.save()
+
+                    new_dir = os.path.join(artist_name_sanitized,sanitize_folder_name(album_name))
+
+                    if not os.path.exists(artist_name_sanitized):
+                        os.mkdir(artist_name_sanitized)
+                    if not os.path.exists(new_dir):
+                        os.mkdir(new_dir)
+
+                    if os.path.exists(os.path.join(folder,filename)) and not os.path.exists(os.path.join(new_dir,filename)):
+                        shutil.move(os.path.join(folder,filename),new_dir)
+            else: 
                 album_name = lidarr.get_album(albumIds = artist_folder['release']['albumId'])['title']
-
-                if filename.split(".")[-1] in allowed_filetypes:
-                    song = music_tag.load_file(os.path.join(folder,filename))
-                    if song is not None:
-                        song['artist'] = artist_name
-                        song['albumartist'] = artist_name
-                        song['album'] = album_name
-                        song['discnumber'] = artist_folder['discnumber']
-                        song.save()
-
-                new_dir = os.path.join(artist_name_sanitized,sanitize_folder_name(album_name))
-
-                if not os.path.exists(artist_name_sanitized):
-                    os.mkdir(artist_name_sanitized)
-                if not os.path.exists(new_dir):
-                    os.mkdir(new_dir)
-
-                if os.path.exists(os.path.join(folder,filename)) and not os.path.exists(os.path.join(new_dir,filename)):
-                    shutil.move(os.path.join(folder,filename),new_dir)
+                logger.error(f"Folder {folder} doesn't exist for {artist_name} : {album_name}")
 
             if os.path.exists(folder):
                 shutil.rmtree(folder)
+
+
 
         elif os.path.exists(folder):
             shutil.move(folder,artist_name_sanitized)
