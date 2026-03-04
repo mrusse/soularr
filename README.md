@@ -241,6 +241,14 @@ extensions_whitelist = lrc,nfo,txt
 level = INFO
 format = [%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s
 datefmt = %Y-%m-%dT%H:%M:%S%z
+# Enable logging to a file in addition to stdout
+log_to_file = False
+# Log filename (resolved relative to the data/var directory)
+log_file = soularr.log
+# Maximum log file size in bytes before rotation (default: 1MB)
+max_bytes = 1048576
+# Number of rotated log files to keep
+backup_count = 3
 ```
 
 [Full list of countries from Musicbrainz.](https://musicbrainz.org/doc/Release/Country)
@@ -320,22 +328,17 @@ formatted, see the comments in the `[Logging]` section from the [example config.
 
 ### Log to a File
 
-Currently, the logs are only output to stdout which should be suitable for most users who just want a basic and simple
-set up for Soularr. For users running Soularr as a long-running process, or as part of a cronjob, or for any reason where
-logging to a file is desired, normal command-line tools can be used without needing to touch the logger's configuration.
+Soularr can write logs to a rotating file in addition to stdout. Enable it in your `config.ini`:
 
-For example, the `tee` command on Linux and MacOS can be used to allow Soularr to log its output to both stdout and a
-file of your choosing (here the file `soularr.log` is used, but it can be any file you want):
-
-```sh
-python soularr.py 2>&1 | tee -a soularr.log
+```ini
+[Logging]
+log_to_file = True
+log_file = soularr.log
+max_bytes = 1048576
+backup_count = 3
 ```
 
-Or on Windows PowerShell using the similar `Tee-Object` cmdlet:
-
-```powershell
-python soularr.py 2>&1 | Tee-Object -FilePath soularr.log -Append
-```
+The log file is written to the data/var directory (the same directory as `config.ini` when running locally, or `/data/` in Docker). When the file reaches `max_bytes` it is rotated, keeping up to `backup_count` old files (`soularr.log`, `soularr.log.1`, `soularr.log.2`, etc.).
 
 ### View logs in WebUI
 
@@ -345,10 +348,8 @@ python soularr.py 2>&1 | Tee-Object -FilePath soularr.log -Append
 
 ### Advanced Logging Usage
 
-The current logging setup for Soularr is *very* simple and only allows for the most basic configuration options
-provided by [Python's builtin logging module](https://docs.python.org/3/library/logging.html). Logging was kept simple
-to avoid over-complicating things, and it seems like the desire for more advanced logging capabilities is currently
-quite low.
+For more information on the options available for logging, including more options for changing how messages are
+formatted, see the [Python logging documentation](https://docs.python.org/3/library/logging.html).
 
 **If you would like more advanced logging configuration options to be implemented** (such as configuring filters,
 formatters, handlers, additional streams, and multi-logger setups), consider submitting a feature request in

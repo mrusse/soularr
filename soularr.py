@@ -1067,12 +1067,31 @@ def slskd_version_check(version, target="0.22.2"):
     return version_tuple > target_tuple
 
 
-def setup_logging(config):
+def setup_logging(config, var_dir):
+    from logging.handlers import RotatingFileHandler
+
     if "Logging" in config:
         log_config = config["Logging"]
     else:
         log_config = DEFAULT_LOGGING_CONF
-    logging.basicConfig(**log_config)  # type: ignore
+
+    level = log_config.get("level", DEFAULT_LOGGING_CONF["level"])
+    fmt = log_config.get("format", DEFAULT_LOGGING_CONF["format"])
+    datefmt = log_config.get("datefmt", DEFAULT_LOGGING_CONF["datefmt"])
+
+    logging.basicConfig(level=level, format=fmt, datefmt=datefmt)
+
+    log_to_file = config.getboolean("Logging", "log_to_file", fallback=False)
+    if log_to_file:
+        log_filename = config.get("Logging", "log_file", fallback="soularr.log")
+        log_file_path = os.path.join(var_dir, log_filename)
+        max_bytes = config.getint("Logging", "max_bytes", fallback=1048576)
+        backup_count = config.getint("Logging", "backup_count", fallback=3)
+
+        file_handler = RotatingFileHandler(log_file_path, maxBytes=max_bytes, backupCount=backup_count)
+        file_handler.setFormatter(logging.Formatter(fmt=fmt, datefmt=datefmt))
+        logging.getLogger().addHandler(file_handler)
+        logger.info(f"Logging to file: {log_file_path}")
 
 
 def get_current_page(path: str, default_page=1) -> int:
@@ -1416,7 +1435,7 @@ def main():
         else:
             allowed_filetypes = [raw_filetypes]
 
-        setup_logging(config)
+        setup_logging(config, args.var_dir)
 
         # Init directory cache. The wide search returns all the data we need. This prevents us from hammering the users on the Soulseek network
         search_cache = {}
