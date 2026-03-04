@@ -806,12 +806,14 @@ def process_completed_album(album_data, failed_grab):
             return
         logger.info(f"Attempting Lidarr import of {album_data['artist']} - {album_data['title']}")
         for file in album_data["files"]:
-            try:  # This sometimes fails. No idea why. Nor do we care. We try and that's what matters
+            try:
                 song = music_tag.load_file(file["import_path"])
+            except NotImplementedError:
+                continue  # Not a supported audio file (e.g. jpg, nfo)
+            try:
                 if "disk_no" in file:
                     song["discnumber"] = file["disk_no"]
                     song["totaldiscs"] = file["disk_count"]
-
                 song["albumartist"] = album_data["artist"]
                 song["album"] = album_data["title"]
                 song.save()
