@@ -801,6 +801,9 @@ def process_completed_album(album_data, failed_grab):
                     os.rmdir(rm_dir)
                 except OSError:
                     logger.warning(f"Skipping removal of {rm_dir} because it's not empty.")
+        if lidarr_disable_sync:
+            logger.info(f"Sync disabled. Skipping Lidarr import of {album_data['artist']} - {album_data['title']}")
+            return
         logger.info(f"Attempting Lidarr import of {album_data['artist']} - {album_data['title']}")
         for file in album_data["files"]:
             try:  # This sometimes fails. No idea why. Nor do we care. We try and that's what matters
