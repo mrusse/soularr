@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soularr Web UI</title>
+    <link rel="icon" href="/resources/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css">
+</head>
+<body>
+    <header>
+        <div class="header-brand">
+            <img src="/resources/banner.png" alt="Soularr">
+        </div>
+        <div class="divider"></div>
+        <span class="header-title">Web UI</span>
+        <div class="header-links">
+            <a href="https://github.com/mrusse/soularr" target="_blank" title="GitHub">
+                <span class="icon icon-github"></span>
+            </a>
+            <a href="https://github.com/sponsors/mrusse" target="_blank" title="Sponsor">
+                <span class="icon icon-sponsor"></span>
+            </a>
+        </div>
+    </header>
+
+    <div class="layout">
+        <nav class="sidebar">
+            <button class="nav-btn active" onclick="showView('logs', this)">
+                <span class="icon icon-logs"></span>
+                Logs
+            </button>
+            <button class="nav-btn" onclick="showView('settings', this)">
+                <span class="icon icon-settings"></span>
+                Settings
+            </button>
+        </nav>
+
+        <div class="content">
+            <div id="view-logs" class="view active">
+                <div class="log-toolbar">
+                    <button id="scroll-btn" class="toolbar-btn active" onclick="toggleScroll()">Auto-scroll</button>
+                    <button class="toolbar-btn" onclick="clearLog()">Clear</button>
+                    <div class="toolbar-spacer"></div>
+                </div>
+                <div id="log"></div>
+            </div>
+
+            <div id="view-settings" class="view">
+                <div class="settings-toolbar">
+                    <button id="save-btn" class="toolbar-btn" onclick="saveConfig()">Save</button>
+                    <span class="settings-path" id="config-path"></span>
+                </div>
+                <div id="editor-wrap">
+                    <textarea id="config-editor" spellcheck="false"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/properties/properties.min.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>

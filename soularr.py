@@ -886,7 +886,7 @@ def monitor_downloads(grab_list, failed_grab):
         Handle Rejected files. Returns True if the album was deleted or a requeue was
         attempted (caller should stop processing this album this iteration).
         Rejected files often indicate grab limits; we wait for all other files to reach
-        a stable state before requeueing.
+        a stable state before requeuing.
         """
         files = grab_list[album_id]["files"]
         if len(problems) == len(files):

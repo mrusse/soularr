@@ -6,6 +6,11 @@
 
 INTERVAL=${SCRIPT_INTERVAL:-300}
 
+# Start the web UI in the background (default enabled)
+if [ "${WEBUI_ENABLED:-true}" = "true" ]; then
+    python -u /app/webui/webui.py "$@" &
+fi
+
 while true; do
     if ps aux | grep "[s]oularr.py" > /dev/null; then
         echo "Soularr is already running. Exiting..."

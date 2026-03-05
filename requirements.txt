@@ -1,3 +1,5 @@
 music-tag==0.4.3
 pyarr==5.2.0
 slskd-api==0.1.5
+flask
+waitress
