@@ -1325,6 +1325,7 @@ def main():
 
         if os.path.exists(config_file_path):
             config.read(config_file_path)
+            setup_logging(config, args.var_dir)
         else:
             if is_docker():
                 logger.error(
@@ -1393,8 +1394,6 @@ def main():
             allowed_filetypes = raw_filetypes.split(",")
         else:
             allowed_filetypes = [raw_filetypes]
-
-        setup_logging(config, args.var_dir)
 
         # Init directory cache. The wide search returns all the data we need. This prevents us from hammering the users on the Soulseek network
         search_cache = {}
