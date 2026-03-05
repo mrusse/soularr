@@ -1040,7 +1040,7 @@ def setup_logging(config, var_dir):
 
     logging.basicConfig(level=level, format=fmt, datefmt=datefmt)
 
-    log_to_file = config.getboolean("Logging", "log_to_file", fallback=False)
+    log_to_file = config.getboolean("Logging", "log_to_file", fallback=True)
     if log_to_file:
         log_filename = config.get("Logging", "log_file", fallback="soularr.log")
         log_file_path = os.path.join(var_dir, log_filename)

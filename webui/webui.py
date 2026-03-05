@@ -33,7 +33,8 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 def get_var_dir():
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--var-dir", default="/data")
+    default = "/data" if os.environ.get("IN_DOCKER") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    parser.add_argument("--var-dir", default=default)
     args, _ = parser.parse_known_args()
     return args.var_dir
 
@@ -96,7 +97,13 @@ def stream():
 
     def generate():
         while not os.path.exists(log_path):
-            yield f"data: {_fmt(f'Waiting for log file: {log_path}')}\n\n"
+            config = configparser.ConfigParser()
+            config.read(get_config_path(get_var_dir()))
+            log_to_file = config.getboolean("Logging", "log_to_file", fallback=False)
+            if not log_to_file:
+                yield f"data: {_fmt('Log file not found. Make sure log_to_file = True is set in your config.ini')}\n\n"
+            else:
+                yield f"data: {_fmt(f'Waiting for log file: {log_path}')}\n\n"
             time.sleep(5)
         with open(log_path, "r") as f:
             for line in f:
@@ -120,7 +127,8 @@ def stream():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Soularr Web UI")
-    parser.add_argument("--var-dir", default="/data", help="Directory containing config.ini and soularr.log")
+    default = "/data" if os.environ.get("IN_DOCKER") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    parser.add_argument("--var-dir", default=default, help="Directory containing config.ini and soularr.log")
     parser.add_argument("--port", type=int, default=8265, help="Port to listen on (default: 8265)")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")
     args = parser.parse_args()
