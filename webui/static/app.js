@@ -99,12 +99,33 @@ function classify(line) {
     return 'level-info';
 }
 
-function appendLine(text) {
-    const div = document.createElement('div');
-    div.className = 'log-line ' + classify(text);
-    div.textContent = text;
-    log.appendChild(div);
+const lineQueue = [];
+let flushScheduled = false;
+
+function flushQueue() {
+    if (lineQueue.length === 0) {
+        flushScheduled = false;
+        return;
+    }
+    const fragment = document.createDocumentFragment();
+    while (lineQueue.length > 0) {
+        const text = lineQueue.shift();
+        const div = document.createElement('div');
+        div.className = 'log-line ' + classify(text);
+        div.textContent = text;
+        fragment.appendChild(div);
+    }
+    log.appendChild(fragment);
     if (autoScroll) log.scrollTop = log.scrollHeight;
+    flushScheduled = false;
+}
+
+function appendLine(text) {
+    lineQueue.push(text);
+    if (!flushScheduled) {
+        flushScheduled = true;
+        requestAnimationFrame(flushQueue);
+    }
 }
 
 const es = new EventSource('/stream');
