@@ -126,7 +126,7 @@ services:
       - /Containers/lidarr:/config
       - /Media:/data
     ports:
-      - 8686:8686
+      - "8686:8686"
     restart: unless-stopped
 
   slskd:
@@ -138,9 +138,9 @@ services:
       - TZ=ETC/UTC
       - SLSKD_REMOTE_CONFIGURATION=true
     ports:
-      - 5030:5030
-      - 5031:5031
-      - 50300:50300
+      - "5030:5030"
+      - "5031:5031"
+      - "50300:50300"
     volumes:
       - /Containers/slskd:/app
       - /Media:/data
