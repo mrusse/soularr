@@ -60,6 +60,8 @@ docker run -d \
   --hostname soularr \
   -e TZ=ETC/UTC \
   -e SCRIPT_INTERVAL=300 \
+  -e WEBUI_ENABLED=true \
+  -p 8265:8265 \
   -v /Media/slskd_downloads:/downloads \
   -v /Containers/soularr:/data \
   --user 1000:1000 \
@@ -78,6 +80,9 @@ services:
     environment:
       - TZ=Etc/UTC
       - SCRIPT_INTERVAL=300 # Script interval in seconds
+      - WEBUI_ENABLED=true
+    ports:
+      - "8265:8265"
     volumes:
       # "You can set /downloads to whatever you want but will then need to change the Slskd download dir in your config file"
       - /Media/slskd_downloads:/downloads
@@ -149,6 +154,9 @@ services:
     environment:
       - TZ=ETC/UTC
       - SCRIPT_INTERVAL=300
+      - WEBUI_ENABLED=true
+    ports:
+      - "8265:8265"
     volumes:
       - /Media/slskd_downloads:/downloads
       - /Container/soularr:/data
@@ -242,8 +250,8 @@ level = INFO
 format = [%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s
 datefmt = %Y-%m-%dT%H:%M:%S%z
 # Enable logging to a file in addition to stdout
-log_to_file = False
-# Log filename (resolved relative to the data/var directory)
+log_to_file = True
+# Log filename (resolved relative to the data directory)
 log_file = soularr.log
 # Maximum log file size in bytes before rotation (default: 1MB)
 max_bytes = 1048576
@@ -256,6 +264,22 @@ backup_count = 3
 [Full list of formats (also from Musicbrainz but for some reason they don't have a nice list)](https://pastebin.com/raw/pzGVUgaE)
 
 An [example config](https://github.com/mrusse/soularr/blob/main/config.ini) is included in the repo.
+
+## Web UI
+
+Soularr includes a built-in web interface accessible at `http://your-host:8265` with:
+- **Log viewer** — streams logs in real time
+- **Config editor** — view and edit your `config.ini` in the browser
+
+The web UI is enabled by default in Docker. Make sure port `8265` is exposed in your compose file or `docker run` command (see the examples above).
+
+To disable it, set the environment variable:
+
+```yml
+- WEBUI_ENABLED=false
+```
+
+Thanks to [EricH9958](https://github.com/EricH9958) for making the original dashboard for Soularr.
 
 ## Running Manually
 
@@ -272,6 +296,18 @@ python soularr.py
 ```
 
 Note: the `config.ini` file needs to be in the same directory as `soularr.py`.
+
+To also start the web UI, run in a separate terminal:
+
+```bash
+python webui/webui.py
+```
+
+Then open `http://localhost:8265` in your browser. If your `config.ini` is not in the repo root, pass `--var-dir` to point to its directory:
+
+```bash
+python webui/webui.py --var-dir /path/to/your/config
+```
 
 ### Scheduling the script
 
@@ -338,13 +374,7 @@ max_bytes = 1048576
 backup_count = 3
 ```
 
-The log file is written to the data/var directory (the same directory as `config.ini` when running locally, or `/data/` in Docker). When the file reaches `max_bytes` it is rotated, keeping up to `backup_count` old files (`soularr.log`, `soularr.log.1`, `soularr.log.2`, etc.).
-
-### View logs in WebUI
-
-[EricH9958](https://github.com/EricH9958) has made a log viewer that lets you monitor the Soularr logs in your browser! Check his repo out here:
-
-[https://github.com/EricH9958/Soularr-Dashboard](https://github.com/EricH9958/Soularr-Dashboard)
+The log file is written to the data directory (the same directory as `config.ini` when running locally, or `/data/` in Docker). When the file reaches `max_bytes` it is rotated, keeping up to `backup_count` old files (`soularr.log`, `soularr.log.1`, `soularr.log.2`, etc.).
 
 ### Advanced Logging Usage
 
