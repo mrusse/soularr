@@ -279,7 +279,7 @@ To disable it, set the environment variable:
 - WEBUI_ENABLED=false
 ```
 
-Thanks to [EricH9958](https://github.com/EricH9958) for making the original dashboard for Soularr.
+Thanks to [EricH9958](https://github.com/EricH9958/Soularr-Dashboard) for making the original dashboard for Soularr.
 
 ## Running Manually
 
