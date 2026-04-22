@@ -126,6 +126,7 @@ header .header-links a:hover {
 
 .icon-logs     { width: 16px; height: 16px; -webkit-mask-image: url('/resources/logs.svg');     mask-image: url('/resources/logs.svg'); }
 .icon-settings { width: 16px; height: 16px; -webkit-mask-image: url('/resources/settings.svg'); mask-image: url('/resources/settings.svg'); }
+.icon-ban      { width: 16px; height: 16px; -webkit-mask-image: url('/resources/ban.svg');      mask-image: url('/resources/ban.svg'); }
 .icon-github   { width: 22px; height: 22px; -webkit-mask-image: url('/resources/github.svg');   mask-image: url('/resources/github.svg'); }
 .icon-sponsor  { width: 22px; height: 22px; -webkit-mask-image: url('/resources/sponsor.svg');  mask-image: url('/resources/sponsor.svg'); }
 
@@ -278,4 +279,83 @@ header .header-links a:hover {
     color: #d0d0d0;
     background: #2e1a1a;
     border-color: #4f2d2d;
+}
+
+.failed-imports-wrap {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid #252525;
+    border-radius: 6px;
+    background: #0e0e0e;
+}
+
+.failed-imports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.failed-imports-table th {
+    text-align: left;
+    padding: 10px 16px;
+    color: #555;
+    font-weight: 500;
+    font-size: 11px;
+    border-bottom: 1px solid #1e1e1e;
+    position: sticky;
+    top: 0;
+    background: #0e0e0e;
+}
+
+.failed-imports-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid #1a1a1a;
+    color: #c8c8c8;
+}
+
+.failed-imports-table tr:last-child td {
+    border-bottom: none;
+}
+
+.failed-imports-table tr:hover td {
+    background: #131313;
+}
+
+.failed-imports-date {
+    font-family: 'Consolas', 'Cascadia Code', 'Monaco', monospace;
+    font-size: 11px;
+    color: #505050;
+}
+
+.failed-imports-empty {
+    padding: 40px;
+    text-align: center;
+    color: #444;
+    font-size: 13px;
+}
+
+.failed-imports-date-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    white-space: nowrap;
+}
+
+.failed-imports-sep {
+    width: 1px;
+    height: 16px;
+    background: #2a2a2a;
+    flex-shrink: 0;
+}
+
+.remove-btn {
+    color: #804040;
+    border-color: #3a2020;
+    flex-shrink: 0;
+}
+
+.remove-btn:hover {
+    color: #d04040;
+    border-color: #5a2020;
+    background: #1e1010;
 }

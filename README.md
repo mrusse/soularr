@@ -225,18 +225,14 @@ track_prepend_artist = True
 search_type = incrementing_page
 # Albums to process per run
 number_of_albums_to_grab = 10
-# Unmonitor album on failure; logs to failure_list.txt
-remove_wanted_on_failure = False
 # Blacklist words in album or track titles (case-insensitive)
 title_blacklist = Word1,word2
 # Blacklist words in search query (case-insensitive)
 search_blacklist = WordToStripFromSearch1,WordToStripFromSearch2
 # Lidarr search source: "missing" or "cutoff_unmet"
 search_source = missing
-# Enable search denylist to skip albums that repeatedly fail
-enable_search_denylist = False
-# Number of consecutive search failures before denylisting
-max_search_failures = 3
+# Skip re-downloading albums that previously failed to import into Lidarr
+failed_import_denylist = True
 
 [Download Settings]
 download_filtering = True
@@ -270,6 +266,7 @@ An [example config](https://github.com/mrusse/soularr/blob/main/config.ini) is i
 Soularr includes a built-in web interface accessible at `http://your-host:8265` with:
 - **Log viewer** — streams logs in real time
 - **Config editor** — view and edit your `config.ini` in the browser
+- **Failed Imports** — view and clear albums that previously failed to import into Lidarr
 
 The web UI is enabled by default in Docker. Make sure port `8265` is exposed in your compose file or `docker run` command (see the examples above).
 

@@ -20,6 +20,9 @@ function showView(name, btn) {
         loadConfig();
         cmEditor.refresh();
     }
+    if (name === 'failed-imports') {
+        loadFailedImports();
+    }
 }
 
 function loadConfig() {
@@ -126,6 +129,45 @@ function appendLine(text) {
         flushScheduled = true;
         requestAnimationFrame(flushQueue);
     }
+}
+
+function loadFailedImports() {
+    fetch('/api/failed-imports')
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.getElementById('failed-imports-body');
+            const empty = document.getElementById('failed-imports-empty');
+            const count = document.getElementById('failed-imports-count');
+            tbody.innerHTML = '';
+            if (!Array.isArray(data) || data.length === 0) {
+                empty.style.display = 'block';
+                count.textContent = '';
+            } else {
+                empty.style.display = 'none';
+                count.textContent = `${data.length} entr${data.length === 1 ? 'y' : 'ies'}`;
+                data.forEach(entry => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${entry.artist || '—'}</td>
+                        <td>${entry.title || '—'}</td>
+                        <td>
+                            <div class="failed-imports-date-cell">
+                                <span class="failed-imports-date">${entry.failed_at || '—'}</span>
+                                <span class="failed-imports-sep"></span>
+                                <button class="toolbar-btn remove-btn" onclick="removeFailedImport(${entry.album_id})">Delete</button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        });
+}
+
+function removeFailedImport(albumId) {
+    fetch(`/api/failed-imports/${albumId}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(() => loadFailedImports());
 }
 
 const es = new EventSource('/stream');

@@ -1,4 +1,6 @@
 import os
+import json
+import shutil
 import time
 import logging
 import configparser
@@ -124,6 +126,42 @@ def stream():
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+def get_failed_imports_path(var_dir):
+    return os.path.join(var_dir, "failed_imports.json")
+
+
+@app.route("/api/failed-imports", methods=["GET"])
+def get_failed_imports():
+    path = get_failed_imports_path(get_var_dir())
+    if not os.path.exists(path):
+        return jsonify([])
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        return jsonify(list(data.values()))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/failed-imports/<album_id>", methods=["DELETE"])
+def delete_failed_import(album_id):
+    path = get_failed_imports_path(get_var_dir())
+    if not os.path.exists(path):
+        return jsonify({"ok": True})
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        entry = data.pop(str(album_id), None)
+        if entry and entry.get("folder_path") and os.path.isdir(entry["folder_path"]):
+            shutil.rmtree(entry["folder_path"])
+            logger.info(f"Deleted failed import folder: {entry['folder_path']}")
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Soularr Web UI")

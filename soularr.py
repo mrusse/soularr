@@ -66,9 +66,8 @@ extensions_whitelist = []
 search_sources = []
 minimum_match_ratio = None
 page_size = None
-remove_wanted_on_failure = None
-enable_search_denylist = None
-max_search_failures = None
+failed_import_denylist = None
+failed_import_denylist_file_path = None
 use_most_common_tracknum = None
 allow_multi_disc = None
 accepted_countries = []
@@ -77,9 +76,7 @@ accepted_formats = []
 allowed_filetypes = []
 lock_file_path = None
 config_file_path = None
-failure_file_path = None
 current_page_file_path = None
-denylist_file_path = None
 search_blacklist = []
 
 # === Runtime State & Caches ===
@@ -399,16 +396,17 @@ def filter_list(albums):
     Helper to do all the various filtering in one go and in one place. Same net effect as the previous multi-stage approach
     Just neater and easier to work on.
     """
-    if enable_search_denylist:
-        temp_list = []
-        denylist = load_search_denylist(denylist_file_path)
-        for album in albums:
-            if not is_search_denylisted(denylist, album["id"], max_search_failures):
-                temp_list.append(album)
+    temp_list = copy.deepcopy(albums)
+
+    if failed_import_denylist:
+        import_denylist = load_failed_import_denylist(failed_import_denylist_file_path)
+        filtered_temp = []
+        for album in temp_list:
+            if str(album["id"]) in import_denylist:
+                logger.info(f"Skipping failed import album: {album['artist']['artistName']} - {album['title']} (ID: {album['id']})")
             else:
-                logger.info(f"Skipping denylisted album: {album['artist']['artistName']} - {album['title']} (ID: {album['id']})")
-    else:
-        temp_list = copy.deepcopy(albums)
+                filtered_temp.append(album)
+        temp_list = filtered_temp
 
     list_to_download = []
     for album in temp_list:
@@ -810,6 +808,9 @@ def process_completed_album(album_data, failed_grab):
                 song = music_tag.load_file(file["import_path"])
             except NotImplementedError:
                 continue  # Not a supported audio file (e.g. jpg, nfo)
+            except Exception:
+                logger.exception(f"Error loading file for tagging: {file['import_path']}")
+                continue
             try:
                 if "disk_no" in file:
                     song["discnumber"] = file["disk_no"]
@@ -835,8 +836,16 @@ def process_completed_album(album_data, failed_grab):
             logger.info(f"{current_task['commandName']} {current_task['message']} from: {current_task['body']['path']}")
 
             if "Failed" in current_task["message"]:
-                move_failed_import(current_task["body"]["path"])
+                folder_path = move_failed_import(current_task["body"]["path"])
                 failed_grab.append(lidarr.get_album(album_data["album_id"]))
+                if failed_import_denylist:
+                    add_to_failed_import_denylist(
+                        failed_import_denylist_file_path,
+                        album_data["album_id"],
+                        album_data["artist"],
+                        album_data["title"],
+                        folder_path,
+                    )
         except Exception:
             logger.exception("Error printing lidarr task message")
             logger.error(current_task)
@@ -993,9 +1002,6 @@ def grab_most_wanted(albums):
         logger.info(f"Download failed for Album: {album_title} - Artist: {artist_name}")
 
     return count
-    # if enable_search_denylist:
-    #    save_search_denylist(denylist_file_path, search_denylist)
-
 
 def move_failed_import(src_path):
     failed_imports_dir = "failed_imports"
@@ -1014,6 +1020,8 @@ def move_failed_import(src_path):
     if os.path.exists(folder_name):
         shutil.move(folder_name, target_path)
         logger.info(f"Failed import moved to: {target_path}")
+
+    return os.path.abspath(target_path)
 
 
 def is_docker():
@@ -1173,53 +1181,38 @@ def get_records(missing: bool) -> list:
     return wanted_records
 
 
-def load_search_denylist(file_path):
+def load_failed_import_denylist(file_path):
     if not os.path.exists(file_path):
         return {}
-
     try:
         with open(file_path, "r") as file:
             return json.load(file)
     except (json.JSONDecodeError, IOError) as ex:
-        logger.warning(f"Error loading search denylist: {ex}. Starting with empty denylist.")
+        logger.warning(f"Error loading failed import denylist: {ex}. Starting with empty denylist.")
         return {}
 
 
-def save_search_denylist(file_path, denylist):
+def save_failed_import_denylist(file_path, denylist):
     try:
         with open(file_path, "w") as file:
             json.dump(denylist, file, indent=2)
     except IOError as ex:
-        logger.error(f"Error saving search denylist: {ex}")
+        logger.error(f"Error saving failed import denylist: {ex}")
 
 
-def is_search_denylisted(denylist, album_id, max_failures):
+def add_to_failed_import_denylist(file_path, album_id, artist, title, folder_path=None):
+    denylist = load_failed_import_denylist(file_path)
     album_key = str(album_id)
-    if album_key in denylist:
-        return denylist[album_key]["failures"] >= max_failures
-    return False
-
-
-def update_search_denylist(denylist, album_id, success):
-    album_key = str(album_id)
-    current_datetime = datetime.now()
-    current_datetime_str = current_datetime.strftime("%Y-%m-%dT%H:%M:%S")
-
-    if success:
-        if album_key in denylist:
-            logger.info("Removing album from denylist: %s", denylist[album_key]["album_id"])
-            del denylist[album_key]
-    else:
-        logger.info("Adding album to denylist: " + album_key)
-        if album_key in denylist:
-            denylist[album_key]["failures"] += 1
-            denylist[album_key]["last_attempt"] = current_datetime_str
-        else:
-            denylist[album_key] = {
-                "failures": 1,
-                "last_attempt": current_datetime_str,
-                "album_id": album_id,
-            }
+    if album_key not in denylist:
+        denylist[album_key] = {
+            "album_id": album_id,
+            "artist": artist,
+            "title": title,
+            "failed_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "folder_path": folder_path,
+        }
+        save_failed_import_denylist(file_path, denylist)
+        logger.info(f"Added to failed import denylist: {artist} - {title} (ID: {album_id})")
 
 
 def main():
@@ -1244,9 +1237,8 @@ def main():
         search_sources, \
         minimum_match_ratio, \
         page_size, \
-        remove_wanted_on_failure, \
-        enable_search_denylist, \
-        max_search_failures, \
+        failed_import_denylist, \
+        failed_import_denylist_file_path, \
         use_most_common_tracknum, \
         allow_multi_disc, \
         accepted_countries, \
@@ -1255,9 +1247,7 @@ def main():
         allowed_filetypes, \
         lock_file_path, \
         config_file_path, \
-        failure_file_path, \
         current_page_file_path, \
-        denylist_file_path, \
         search_blacklist, \
         lidarr, \
         slskd, \
@@ -1307,9 +1297,8 @@ def main():
 
     lock_file_path = os.path.join(args.var_dir, ".soularr.lock")
     config_file_path = os.path.join(args.config_dir, "config.ini")
-    failure_file_path = os.path.join(args.var_dir, "failure_list.txt")
     current_page_file_path = os.path.join(args.var_dir, ".current_page.txt")
-    denylist_file_path = os.path.join(args.var_dir, "search_denylist.json")
+    failed_import_denylist_file_path = os.path.join(args.var_dir, "failed_imports.json")
 
     if not is_docker() and os.path.exists(lock_file_path) and args.lock_file:
         logger.info(f"Soularr instance is already running.")
@@ -1375,9 +1364,7 @@ def main():
 
         minimum_match_ratio = config.getfloat("Search Settings", "minimum_filename_match_ratio", fallback=0.5)
         page_size = config.getint("Search Settings", "number_of_albums_to_grab", fallback=10)
-        remove_wanted_on_failure = config.getboolean("Search Settings", "remove_wanted_on_failure", fallback=True)
-        enable_search_denylist = config.getboolean("Search Settings", "enable_search_denylist", fallback=False)
-        max_search_failures = config.getint("Search Settings", "max_search_failures", fallback=3)
+        failed_import_denylist = config.getboolean("Search Settings", "failed_import_denylist", fallback=True)
 
         use_most_common_tracknum = config.getboolean("Release Settings", "use_most_common_tracknum", fallback=True)
         allow_multi_disc = config.getboolean("Release Settings", "allow_multi_disc", fallback=True)
@@ -1431,10 +1418,7 @@ def main():
                 logger.info("Soularr finished. Exiting...")
                 slskd.transfers.remove_completed_downloads()
             else:
-                if remove_wanted_on_failure:
-                    logger.info(f'{failed}: releases failed to find a match in the search results. View "failure_list.txt" for list of failed albums.')
-                else:
-                    logger.info(f"{failed}: releases failed to find a match in the search results and are still wanted.")
+                logger.info(f"{failed}: releases failed to find a match in the search results and are still wanted.")
                 slskd.transfers.remove_completed_downloads()
         else:
             logger.info("No releases wanted. Exiting...")

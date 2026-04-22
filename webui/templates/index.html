@@ -31,6 +31,10 @@
                 <span class="icon icon-logs"></span>
                 Logs
             </button>
+            <button class="nav-btn" onclick="showView('failed-imports', this)">
+                <span class="icon icon-ban"></span>
+                Failed Imports
+            </button>
             <button class="nav-btn" onclick="showView('settings', this)">
                 <span class="icon icon-settings"></span>
                 Settings
@@ -45,6 +49,27 @@
                     <div class="toolbar-spacer"></div>
                 </div>
                 <div id="log"></div>
+            </div>
+
+            <div id="view-failed-imports" class="view">
+                <div class="log-toolbar">
+                    <button class="toolbar-btn" onclick="loadFailedImports()">Refresh</button>
+                    <span id="failed-imports-count" class="settings-path"></span>
+                </div>
+                <div class="failed-imports-wrap">
+                    <table class="failed-imports-table">
+                        <thead>
+                            <tr>
+                                <th>Artist</th>
+                                <th>Album</th>
+                                <th>Failed At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="failed-imports-body">
+                        </tbody>
+                    </table>
+                    <div id="failed-imports-empty" class="failed-imports-empty" style="display:none">No failed imports.</div>
+                </div>
             </div>
 
             <div id="view-settings" class="view">
