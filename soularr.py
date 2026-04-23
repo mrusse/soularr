@@ -73,6 +73,7 @@ allow_multi_disc = None
 accepted_countries = []
 skip_region_check = None
 accepted_formats = []
+use_selected_lidarr_release = None
 allowed_filetypes = []
 lock_file_path = None
 config_file_path = None
@@ -206,6 +207,12 @@ def release_trackcount_mode(releases):
 
 
 def choose_release(artist_name, releases):
+    if use_selected_lidarr_release:
+        for release in releases:
+            if release.get("monitored"):
+                logger.info(f"Using selected Lidarr release for {artist_name}: {release['format']}, {release['trackCount']} tracks, ID: {release['id']}")
+                return release
+
     most_common_trackcount = release_trackcount_mode(releases)
 
     for release in releases:
@@ -1239,6 +1246,7 @@ def main():
         page_size, \
         failed_import_denylist, \
         failed_import_denylist_file_path, \
+        use_selected_lidarr_release, \
         use_most_common_tracknum, \
         allow_multi_disc, \
         accepted_countries, \
@@ -1366,6 +1374,7 @@ def main():
         page_size = config.getint("Search Settings", "number_of_albums_to_grab", fallback=10)
         failed_import_denylist = config.getboolean("Search Settings", "failed_import_denylist", fallback=True)
 
+        use_selected_lidarr_release = config.getboolean("Release Settings", "use_selected_lidarr_release", fallback=False)
         use_most_common_tracknum = config.getboolean("Release Settings", "use_most_common_tracknum", fallback=True)
         allow_multi_disc = config.getboolean("Release Settings", "allow_multi_disc", fallback=True)
 

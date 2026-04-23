@@ -196,6 +196,8 @@ delete_searches = False
 stalled_timeout = 3600
 
 [Release Settings]
+# Use the release manually selected in Lidarr, ignoring the other release settings below
+use_selected_lidarr_release = False
 # Pick release with most common track count
 use_most_common_tracknum = True
 allow_multi_disc = True
