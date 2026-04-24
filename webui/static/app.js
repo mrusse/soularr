@@ -11,6 +11,21 @@ const cmEditor = CodeMirror.fromTextArea(document.getElementById('config-editor'
     extraKeys: { Tab: false },
 });
 
+const mobileQuery = window.matchMedia('(pointer: coarse) and (hover: none), (max-width: 768px)');
+
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    const opening = !sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', opening);
+    overlay.classList.toggle('visible', opening);
+}
+
+function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.querySelector('.sidebar-overlay').classList.remove('visible');
+}
+
 function showView(name, btn) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -23,6 +38,7 @@ function showView(name, btn) {
     if (name === 'failed-imports') {
         loadFailedImports();
     }
+    if (mobileQuery.matches) closeSidebar();
 }
 
 function loadConfig() {
@@ -95,6 +111,39 @@ function clearLog() {
     log.innerHTML = '';
 }
 
+const LOG_FONT_MIN = 4;
+const LOG_FONT_MAX = 28;
+let logFontSize = parseFloat(localStorage.getItem('soularr-log-font-size') || (mobileQuery.matches ? '7' : '12'));
+
+function applyLogZoom() {
+    log.style.fontSize = logFontSize + 'px';
+    localStorage.setItem('soularr-log-font-size', logFontSize);
+}
+
+log.addEventListener('wheel', e => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    logFontSize = Math.min(LOG_FONT_MAX, Math.max(LOG_FONT_MIN, logFontSize + (e.deltaY > 0 ? -0.5 : 0.5)));
+    applyLogZoom();
+}, { passive: false });
+
+let lastPinchDist = null;
+log.addEventListener('touchstart', e => {
+    if (e.touches.length === 2)
+        lastPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+}, { passive: true });
+log.addEventListener('touchmove', e => {
+    if (e.touches.length !== 2 || lastPinchDist === null) return;
+    e.preventDefault();
+    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    logFontSize = Math.min(LOG_FONT_MAX, Math.max(LOG_FONT_MIN, logFontSize * (dist / lastPinchDist)));
+    lastPinchDist = dist;
+    applyLogZoom();
+}, { passive: false });
+log.addEventListener('touchend', () => { lastPinchDist = null; });
+
+applyLogZoom();
+
 function classify(line) {
     if (line.includes('[ERROR|'))   return 'level-error';
     if (line.includes('[WARNING|')) return 'level-warn';
@@ -149,12 +198,15 @@ function loadFailedImports() {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${entry.artist || '—'}</td>
-                        <td>${entry.title || '—'}</td>
+                        <td>
+                            <div>${entry.title || '—'}</div>
+                            <button class="toolbar-btn remove-btn fi-remove-mobile" onclick="removeFailedImport(${entry.album_id})">Delete</button>
+                        </td>
                         <td>
                             <div class="failed-imports-date-cell">
                                 <span class="failed-imports-date">${entry.failed_at || '—'}</span>
                                 <span class="failed-imports-sep"></span>
-                                <button class="toolbar-btn remove-btn" onclick="removeFailedImport(${entry.album_id})">Delete</button>
+                                <button class="toolbar-btn remove-btn fi-remove-desktop" onclick="removeFailedImport(${entry.album_id})">Delete</button>
                             </div>
                         </td>
                     `;

@@ -11,8 +11,14 @@
 <body>
     <header>
         <div class="header-brand">
-            <img src="/resources/banner.png" alt="Soularr">
+            <picture>
+                <source srcset="/resources/logo.png" media="(pointer: coarse) and (hover: none), (max-width: 768px)">
+                <img src="/resources/banner.png" alt="Soularr">
+            </picture>
         </div>
+        <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+            <span class="icon icon-menu"></span>
+        </button>
         <div class="divider"></div>
         <span class="header-title">Web UI</span>
         <div class="header-links">
@@ -26,6 +32,7 @@
     </header>
 
     <div class="layout">
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
         <nav class="sidebar">
             <button class="nav-btn active" onclick="showView('logs', this)">
                 <span class="icon icon-logs"></span>
