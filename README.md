@@ -215,13 +215,14 @@ maximum_peer_queue = 50
 minimum_peer_upload_speed = 0
 # Minimum match ratio between Lidarr track and Soulseek filename
 minimum_filename_match_ratio = 0.8
+# Minimum time (seconds) between searches. Set to 0 to disable.
+minimum_search_interval = 5
 # Preferred file types and qualities (most to least preferred)
 # Use "flac" or "mp3" to ignore quality details
 allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3
 ignored_users = User1,User2,Fred,Bob
 # Prepend artist name when searching for albums
 album_prepend_artist = False
-track_prepend_artist = True
 # Search modes: all, incrementing_page, first_page
 # "all": search for every wanted record, "first_page": repeatedly searches the first page, "incrementing_page": starts with the first page and increments on each run.
 search_type = incrementing_page

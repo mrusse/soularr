@@ -65,6 +65,7 @@ use_extension_whitelist = None
 extensions_whitelist = []
 search_sources = []
 minimum_match_ratio = None
+minimum_search_interval = None
 page_size = None
 failed_import_denylist = None
 failed_import_denylist_file_path = None
@@ -752,13 +753,21 @@ def search_and_queue(albums):
     grab_list = {}
     failed_grab = []
     failed_search = []
-    for album in albums:
+    for i, album in enumerate(albums):
+        search_start = time.time()
         if search_for_album(album):
             if not find_download(album, grab_list):
                 failed_grab.append(album)
-
         else:
             failed_search.append(album)
+
+        if minimum_search_interval > 0 and i < len(albums) - 1:
+            elapsed = time.time() - search_start
+            remaining = minimum_search_interval - elapsed
+            if remaining > 0:
+                logger.info(f"Search completed in {elapsed:.1f}s, waiting {remaining:.1f}s to meet minimum_search_interval")
+                time.sleep(remaining)
+
     return grab_list, failed_search, failed_grab
 
 
@@ -1243,6 +1252,7 @@ def main():
         extensions_whitelist, \
         search_sources, \
         minimum_match_ratio, \
+        minimum_search_interval, \
         page_size, \
         failed_import_denylist, \
         failed_import_denylist_file_path, \
@@ -1371,6 +1381,7 @@ def main():
             search_sources = ["missing", "cutoff_unmet"]
 
         minimum_match_ratio = config.getfloat("Search Settings", "minimum_filename_match_ratio", fallback=0.5)
+        minimum_search_interval = config.getint("Search Settings", "minimum_search_interval", fallback=5)
         page_size = config.getint("Search Settings", "number_of_albums_to_grab", fallback=10)
         failed_import_denylist = config.getboolean("Search Settings", "failed_import_denylist", fallback=True)
 
