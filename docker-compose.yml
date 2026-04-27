@@ -11,6 +11,7 @@ services:
       #Script interval in seconds
       - SCRIPT_INTERVAL=300
       - WEBUI_ENABLED=true
+      - WEBUI_PORT=8265
     user: "1000:1000"
     ports:
       #Web UI port
