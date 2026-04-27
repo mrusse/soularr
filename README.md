@@ -279,6 +279,12 @@ To disable it, set the environment variable:
 - WEBUI_ENABLED=false
 ```
 
+If you are running the container on a shared pod, and wish to change the port on which the web UI listens to, set the environment variable:
+
+```yml
+- WEBUI_PORT=18265
+```
+
 Thanks to [EricH9958](https://github.com/EricH9958/Soularr-Dashboard) for making the original dashboard for Soularr.
 
 ## Running Manually
