@@ -293,11 +293,23 @@ def verify_filetype(file, allowed_filetype):
                         return True
                 else:
                     return False
-            # If it is a bitrate
+            # If it is a bitrate, either exact ("320") or a comparison (">=192")
             else:
-                selected_bitrate = selected_attributes
+                attributes_match = re.fullmatch(r"(>=|<=|>|<)?(\d+)", selected_attributes)
+                if not attributes_match:
+                    logger.warning(f"Invalid attributes in allowed_filetypes entry: {allowed_filetype}")
+                    return False
+                comparison, selected_bitrate = attributes_match.groups()
                 if bitrate:
-                    if str(bitrate) == str(selected_bitrate):
+                    if comparison == ">=":
+                        return bitrate >= int(selected_bitrate)
+                    elif comparison == "<=":
+                        return bitrate <= int(selected_bitrate)
+                    elif comparison == ">":
+                        return bitrate > int(selected_bitrate)
+                    elif comparison == "<":
+                        return bitrate < int(selected_bitrate)
+                    elif str(bitrate) == str(selected_bitrate):
                         return True
                 else:
                     return False

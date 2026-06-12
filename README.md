@@ -219,6 +219,7 @@ minimum_filename_match_ratio = 0.8
 minimum_search_interval = 5
 # Preferred file types and qualities (most to least preferred)
 # Use "flac" or "mp3" to ignore quality details
+# Bitrates can be exact ("mp3 320") or a comparison ("mp3 >=192")
 allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3
 ignored_users = User1,User2,Fred,Bob
 # Prepend artist name when searching for albums
