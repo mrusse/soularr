@@ -241,6 +241,8 @@ failed_import_denylist = True
 download_filtering = True
 use_extension_whitelist = False
 extensions_whitelist = lrc,nfo,txt
+# Rename completed downloads to "Artist - Album (Year)" before Lidarr import
+rename_download_folders = True
 
 [Logging]
 # Passed to Python's logging.basicConfig()

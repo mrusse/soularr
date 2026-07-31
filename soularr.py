@@ -63,6 +63,7 @@ search_source = None
 download_filtering = None
 use_extension_whitelist = None
 extensions_whitelist = []
+rename_download_folders = None
 search_sources = []
 minimum_match_ratio = None
 minimum_search_interval = None
@@ -773,7 +774,10 @@ def search_and_queue(albums):
 
 def process_completed_album(album_data, failed_grab):
     os.chdir(slskd_download_dir)
-    import_folder_name = sanitize_folder_name(album_data["artist"] + " - " + album_data["title"] + " (" + album_data["year"] + ")")
+    if rename_download_folders is True:
+        import_folder_name = sanitize_folder_name(album_data["artist"] + " - " + album_data["title"] + " (" + album_data["year"] + ")")
+    else:
+        import_folder_name = album_data["files"][0]["file_dir"].rstrip("\\/").rsplit("\\", 1)[-1]
     import_folder_fullpath = os.path.join(slskd_download_dir, import_folder_name)
     lidarr_import_fullpath = os.path.join(lidarr_download_dir, import_folder_name)
     album_data["import_folder"] = lidarr_import_fullpath
@@ -792,6 +796,8 @@ def process_completed_album(album_data, failed_grab):
             filename = f"Disk {file['disk_no']} - {filename}"
         dst_file = os.path.join(import_folder_fullpath, filename)
         file["import_path"] = dst_file
+        if os.path.abspath(src_file) == os.path.abspath(dst_file):
+            continue
         try:
             shutil.move(src_file, dst_file)
             moved_files_history.append((src_file, dst_file))
@@ -1250,6 +1256,7 @@ def main():
         download_filtering, \
         use_extension_whitelist, \
         extensions_whitelist, \
+        rename_download_folders, \
         search_sources, \
         minimum_match_ratio, \
         minimum_search_interval, \
@@ -1375,6 +1382,7 @@ def main():
         download_filtering = config.getboolean("Download Settings", "download_filtering", fallback=False)
         use_extension_whitelist = config.getboolean("Download Settings", "use_extension_whitelist", fallback=False)
         extensions_whitelist = config.get("Download Settings", "extensions_whitelist", fallback="txt,nfo,jpg").split(",")
+        rename_download_folders = config.getboolean("Download Settings", "rename_download_folders", fallback=True)
 
         search_sources = [search_source]
         if search_sources[0] == "all":
