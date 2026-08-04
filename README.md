@@ -209,7 +209,8 @@ skip_region_check = False
 accepted_formats = CD,Digital Media,Vinyl
 
 [Search Settings]
-search_timeout = 5000
+# Search timeout in seconds
+search_timeout = 5
 maximum_peer_queue = 50
 # Minimum upload speed (bits/sec)
 minimum_peer_upload_speed = 0

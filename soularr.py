@@ -66,6 +66,7 @@ extensions_whitelist = []
 rename_download_folders = None
 search_sources = []
 minimum_match_ratio = None
+search_timeout = None
 minimum_search_interval = None
 page_size = None
 failed_import_denylist = None
@@ -457,7 +458,7 @@ def search_for_album(album):
     try:
         search = slskd.searches.search_text(
             searchText=query,
-            searchTimeout=config.getint("Search Settings", "search_timeout", fallback=5000),
+            searchTimeout=max(1, int(search_timeout * 1000)),
             filterResponses=True,
             maximumPeerQueueLength=config.getint("Search Settings", "maximum_peer_queue", fallback=50),
             minimumPeerUploadSpeed=config.getint("Search Settings", "minimum_peer_upload_speed", fallback=0),
@@ -473,7 +474,7 @@ def search_for_album(album):
         if slskd.searches.state(search["id"], False)["state"] != "InProgress":  # Added False here as we don't want the search results here. Just the state.
             break
         time.sleep(1)
-        if (time.time() - start_time) > config.getint("Search Settings", "search_timeout", fallback=5000):
+        if (time.time() - start_time) > search_timeout:
             logger.error("Failed to perform search via SLSKD due to timeout on search results.")
             return False
 
@@ -1259,6 +1260,7 @@ def main():
         rename_download_folders, \
         search_sources, \
         minimum_match_ratio, \
+        search_timeout, \
         minimum_search_interval, \
         page_size, \
         failed_import_denylist, \
@@ -1389,6 +1391,7 @@ def main():
             search_sources = ["missing", "cutoff_unmet"]
 
         minimum_match_ratio = config.getfloat("Search Settings", "minimum_filename_match_ratio", fallback=0.5)
+        search_timeout = config.getfloat("Search Settings", "search_timeout", fallback=5.0)
         minimum_search_interval = config.getint("Search Settings", "minimum_search_interval", fallback=5)
         page_size = config.getint("Search Settings", "number_of_albums_to_grab", fallback=10)
         failed_import_denylist = config.getboolean("Search Settings", "failed_import_denylist", fallback=True)
