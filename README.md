@@ -179,8 +179,23 @@ api_key = yourlidarrapikeygoeshere
 host_url = http://lidarr:8686
 # Path to slskd downloads inside the Lidarr container
 download_dir = /data/slskd_downloads
+# Search modes: all, incrementing_page, first_page
+search_type = incrementing_page
+# Sort direction options from Lidarr: ascending, descending
+sort_dir = ascending
+# Sort keys from Lidarr wanted list
+# albums.title, artists.sortName, releaseDate, albumType, albums.lastSearchTime
+sort_key = albums.title
+# Albums to process per run
+number_of_albums_to_grab = 10
+# Blacklist words in album or track titles (case-insensitive)
+title_blacklist = Word1,word2
+# Lidarr search source: "missing" or "cutoff_unmet"
+search_source = missing
 # If true, Lidarr won't auto-import from Slskd
 disable_sync = False
+# Skip re-downloading albums that previously failed to import into Lidarr
+failed_import_denylist = True
 
 [Slskd]
 # Create manually (see docs)
@@ -223,19 +238,8 @@ allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3
 ignored_users = User1,User2,Fred,Bob
 # Prepend artist name when searching for albums
 album_prepend_artist = False
-# Search modes: all, incrementing_page, first_page
-# "all": search for every wanted record, "first_page": repeatedly searches the first page, "incrementing_page": starts with the first page and increments on each run.
-search_type = incrementing_page
-# Albums to process per run
-number_of_albums_to_grab = 10
-# Blacklist words in album or track titles (case-insensitive)
-title_blacklist = Word1,word2
 # Blacklist words in search query (case-insensitive)
 search_blacklist = WordToStripFromSearch1,WordToStripFromSearch2
-# Lidarr search source: "missing" or "cutoff_unmet"
-search_source = missing
-# Skip re-downloading albums that previously failed to import into Lidarr
-failed_import_denylist = True
 
 [Download Settings]
 download_filtering = True

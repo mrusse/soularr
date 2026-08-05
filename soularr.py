@@ -80,6 +80,8 @@ allowed_filetypes = []
 lock_file_path = None
 config_file_path = None
 current_page_file_path = None
+lidarr_sort_dir = None
+lidarr_sort_key = None
 search_blacklist = []
 
 # === Runtime State & Caches ===
@@ -392,7 +394,7 @@ def check_for_match(tracks, allowed_filetype, file_dirs, username):
 
 
 def is_blacklisted(title: str) -> bool:
-    blacklist = config.get("Search Settings", "title_blacklist", fallback="").lower().split(",")
+    blacklist = config.get("Lidarr", "title_blacklist", fallback="").lower().split(",")
     for word in blacklist:
         if word != "" and word in title.lower():
             logger.info(f"Skipping {title} due to blacklisted word: {word}")
@@ -1109,8 +1111,8 @@ def get_records(missing: bool) -> list:
     try:
         wanted = lidarr.get_wanted(
             page_size=page_size,
-            sort_dir="ascending",
-            sort_key="albums.title",
+            sort_dir=lidarr_sort_dir,
+            sort_key=lidarr_sort_key,
             missing=missing,
         )
     except ConnectionError as ex:
@@ -1127,8 +1129,8 @@ def get_records(missing: bool) -> list:
                 wanted = lidarr.get_wanted(
                     page=page,
                     page_size=page_size,
-                    sort_dir="ascending",
-                    sort_key="albums.title",
+                    sort_dir=lidarr_sort_dir,
+                    sort_key=lidarr_sort_key,
                     missing=missing,
                 )
             except ConnectionError as ex:
@@ -1142,8 +1144,8 @@ def get_records(missing: bool) -> list:
             wanted_records = lidarr.get_wanted(
                 page=page,
                 page_size=page_size,
-                sort_dir="ascending",
-                sort_key="albums.title",
+                sort_dir=lidarr_sort_dir,
+                sort_key=lidarr_sort_key,
                 missing=missing,
             )["records"]
         except ConnectionError as ex:
@@ -1158,10 +1160,10 @@ def get_records(missing: bool) -> list:
         if os.path.exists(lock_file_path) and not is_docker():
             os.remove(lock_file_path)
 
-        raise ValueError(f"[Search Settings] - {search_type = } is not valid")
+        raise ValueError(f"[Lidarr] - {search_type = } is not valid")
 
     try:
-        queued_records = lidarr.get_queue(sort_dir="ascending", sort_key="albums.title")
+        queued_records = lidarr.get_queue(sort_dir=lidarr_sort_dir, sort_key=lidarr_sort_key)
         total_queued = queued_records["totalRecords"]
         current_queue = queued_records["records"]
 
@@ -1169,7 +1171,7 @@ def get_records(missing: bool) -> list:
             page = 2
             while len(current_queue) < total_queued:
                 try:
-                    next_page = lidarr.get_queue(page=page, sort_key="albums.title", sort_dir="ascending")
+                    next_page = lidarr.get_queue(page=page, sort_key=lidarr_sort_key, sort_dir=lidarr_sort_dir)
                 except ConnectionError as ex:
                     logger.error(f"Failed to get queue details: {ex}")
                     break
@@ -1273,6 +1275,8 @@ def main():
         lock_file_path, \
         config_file_path, \
         current_page_file_path, \
+        lidarr_sort_dir, \
+        lidarr_sort_key, \
         search_blacklist, \
         lidarr, \
         slskd, \
@@ -1376,8 +1380,10 @@ def main():
         ignored_users = config.get("Search Settings", "ignored_users", fallback="").split(",")
         search_blacklist = config.get("Search Settings", "search_blacklist", fallback="").split(",")
         search_blacklist = [word.strip() for word in search_blacklist if word.strip()]
-        search_type = config.get("Search Settings", "search_type", fallback="first_page").lower().strip()
-        search_source = config.get("Search Settings", "search_source", fallback="missing").lower().strip()
+        search_type = config.get("Lidarr", "search_type", fallback="first_page").lower().strip()
+        search_source = config.get("Lidarr", "search_source", fallback="missing").lower().strip()
+        lidarr_sort_dir = config.get("Lidarr", "sort_dir", fallback="ascending").lower().strip()
+        lidarr_sort_key = config.get("Lidarr", "sort_key", fallback="albums.title").strip()
 
         download_filtering = config.getboolean("Download Settings", "download_filtering", fallback=False)
         use_extension_whitelist = config.getboolean("Download Settings", "use_extension_whitelist", fallback=False)
