@@ -14,6 +14,7 @@ import logging
 import json
 from datetime import datetime
 import copy
+from dataclasses import dataclass
 import music_tag
 import slskd_api
 from pyarr import LidarrAPI
@@ -39,53 +40,111 @@ DEFAULT_LOGGING_CONF = {
     "datefmt": "%Y-%m-%dT%H:%M:%S%z",
 }
 
-# === API Clients & Logging ===
-lidarr = None
-slskd = None
-config = None
-logger = logging.getLogger("soularr")
 
-# === Configuration Constants ===
-slskd_api_key = None
-lidarr_api_key = None
-lidarr_download_dir = None
-lidarr_disable_sync = None
-slskd_download_dir = None
-lidarr_host_url = None
-slskd_host_url = None
-stalled_timeout = None
-remote_queue_timeout = None
-delete_searches = None
-slskd_url_base = None
-ignored_users = []
-search_type = None
-search_source = None
-download_filtering = None
-use_extension_whitelist = None
-extensions_whitelist = []
-rename_download_folders = None
-search_sources = []
-minimum_match_ratio = None
-minimum_search_interval = None
-page_size = None
-failed_import_denylist = None
-failed_import_denylist_file_path = None
-use_most_common_tracknum = None
-allow_multi_disc = None
-accepted_countries = []
-skip_region_check = None
-accepted_formats = []
-use_selected_lidarr_release = None
-allowed_filetypes = []
-lock_file_path = None
-config_file_path = None
-current_page_file_path = None
-search_blacklist = []
+@dataclass
+class AppConfig:
+    # Lidarr
+    lidarr_api_key: str
+    lidarr_host_url: str
+    lidarr_download_dir: str
+    lidarr_disable_sync: bool
+    # Slskd
+    slskd_api_key: str
+    slskd_host_url: str
+    slskd_download_dir: str
+    slskd_url_base: str
+    stalled_timeout: int
+    remote_queue_timeout: int
+    delete_searches: bool
+    # Search Settings
+    search_type: str
+    search_sources: list
+    minimum_match_ratio: float
+    minimum_search_interval: int
+    page_size: int
+    ignored_users: list[str]
+    search_blacklist: list[str]
+    title_blacklist: list[str]
+    album_prepend_artist: bool
+    search_timeout: int
+    maximum_peer_queue: int
+    minimum_peer_upload_speed: int
+    # Download Settings
+    download_filtering: bool
+    use_extension_whitelist: bool
+    extensions_whitelist: list[str]
+    rename_download_folders: bool
+    # Release Settings
+    use_selected_lidarr_release: bool
+    use_most_common_tracknum: bool
+    allow_multi_disc: bool
+    accepted_countries: list[str]
+    skip_region_check: bool
+    accepted_formats: list[str]
+    allowed_filetypes: list[str]
+    # Denylist
+    failed_import_denylist: bool
+    # Paths
+    lock_file_path: str
+    config_file_path: str
+    current_page_file_path: str
+    failed_import_denylist_file_path: str
+
+    @classmethod
+    def from_ini(cls, ini: configparser.ConfigParser, args) -> "AppConfig":
+        search_source: str = ini.get("Search Settings", "search_source", fallback="missing").lower().strip()
+        return cls(
+            lidarr_api_key=ini["Lidarr"]["api_key"],
+            lidarr_host_url=ini["Lidarr"]["host_url"],
+            lidarr_download_dir=ini["Lidarr"]["download_dir"],
+            lidarr_disable_sync=ini.getboolean("Lidarr", "disable_sync", fallback=False),
+            slskd_api_key=ini["Slskd"]["api_key"],
+            slskd_host_url=ini["Slskd"]["host_url"],
+            slskd_download_dir=ini["Slskd"]["download_dir"],
+            slskd_url_base=ini.get("Slskd", "url_base", fallback="/"),
+            stalled_timeout=ini.getint("Slskd", "stalled_timeout", fallback=3600),
+            remote_queue_timeout=ini.getint("Slskd", "remote_queue_timeout", fallback=300),
+            delete_searches=ini.getboolean("Slskd", "delete_searches", fallback=True),
+            search_type=ini.get("Search Settings", "search_type", fallback="first_page").lower().strip(),
+            search_sources=["missing", "cutoff_unmet"] if search_source == "all" else [search_source],
+            minimum_match_ratio=ini.getfloat("Search Settings", "minimum_filename_match_ratio", fallback=0.5),
+            minimum_search_interval=ini.getint("Search Settings", "minimum_search_interval", fallback=5),
+            page_size=ini.getint("Search Settings", "number_of_albums_to_grab", fallback=10),
+            ignored_users=ini.get("Search Settings", "ignored_users", fallback="").split(","),
+            search_blacklist=[w.strip() for w in ini.get("Search Settings", "search_blacklist", fallback="").split(",") if w.strip()],
+            title_blacklist=ini.get("Search Settings", "title_blacklist", fallback="").lower().split(","),
+            album_prepend_artist=ini.getboolean("Search Settings", "album_prepend_artist", fallback=False),
+            search_timeout=ini.getint("Search Settings", "search_timeout", fallback=5000),
+            maximum_peer_queue=ini.getint("Search Settings", "maximum_peer_queue", fallback=50),
+            minimum_peer_upload_speed=ini.getint("Search Settings", "minimum_peer_upload_speed", fallback=0),
+            download_filtering=ini.getboolean("Download Settings", "download_filtering", fallback=False),
+            use_extension_whitelist=ini.getboolean("Download Settings", "use_extension_whitelist", fallback=False),
+            extensions_whitelist=ini.get("Download Settings", "extensions_whitelist", fallback="txt,nfo,jpg").split(","),
+            rename_download_folders=ini.getboolean("Download Settings", "rename_download_folders", fallback=True),
+            use_selected_lidarr_release=ini.getboolean("Release Settings", "use_selected_lidarr_release", fallback=False),
+            use_most_common_tracknum=ini.getboolean("Release Settings", "use_most_common_tracknum", fallback=True),
+            allow_multi_disc=ini.getboolean("Release Settings", "allow_multi_disc", fallback=True),
+            accepted_countries=ini.get("Release Settings", "accepted_countries", fallback="Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada").split(","),
+            skip_region_check=ini.getboolean("Release Settings", "skip_region_check", fallback=False),
+            accepted_formats=ini.get("Release Settings", "accepted_formats", fallback="CD,Digital Media,Vinyl").split(","),
+            allowed_filetypes=ini.get("Search Settings", "allowed_filetypes", fallback="flac,mp3").split(","),
+            failed_import_denylist=ini.getboolean("Search Settings", "failed_import_denylist", fallback=True),
+            lock_file_path=os.path.join(args.var_dir, ".soularr.lock"),
+            config_file_path=os.path.join(args.config_dir, "config.ini"),
+            current_page_file_path=os.path.join(args.var_dir, ".current_page.txt"),
+            failed_import_denylist_file_path=os.path.join(args.var_dir, "failed_imports.json"),
+        )
+
+# === API Clients & Logging ===
+lidarr: LidarrAPI = None  # type: ignore[assignment]
+slskd: slskd_api.SlskdClient = None  # type: ignore[assignment]
+logger = logging.getLogger("soularr")
+cfg: AppConfig = None  # type: ignore[assignment]
 
 # === Runtime State & Caches ===
-search_cache = {}
-folder_cache = {}
-broken_user = []
+search_cache: dict = {}
+folder_cache: dict = {}
+broken_user: list = []
 
 
 def album_match(lidarr_tracks, slskd_tracks, username, filetype):
@@ -119,11 +178,11 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
             if ratio > best_match:
                 best_match = ratio
 
-        if best_match > minimum_match_ratio:
+        if best_match > cfg.minimum_match_ratio:
             counted.append(lidarr_filename)
             total_match += best_match
 
-    if len(counted) == len(lidarr_tracks) and username not in ignored_users:
+    if len(counted) == len(lidarr_tracks) and username not in cfg.ignored_users:
         logger.info(f"Found match from user: {username} for {len(counted)} tracks! Track attributes: {filetype}")
         logger.info(f"Average sequence match ratio: {total_match / len(counted)}")
         logger.info("SUCCESSFUL MATCH")
@@ -134,7 +193,7 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
 
 
 def check_ratio(separator, ratio, lidarr_filename, slskd_filename):
-    if ratio < minimum_match_ratio:
+    if ratio < cfg.minimum_match_ratio:
         if separator != "":
             lidarr_filename_word_count = len(lidarr_filename.split()) * -1
             truncated_slskd_filename = " ".join(slskd_filename.split(separator)[lidarr_filename_word_count:])
@@ -148,7 +207,7 @@ def check_ratio(separator, ratio, lidarr_filename, slskd_filename):
 
 def album_track_num(directory):
     files = directory["files"]
-    allowed_filetypes_no_attributes = [item.split(" ")[0] for item in allowed_filetypes]
+    allowed_filetypes_no_attributes = [item.split(" ")[0] for item in cfg.allowed_filetypes]
     count = 0
     index = -1
     filetype = ""
@@ -181,7 +240,7 @@ def cancel_and_delete(files):
         except Exception:
             logger.warning(f"Failed to cancel download {file['filename']} for {file['username']}", exc_info=True)
         delete_dir = file["file_dir"].split("\\")[-1]
-        os.chdir(slskd_download_dir)
+        os.chdir(cfg.slskd_download_dir)
 
         if os.path.exists(delete_dir):
             shutil.rmtree(delete_dir)
@@ -209,7 +268,7 @@ def release_trackcount_mode(releases):
 
 
 def choose_release(artist_name, releases):
-    if use_selected_lidarr_release:
+    if cfg.use_selected_lidarr_release:
         for release in releases:
             if release.get("monitored"):
                 logger.info(f"Using selected Lidarr release for {artist_name}: {release['format']}, {release['trackCount']} tracks, ID: {release['id']}")
@@ -220,12 +279,12 @@ def choose_release(artist_name, releases):
     for release in releases:
         country = release["country"][0] if release["country"] else None
 
-        if release["format"][1] == "x" and allow_multi_disc:
-            format_accepted = release["format"].split("x", 1)[1] in accepted_formats
+        if release["format"][1] == "x" and cfg.allow_multi_disc:
+            format_accepted = release["format"].split("x", 1)[1] in cfg.accepted_formats
         else:
-            format_accepted = release["format"] in accepted_formats
+            format_accepted = release["format"] in cfg.accepted_formats
 
-        if use_most_common_tracknum:
+        if cfg.use_most_common_tracknum:
             if release["trackCount"] == most_common_trackcount:
                 track_count_bool = True
             else:
@@ -233,7 +292,7 @@ def choose_release(artist_name, releases):
         else:
             track_count_bool = True
 
-        if (skip_region_check or country in accepted_countries) and format_accepted and release["status"] == "Official" and track_count_bool:
+        if (cfg.skip_region_check or country in cfg.accepted_countries) and format_accepted and release["status"] == "Official" and track_count_bool:
             logger.info(
                 ", ".join(
                     [
@@ -249,7 +308,7 @@ def choose_release(artist_name, releases):
 
             return release
 
-    if use_most_common_tracknum:
+    if cfg.use_most_common_tracknum:
         for release in releases:
             if release["trackCount"] == most_common_trackcount:
                 return release
@@ -317,10 +376,10 @@ def download_filter(allowed_filetype, directory):
     the same folders as the music files.
     """
     logging.debug("download_filtering")
-    if download_filtering:
+    if cfg.download_filtering:
         whitelist = []  # Init an empty list to take just the allowed_filetype
-        if use_extension_whitelist:
-            whitelist = copy.deepcopy(extensions_whitelist)  # Copy the whitelist to allow us to append the allowed_filetype
+        if cfg.use_extension_whitelist:
+            whitelist = copy.deepcopy(cfg.extensions_whitelist)  # Copy the whitelist to allow us to append the allowed_filetype
         whitelist.append(allowed_filetype.split(" ")[0])
         unwanted = []
         logger.debug(f"Accepted extensions: {whitelist}")
@@ -392,8 +451,7 @@ def check_for_match(tracks, allowed_filetype, file_dirs, username):
 
 
 def is_blacklisted(title: str) -> bool:
-    blacklist = config.get("Search Settings", "title_blacklist", fallback="").lower().split(",")
-    for word in blacklist:
+    for word in cfg.title_blacklist:
         if word != "" and word in title.lower():
             logger.info(f"Skipping {title} due to blacklisted word: {word}")
             return True
@@ -407,8 +465,8 @@ def filter_list(albums):
     """
     temp_list = copy.deepcopy(albums)
 
-    if failed_import_denylist:
-        import_denylist = load_failed_import_denylist(failed_import_denylist_file_path)
+    if cfg.failed_import_denylist:
+        import_denylist = load_failed_import_denylist(cfg.failed_import_denylist_file_path)
         filtered_temp = []
         for album in temp_list:
             if str(album["id"]) in import_denylist:
@@ -438,10 +496,10 @@ def search_for_album(album):
     if len(album_title) == 1:  # Need to add some code to wrangle specific artist names in here.. ;)
         query = artist_name + " " + album_title
     else:
-        query = artist_name + " " + album_title if config.getboolean("Search Settings", "album_prepend_artist", fallback=False) else album_title
+        query = artist_name + " " + album_title if cfg.album_prepend_artist else album_title
 
     original_query = query
-    for word in search_blacklist:
+    for word in cfg.search_blacklist:
         if word:
             # Case-insensitive replacement
             pattern = re.compile(re.escape(word), re.IGNORECASE)
@@ -457,10 +515,10 @@ def search_for_album(album):
     try:
         search = slskd.searches.search_text(
             searchText=query,
-            searchTimeout=config.getint("Search Settings", "search_timeout", fallback=5000),
+            searchTimeout=cfg.search_timeout,
             filterResponses=True,
-            maximumPeerQueueLength=config.getint("Search Settings", "maximum_peer_queue", fallback=50),
-            minimumPeerUploadSpeed=config.getint("Search Settings", "minimum_peer_upload_speed", fallback=0),
+            maximumPeerQueueLength=cfg.maximum_peer_queue,
+            minimumPeerUploadSpeed=cfg.minimum_peer_upload_speed,
         )
     except Exception:
         logger.exception(f"Failed to perform search via SLSKD: {query}")
@@ -473,13 +531,13 @@ def search_for_album(album):
         if slskd.searches.state(search["id"], False)["state"] != "InProgress":  # Added False here as we don't want the search results here. Just the state.
             break
         time.sleep(1)
-        if (time.time() - start_time) > config.getint("Search Settings", "search_timeout", fallback=5000):
+        if (time.time() - start_time) > cfg.search_timeout:
             logger.error("Failed to perform search via SLSKD due to timeout on search results.")
             return False
 
     search_results = slskd.searches.search_responses(search["id"])  # We use this API call twice. Let's just cache it locally.
     logger.info(f"Search returned {len(search_results)} results")
-    if delete_searches:
+    if cfg.delete_searches:
         slskd.searches.delete(search["id"])
 
     if not len(search_results) > 0:
@@ -498,7 +556,7 @@ def search_for_album(album):
         # Search the returned files and only cache files that are of the allowed_filetypes
         for file in init_files:
             file_dir = file["filename"].rsplit("\\", 1)[0]  # split dir/filenames on \
-            for allowed_filetype in allowed_filetypes:
+            for allowed_filetype in cfg.allowed_filetypes:
                 if verify_filetype(file, allowed_filetype):  # Check the filename for an allowed type
                     if allowed_filetype not in search_cache[album_id][username]:
                         search_cache[album_id][username][allowed_filetype] = []  # Init the cache for this allowed filetype
@@ -716,7 +774,7 @@ def find_download(album, grab_list):
     artist_name = album["artist"]["artistName"]
     artist_id = album["artistId"]
     results = search_cache[album_id]
-    for allowed_filetype in allowed_filetypes:
+    for allowed_filetype in cfg.allowed_filetypes:
         logger.info(f"Checking for Quality: {allowed_filetype}")
         releases = lidarr.get_album(album_id)["releases"]
         num_releases = len(releases)
@@ -762,9 +820,9 @@ def search_and_queue(albums):
         else:
             failed_search.append(album)
 
-        if minimum_search_interval > 0 and i < len(albums) - 1:
+        if cfg.minimum_search_interval > 0 and i < len(albums) - 1:
             elapsed = time.time() - search_start
-            remaining = minimum_search_interval - elapsed
+            remaining = cfg.minimum_search_interval - elapsed
             if remaining > 0:
                 logger.info(f"Search completed in {elapsed:.1f}s, waiting {remaining:.1f}s to meet minimum_search_interval")
                 time.sleep(remaining)
@@ -773,13 +831,13 @@ def search_and_queue(albums):
 
 
 def process_completed_album(album_data, failed_grab):
-    os.chdir(slskd_download_dir)
-    if rename_download_folders is True:
+    os.chdir(cfg.slskd_download_dir)
+    if cfg.rename_download_folders is True:
         import_folder_name = sanitize_folder_name(album_data["artist"] + " - " + album_data["title"] + " (" + album_data["year"] + ")")
     else:
         import_folder_name = album_data["files"][0]["file_dir"].rstrip("\\/").rsplit("\\", 1)[-1]
-    import_folder_fullpath = os.path.join(slskd_download_dir, import_folder_name)
-    lidarr_import_fullpath = os.path.join(lidarr_download_dir, import_folder_name)
+    import_folder_fullpath = os.path.join(cfg.slskd_download_dir, import_folder_name)
+    lidarr_import_fullpath = os.path.join(cfg.lidarr_download_dir, import_folder_name)
     album_data["import_folder"] = lidarr_import_fullpath
     rm_dirs = []
     moved_files_history = []
@@ -788,7 +846,7 @@ def process_completed_album(album_data, failed_grab):
     for file in album_data["files"]:
         file_folder = file["file_dir"].split("\\")[-1]
         filename = file["filename"].split("\\")[-1]
-        src_folder = os.path.join(slskd_download_dir, file_folder)
+        src_folder = os.path.join(cfg.slskd_download_dir, file_folder)
         if src_folder not in rm_dirs:
             rm_dirs.append(src_folder)  # Multi disk albums are sometimes in multiple folders. eg. CD01 CD02. So we need to clean up both
         src_file = os.path.join(src_folder, filename)
@@ -821,7 +879,7 @@ def process_completed_album(album_data, failed_grab):
                     os.rmdir(rm_dir)
                 except OSError:
                     logger.warning(f"Skipping removal of {rm_dir} because it's not empty.")
-        if lidarr_disable_sync:
+        if cfg.lidarr_disable_sync:
             logger.info(f"Sync disabled. Skipping Lidarr import of {album_data['artist']} - {album_data['title']}")
             return
         logger.info(f"Attempting Lidarr import of {album_data['artist']} - {album_data['title']}")
@@ -832,6 +890,8 @@ def process_completed_album(album_data, failed_grab):
                 continue  # Not a supported audio file (e.g. jpg, nfo)
             except Exception:
                 logger.exception(f"Error loading file for tagging: {file['import_path']}")
+                continue
+            if song is None:
                 continue
             try:
                 if "disk_no" in file:
@@ -860,9 +920,9 @@ def process_completed_album(album_data, failed_grab):
             if "Failed" in current_task["message"]:
                 folder_path = move_failed_import(current_task["body"]["path"])
                 failed_grab.append(lidarr.get_album(album_data["album_id"]))
-                if failed_import_denylist:
+                if cfg.failed_import_denylist:
                     add_to_failed_import_denylist(
-                        failed_import_denylist_file_path,
+                        cfg.failed_import_denylist_file_path,
                         album_data["album_id"],
                         album_data["artist"],
                         album_data["title"],
@@ -949,10 +1009,10 @@ def monitor_downloads(grab_list, failed_grab):
             grab_list[album_id].setdefault("count_start", time.time())
             elapsed = time.time() - grab_list[album_id]["count_start"]
 
-            if elapsed >= stalled_timeout:
+            if elapsed >= cfg.stalled_timeout:
                 delete_album("Timeout waiting for download of")
                 continue
-            if queued == len(grab_list[album_id]["files"]) and elapsed >= remote_queue_timeout:
+            if queued == len(grab_list[album_id]["files"]) and elapsed >= cfg.remote_queue_timeout:
                 delete_album("Timeout waiting for download of")
                 continue
 
@@ -1009,7 +1069,7 @@ def grab_most_wanted(albums):
         logger.info(f"Album: {album['title']} Artist: {album['artist']['artistName']}")
 
     logger.info("-------------------")
-    logger.info(f"Waiting for downloads... monitor at: {''.join([slskd_host_url, slskd_url_base, 'downloads'])}")
+    logger.info(f"Waiting for downloads... monitor at: {''.join([cfg.slskd_host_url, cfg.slskd_url_base, 'downloads'])}")
 
     monitor_downloads(grab_list, failed_grab)
 
@@ -1108,7 +1168,7 @@ def update_current_page(path: str, page: str) -> None:
 def get_records(missing: bool) -> list:
     try:
         wanted = lidarr.get_wanted(
-            page_size=page_size,
+            page_size=cfg.page_size,
             sort_dir="ascending",
             sort_key="albums.title",
             missing=missing,
@@ -1120,13 +1180,13 @@ def get_records(missing: bool) -> list:
     total_wanted = wanted["totalRecords"]
 
     wanted_records = []
-    if search_type == "all":
+    if cfg.search_type == "all":
         page = 1
         while len(wanted_records) < total_wanted:
             try:
                 wanted = lidarr.get_wanted(
                     page=page,
-                    page_size=page_size,
+                    page_size=cfg.page_size,
                     sort_dir="ascending",
                     sort_key="albums.title",
                     missing=missing,
@@ -1136,29 +1196,29 @@ def get_records(missing: bool) -> list:
             wanted_records.extend(wanted["records"])
             page += 1
 
-    elif search_type == "incrementing_page":
-        page = get_current_page(current_page_file_path)
+    elif cfg.search_type == "incrementing_page":
+        page = get_current_page(cfg.current_page_file_path)
         try:
             wanted_records = lidarr.get_wanted(
                 page=page,
-                page_size=page_size,
+                page_size=cfg.page_size,
                 sort_dir="ascending",
                 sort_key="albums.title",
                 missing=missing,
             )["records"]
         except ConnectionError as ex:
             logger.error(f"Failed to grab record: {ex}")
-        page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
-        update_current_page(current_page_file_path, str(page))
+        page = 1 if page >= math.ceil(total_wanted / cfg.page_size) else page + 1
+        update_current_page(cfg.current_page_file_path, str(page))
 
-    elif search_type == "first_page":
+    elif cfg.search_type == "first_page":
         wanted_records = wanted["records"]
 
     else:
-        if os.path.exists(lock_file_path) and not is_docker():
-            os.remove(lock_file_path)
+        if os.path.exists(cfg.lock_file_path) and not is_docker():
+            os.remove(cfg.lock_file_path)
 
-        raise ValueError(f"[Search Settings] - {search_type = } is not valid")
+        raise ValueError(f"[Search Settings] - {cfg.search_type = } is not valid")
 
     try:
         queued_records = lidarr.get_queue(sort_dir="ascending", sort_key="albums.title")
@@ -1238,51 +1298,9 @@ def add_to_failed_import_denylist(file_path, album_id, artist, title, folder_pat
 
 
 def main():
-    global \
-        slskd_api_key, \
-        lidarr_api_key, \
-        lidarr_download_dir, \
-        lidarr_disable_sync, \
-        slskd_download_dir, \
-        lidarr_host_url, \
-        slskd_host_url, \
-        stalled_timeout, \
-        remote_queue_timeout, \
-        delete_searches, \
-        slskd_url_base, \
-        ignored_users, \
-        search_type, \
-        search_source, \
-        download_filtering, \
-        use_extension_whitelist, \
-        extensions_whitelist, \
-        rename_download_folders, \
-        search_sources, \
-        minimum_match_ratio, \
-        minimum_search_interval, \
-        page_size, \
-        failed_import_denylist, \
-        failed_import_denylist_file_path, \
-        use_selected_lidarr_release, \
-        use_most_common_tracknum, \
-        allow_multi_disc, \
-        accepted_countries, \
-        skip_region_check, \
-        accepted_formats, \
-        allowed_filetypes, \
-        lock_file_path, \
-        config_file_path, \
-        current_page_file_path, \
-        search_blacklist, \
-        lidarr, \
-        slskd, \
-        config, \
-        logger, \
-        search_cache, \
-        folder_cache, \
-        broken_user
+    global cfg, lidarr, slskd, logger, search_cache, folder_cache, broken_user
 
-    # Let's allow some overrides to be passed to the script
+    # Allow some overrides to be passed to the script
     parser = argparse.ArgumentParser(description="""Soularr reads all of your "wanted" albums/artists from Lidarr and downloads them using Slskd""")
 
     default_data_directory = os.getcwd()
@@ -1322,8 +1340,6 @@ def main():
 
     lock_file_path = os.path.join(args.var_dir, ".soularr.lock")
     config_file_path = os.path.join(args.config_dir, "config.ini")
-    current_page_file_path = os.path.join(args.var_dir, ".current_page.txt")
-    failed_import_denylist_file_path = os.path.join(args.var_dir, "failed_imports.json")
 
     if not is_docker() and os.path.exists(lock_file_path) and args.lock_file:
         logger.info(f"Soularr instance is already running.")
@@ -1355,71 +1371,21 @@ def main():
                 os.remove(lock_file_path)
             sys.exit(0)
 
-        slskd_api_key = config["Slskd"]["api_key"]
-        lidarr_api_key = config["Lidarr"]["api_key"]
+        # Load the configuration into a structured object for easier access
+        cfg = AppConfig.from_ini(config, args)
 
-        lidarr_download_dir = config["Lidarr"]["download_dir"]
-        lidarr_disable_sync = config.getboolean("Lidarr", "disable_sync", fallback=False)
+        # Init API clients
+        slskd = slskd_api.SlskdClient(host=cfg.slskd_host_url, api_key=cfg.slskd_api_key, url_base=cfg.slskd_url_base)
+        lidarr = LidarrAPI(cfg.lidarr_host_url, cfg.lidarr_api_key)
 
-        slskd_download_dir = config["Slskd"]["download_dir"]
-
-        lidarr_host_url = config["Lidarr"]["host_url"]
-        slskd_host_url = config["Slskd"]["host_url"]
-
-        stalled_timeout = config.getint("Slskd", "stalled_timeout", fallback=3600)
-        remote_queue_timeout = config.getint("Slskd", "remote_queue_timeout", fallback=300)
-
-        delete_searches = config.getboolean("Slskd", "delete_searches", fallback=True)
-
-        slskd_url_base = config.get("Slskd", "url_base", fallback="/")
-
-        ignored_users = config.get("Search Settings", "ignored_users", fallback="").split(",")
-        search_blacklist = config.get("Search Settings", "search_blacklist", fallback="").split(",")
-        search_blacklist = [word.strip() for word in search_blacklist if word.strip()]
-        search_type = config.get("Search Settings", "search_type", fallback="first_page").lower().strip()
-        search_source = config.get("Search Settings", "search_source", fallback="missing").lower().strip()
-
-        download_filtering = config.getboolean("Download Settings", "download_filtering", fallback=False)
-        use_extension_whitelist = config.getboolean("Download Settings", "use_extension_whitelist", fallback=False)
-        extensions_whitelist = config.get("Download Settings", "extensions_whitelist", fallback="txt,nfo,jpg").split(",")
-        rename_download_folders = config.getboolean("Download Settings", "rename_download_folders", fallback=True)
-
-        search_sources = [search_source]
-        if search_sources[0] == "all":
-            search_sources = ["missing", "cutoff_unmet"]
-
-        minimum_match_ratio = config.getfloat("Search Settings", "minimum_filename_match_ratio", fallback=0.5)
-        minimum_search_interval = config.getint("Search Settings", "minimum_search_interval", fallback=5)
-        page_size = config.getint("Search Settings", "number_of_albums_to_grab", fallback=10)
-        failed_import_denylist = config.getboolean("Search Settings", "failed_import_denylist", fallback=True)
-
-        use_selected_lidarr_release = config.getboolean("Release Settings", "use_selected_lidarr_release", fallback=False)
-        use_most_common_tracknum = config.getboolean("Release Settings", "use_most_common_tracknum", fallback=True)
-        allow_multi_disc = config.getboolean("Release Settings", "allow_multi_disc", fallback=True)
-
-        default_accepted_countries = "Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada"
-        default_accepted_formats = "CD,Digital Media,Vinyl"
-        accepted_countries = config.get("Release Settings", "accepted_countries", fallback=default_accepted_countries).split(",")
-        skip_region_check = config.getboolean("Release Settings", "skip_region_check", fallback=False)
-        accepted_formats = config.get("Release Settings", "accepted_formats", fallback=default_accepted_formats).split(",")
-
-        raw_filetypes = config.get("Search Settings", "allowed_filetypes", fallback="flac,mp3")
-
-        if "," in raw_filetypes:
-            allowed_filetypes = raw_filetypes.split(",")
-        else:
-            allowed_filetypes = [raw_filetypes]
-
-        # Init directory cache. The wide search returns all the data we need. This prevents us from hammering the users on the Soulseek network
+        # Init cache. The wide search returns all the data we need. This prevents us from hammering the users on the Soulseek network
         search_cache = {}
         folder_cache = {}
         broken_user = []
-
-        slskd = slskd_api.SlskdClient(host=slskd_host_url, api_key=slskd_api_key, url_base=slskd_url_base)
-        lidarr = LidarrAPI(lidarr_host_url, lidarr_api_key)
         wanted_records = []
+
         try:
-            for source in search_sources:
+            for source in cfg.search_sources:
                 logging.debug(f"Getting records from {source}")
                 missing = source == "missing"
                 wanted_records.extend(get_records(missing))
