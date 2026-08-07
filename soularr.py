@@ -8,7 +8,6 @@ import sys
 import time
 import shutil
 import difflib
-import operator
 import configparser
 import logging
 import json
@@ -17,7 +16,6 @@ import copy
 import music_tag
 import slskd_api
 from pyarr import LidarrAPI
-from slskd_api.apis import users
 
 
 class EnvInterpolation(configparser.ExtendedInterpolation):
