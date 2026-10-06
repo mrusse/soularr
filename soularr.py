@@ -174,17 +174,12 @@ def sanitize_folder_name(folder_name):
     return valid_characters.strip()
 
 
-def cancel_and_delete(files):
+def cancel_downloads(files):
     for file in files:
         try:
             slskd.transfers.cancel_download(username=file["username"], id=file["id"])
         except Exception:
             logger.warning(f"Failed to cancel download {file['filename']} for {file['username']}", exc_info=True)
-        delete_dir = file["file_dir"].split("\\")[-1]
-        os.chdir(slskd_download_dir)
-
-        if os.path.exists(delete_dir):
-            shutil.rmtree(delete_dir)
 
 
 def release_trackcount_mode(releases):
@@ -680,9 +675,9 @@ def try_multi_enqueue(release, all_tracks, results, allowed_filetype):
                     album_name = album["title"]
                     artist_name = album["artist"]["artistName"]
                     logger.info(f"Failed to enqueue download to slskd for {artist_name} - {album_name} from {username}")
-                    # Delete ALL other downloads in all_downloads list
+                    # Cancel the transfers already queued for this attempt.
                     if len(all_downloads) > 0:
-                        cancel_and_delete(all_downloads)
+                        cancel_downloads(all_downloads)
                         return False, None
             except Exception:
                 album = lidarr.get_album(all_tracks[0]["albumId"])
@@ -691,16 +686,16 @@ def try_multi_enqueue(release, all_tracks, results, allowed_filetype):
 
                 logger.exception("Exception enqueueing tracks")
                 logger.info(f"Exception enqueueing download to slskd for {artist_name} - {album_name} from {username}")
-                # Delete all other downloads in all_downloads list
+                # Cancel the transfers already queued for this attempt.
                 if len(all_downloads) > 0:
-                    cancel_and_delete(all_downloads)
+                    cancel_downloads(all_downloads)
                     return False, None
         if enqueued == total:
             return True, all_downloads
         else:
-            # Delete all other downloads
+            # Cancel the transfers already queued for this attempt.
             if len(all_downloads) > 0:
-                cancel_and_delete(all_downloads)
+                cancel_downloads(all_downloads)
             return False, None
 
     else:
@@ -878,7 +873,7 @@ def monitor_downloads(grab_list, failed_grab):
     MAX_FILE_RETRIES = 4  # Max requeue attempts per file for hard errors (Errored, Cancelled, etc.)
 
     def delete_album(reason):
-        cancel_and_delete(grab_list[album_id]["files"])
+        cancel_downloads(grab_list[album_id]["files"])
         logger.info(f"{reason} Album: {grab_list[album_id]['title']} Artist: {grab_list[album_id]['artist']}")
         del grab_list[album_id]
         failed_grab.append(lidarr.get_album(album_id))
@@ -1445,10 +1440,8 @@ def main():
                 sys.exit(0)
             if failed == 0:
                 logger.info("Soularr finished. Exiting...")
-                slskd.transfers.remove_completed_downloads()
             else:
                 logger.info(f"{failed}: releases failed to find a match in the search results and are still wanted.")
-                slskd.transfers.remove_completed_downloads()
         else:
             logger.info("No releases wanted. Exiting...")
 

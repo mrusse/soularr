@@ -33,6 +33,12 @@ Make sure Lidarr can see your Slskd download directory, if you are running Lidar
 
 The script requires an api key from Slskd. Take a look at their [docs](https://github.com/slskd/slskd/blob/master/docs/config.md#authentication) on how to set it up (all you have to do is add it to the yml file under `web, authentication, api_keys, my_api_key`).
 
+Soularr cancels its failed transfers by ID. It leaves slskd's completed transfer
+history and files from failed downloads in place, since another user of the same
+slskd instance may share the download directory. Check for partial files after a
+failed album. Configure slskd to remove completed transfers if you want that
+history cleared automatically.
+
 ## Docker
 
 The best way to run the script is through Docker. A Docker image is available through [ghcr.io](https://github.com/mrusse/soularr/pkgs/container/soularr) and [dockerhub](https://hub.docker.com/r/mrusse08/soularr).
