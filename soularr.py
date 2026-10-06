@@ -454,10 +454,11 @@ def search_for_album(album):
         logger.info(f"Filtered search query: '{original_query}' -> '{query}'")
 
     logger.info(f"Searching for album: {query}")
+    search_timeout = config.getint("Search Settings", "search_timeout", fallback=5000)
     try:
         search = slskd.searches.search_text(
             searchText=query,
-            searchTimeout=config.getint("Search Settings", "search_timeout", fallback=5000),
+            searchTimeout=search_timeout,
             filterResponses=True,
             maximumPeerQueueLength=config.getint("Search Settings", "maximum_peer_queue", fallback=50),
             minimumPeerUploadSpeed=config.getint("Search Settings", "minimum_peer_upload_speed", fallback=0),
@@ -473,7 +474,7 @@ def search_for_album(album):
         if slskd.searches.state(search["id"], False)["state"] != "InProgress":  # Added False here as we don't want the search results here. Just the state.
             break
         time.sleep(1)
-        if (time.time() - start_time) > config.getint("Search Settings", "search_timeout", fallback=5000):
+        if (time.time() - start_time) > search_timeout / 1000 + 60:
             logger.error("Failed to perform search via SLSKD due to timeout on search results.")
             return False
 
