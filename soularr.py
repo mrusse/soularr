@@ -1138,7 +1138,11 @@ def get_records(missing: bool) -> list:
             page += 1
 
     elif search_type == "incrementing_page":
-        page = get_current_page(current_page_file_path)
+        # Keep one page counter per source: with search_source = all, missing and
+        # cutoff_unmet are fetched in the same run, and a shared counter gets reset to 1
+        # by the shorter list, so only the first page of missing was ever searched.
+        page_file = current_page_file_path if missing else current_page_file_path.replace(".txt", "_cutoff.txt")
+        page = get_current_page(page_file)
         try:
             wanted_records = lidarr.get_wanted(
                 page=page,
@@ -1150,7 +1154,7 @@ def get_records(missing: bool) -> list:
         except ConnectionError as ex:
             logger.error(f"Failed to grab record: {ex}")
         page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
-        update_current_page(current_page_file_path, str(page))
+        update_current_page(page_file, str(page))
 
     elif search_type == "first_page":
         wanted_records = wanted["records"]
