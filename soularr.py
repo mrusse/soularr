@@ -538,6 +538,18 @@ def slskd_do_enqueue(username, files, file_dir):
                             file_details["username"] = username
                             file_details["size"] = file["size"]
                             downloads.append(file_details)
+        # Every requested file must be tracked. Returning a short (or empty) list would make the
+        # caller treat the album as grabbed with files missing, and an empty list "completes" instantly.
+        tracked = {d["filename"] for d in downloads}
+        missing = [file["filename"] for file in files if file["filename"] not in tracked]
+        if missing:
+            logger.warning(f"slskd did not report {len(missing)} of {len(files)} enqueued files from {username} in {file_dir}; treating enqueue as failed")
+            for download in downloads:
+                try:
+                    slskd.transfers.cancel_download(username=username, id=download["id"])
+                except Exception:
+                    logger.warning(f"Failed to cancel download {download['filename']} for {username}", exc_info=True)
+            return None
         return downloads
     else:
         return None
