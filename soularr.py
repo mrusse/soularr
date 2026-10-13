@@ -17,8 +17,13 @@ import copy
 import music_tag
 import slskd_api
 from pyarr import LidarrAPI
+import requests
 from pyarr.exceptions import PyarrConnectionError
 from slskd_api.apis import users
+
+# pyarr wraps only timeouts in PyarrConnectionError; a refused or dropped connection (e.g. Lidarr
+# restarting) surfaces as requests' own ConnectionError, which is not the builtin ConnectionError.
+LIDARR_CONNECTION_ERRORS = (PyarrConnectionError, requests.exceptions.ConnectionError)
 
 
 class EnvInterpolation(configparser.ExtendedInterpolation):
@@ -1115,7 +1120,7 @@ def get_records(missing: bool) -> list:
             sort_key="albums.title",
             missing=missing,
         )
-    except PyarrConnectionError as ex:
+    except LIDARR_CONNECTION_ERRORS as ex:
         logger.error(f"An error occurred when attempting to get records: {ex}")
         return []
 
@@ -1133,7 +1138,7 @@ def get_records(missing: bool) -> list:
                     sort_key="albums.title",
                     missing=missing,
                 )
-            except PyarrConnectionError as ex:
+            except LIDARR_CONNECTION_ERRORS as ex:
                 logger.error(f"Failed to grab record: {ex}")
                 break
             if not wanted["records"]:
@@ -1151,7 +1156,7 @@ def get_records(missing: bool) -> list:
                 sort_key="albums.title",
                 missing=missing,
             )["records"]
-        except PyarrConnectionError as ex:
+        except LIDARR_CONNECTION_ERRORS as ex:
             logger.error(f"Failed to grab record: {ex}")
         else:
             page = 1 if page >= math.ceil(total_wanted / page_size) else page + 1
@@ -1176,7 +1181,7 @@ def get_records(missing: bool) -> list:
             while len(current_queue) < total_queued:
                 try:
                     next_page = lidarr.get_queue(page=page, sort_key="albums.title", sort_dir="ascending")
-                except PyarrConnectionError as ex:
+                except LIDARR_CONNECTION_ERRORS as ex:
                     logger.error(f"Failed to get queue details: {ex}")
                     break
                 current_queue.extend(next_page["records"])
@@ -1203,7 +1208,7 @@ def get_records(missing: bool) -> list:
         else:
             logging.info("No records wanted that arent already queued")
             wanted_records = []
-    except PyarrConnectionError as ex:
+    except LIDARR_CONNECTION_ERRORS as ex:
         logger.error(f"Failed to get queue details so not filtering based on queue: {ex}")
 
     return wanted_records

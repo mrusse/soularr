@@ -2,6 +2,7 @@
 from unittest import mock
 
 import pytest
+import requests
 from pyarr.exceptions import PyarrConnectionError
 
 import soularr
@@ -102,3 +103,27 @@ def test_queue_connection_error_returns_unfiltered(env, monkeypatch):
     soularr.lidarr.get_queue.side_effect = PyarrConnectionError("Lidarr down")
 
     assert [r["id"] for r in soularr.get_records(missing=True)] == [1, 2]
+
+
+def test_connection_refused_returns_empty(env, monkeypatch):
+    """pyarr only wraps timeouts in PyarrConnectionError; a refused connection (Lidarr down)
+    surfaces as requests.exceptions.ConnectionError."""
+    monkeypatch.setattr(soularr, "search_type", "first_page")
+    soularr.lidarr.get_wanted.side_effect = requests.exceptions.ConnectionError("Connection refused")
+
+    assert soularr.get_records(missing=True) == []
+
+
+def test_all_connection_refused_mid_paging_does_not_duplicate(env, monkeypatch):
+    monkeypatch.setattr(soularr, "search_type", "all")
+    get_wanted, _ = paged([rec(i) for i in range(25)])
+
+    def flaky(page=1, **kwargs):
+        if page == 2:
+            raise requests.exceptions.ConnectionError("Connection refused")
+        return get_wanted(page=page, **kwargs)
+
+    soularr.lidarr.get_wanted.side_effect = flaky
+
+    ids = [r["id"] for r in soularr.get_records(missing=True)]
+    assert len(ids) == len(set(ids))
