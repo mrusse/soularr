@@ -237,6 +237,12 @@ search_blacklist = WordToStripFromSearch1,WordToStripFromSearch2
 search_source = missing
 # Skip re-downloading albums that previously failed to import into Lidarr
 failed_import_denylist = True
+# Skip users whose downloads failed (timed out, errored or were rejected) on later runs, so a
+# different user is tried instead of the same one every time. Users are stored in failed_users.json
+# in the data directory (/data in Docker), next to failed_imports.json. Delete an entry (or the file) to clear it.
+ignore_failed_users = False
+# How long a failed user is skipped for, in hours. 0 = until removed from failed_users.json
+failed_user_ignore_hours = 168
 
 [Download Settings]
 download_filtering = True
