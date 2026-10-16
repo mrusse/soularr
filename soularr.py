@@ -1085,25 +1085,36 @@ def setup_logging(config, var_dir):
 
 
 def get_current_page(path: str, default_page=1) -> int:
+    page_string = ""
     if os.path.exists(path):
-        with open(path, "r") as file:
+        with open(path, "r", errors="replace") as file:
             page_string = file.read().strip()
 
-            if page_string:
-                return int(page_string)
-            else:
-                with open(path, "w") as file:
-                    file.write(str(default_page))
-                return default_page
-    else:
-        with open(path, "w") as file:
-            file.write(str(default_page))
-        return default_page
+    # A crash or container kill mid-write can leave the file empty or full of NUL bytes (#187).
+    # Anything that isn't a positive page number restarts from the first page instead of
+    # failing every run.
+    if page_string.isdecimal() and int(page_string) > 0:
+        return int(page_string)
+    if page_string:
+        logger.warning(f"Ignoring unreadable page number {page_string!r} in {path}; starting from page {default_page}")
+    update_current_page(path, str(default_page))
+    return default_page
 
 
 def update_current_page(path: str, page: str) -> None:
-    with open(path, "w") as file:
-        file.write(page)
+    # Write to a temporary file and rename it over the old one, so an interrupted write
+    # can't leave a half-written page file behind.
+    temp_path = f"{path}.tmp"
+    try:
+        with open(temp_path, "w") as file:
+            file.write(page)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(temp_path, path)
+    except OSError:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
 
 
 def get_records(missing: bool) -> list:
