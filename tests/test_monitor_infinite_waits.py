@@ -154,6 +154,9 @@ def test_import_poll_failed_import_still_denylisted(clock, env):
 def test_monitor_completes_normal_download(clock, env, monkeypatch):
     """Existing behaviour kept: a finished album is handed to process_completed_album."""
     soularr.slskd.transfers.get_download.return_value = {"state": "Completed, Succeeded"}
+    # A finished download is on disk in slskd's download directory (see #205).
+    (env / "slskd" / "Album").mkdir()
+    (env / "slskd" / "Album" / "01 - Track.flac").write_bytes(b"audio")
     processed = []
     monkeypatch.setattr(soularr, "process_completed_album", lambda data, fg: processed.append(data["album_id"]))
     grab_list = make_grab_list()
