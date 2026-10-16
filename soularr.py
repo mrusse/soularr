@@ -773,6 +773,11 @@ def search_and_queue(albums):
     return grab_list, failed_search, failed_grab
 
 
+def downloaded_file_path(file):
+    """Where slskd puts a finished download: <slskd download dir>/<remote folder name>/<file name>."""
+    return os.path.join(slskd_download_dir, file["file_dir"].split("\\")[-1], file["filename"].split("\\")[-1])
+
+
 def process_completed_album(album_data, failed_grab):
     os.chdir(slskd_download_dir)
     if rename_download_folders is True:
@@ -792,7 +797,7 @@ def process_completed_album(album_data, failed_grab):
         src_folder = os.path.join(slskd_download_dir, file_folder)
         if src_folder not in rm_dirs:
             rm_dirs.append(src_folder)  # Multi disk albums are sometimes in multiple folders. eg. CD01 CD02. So we need to clean up both
-        src_file = os.path.join(src_folder, filename)
+        src_file = downloaded_file_path(file)
         if "disk_no" in file and "disk_count" in file and file["disk_count"] > 1:
             filename = f"Disk {file['disk_no']} - {filename}"
         dst_file = os.path.join(import_folder_fullpath, filename)
@@ -958,6 +963,17 @@ def monitor_downloads(grab_list, failed_grab):
                 continue
 
             if album_done:
+                # slskd reports "Completed, Succeeded" before it moves the file out of its incomplete
+                # directory, so wait until every file is in place. stalled_timeout still bounds this.
+                not_moved = [f for f in grab_list[album_id]["files"] if not os.path.isfile(downloaded_file_path(f))]
+                if not_moved:
+                    if not grab_list[album_id].get("waiting_for_move"):
+                        grab_list[album_id]["waiting_for_move"] = True
+                        logger.info(
+                            f"Download finished for Album: {grab_list[album_id]['title']} Artist: {grab_list[album_id]['artist']}; "
+                            f"waiting for slskd to move {len(not_moved)} file(s) into the download directory"
+                        )
+                    continue
                 album_data = grab_list[album_id]
                 album_data["album_id"] = album_id
                 logger.info(f"Completed download of Album: {album_data['title']} Artist: {album_data['artist']}")
