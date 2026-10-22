@@ -297,6 +297,23 @@ If you are running the container on a shared pod, and wish to change the port on
 - WEBUI_PORT=18265
 ```
 
+### Password and allowed hosts
+
+By default the web UI has no login. To require one, set a password (the username defaults to `soularr`):
+
+```yml
+- WEBUI_PASSWORD=choose-a-password
+- WEBUI_USERNAME=soularr   # optional
+```
+
+Your browser will ask for these once. API keys are shown as `********` in the config editor either way; saving keeps the stored values unless you type new ones.
+
+Without a password, the web UI only answers when you open it by IP address, `localhost`, or a local name such as `tower`, `unraid.local` or `soularr.lan`. This stops other websites from reaching it through your browser (DNS rebinding). If you open it through a reverse proxy or a full hostname, set `WEBUI_PASSWORD` (recommended), or list the hostname:
+
+```yml
+- WEBUI_ALLOWED_HOSTS=soularr.example.com
+```
+
 Thanks to [EricH9958](https://github.com/EricH9958/Soularr-Dashboard) for making the original dashboard for Soularr.
 
 ## Running Manually

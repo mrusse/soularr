@@ -80,6 +80,7 @@ function saveConfig() {
             clearInterval(dotAnim);
             btn.classList.remove('saving');
             btn.textContent = data.ok ? 'Saved' : 'Error';
+            if (!data.ok && data.error) alert(data.error);
             btn.classList.toggle('active', data.ok);
             btn.classList.toggle('save-error', !data.ok);
             setTimeout(() => {

@@ -47,7 +47,8 @@ This is a volunteer project, so responses depend on the maintainers' availabilit
 
 Soularr is designed to run on a trusted home network next to slskd and Lidarr.
 
-- **Do not expose the web UI (port `8265`) to the internet.** It has no login. Anyone who can reach it can read `config.ini`, including the slskd and Lidarr API keys, and can change it. If you don't use the web UI, turn it off with `WEBUI_ENABLED=false`. If you need remote access, put it behind a VPN or a reverse proxy that requires authentication.
+- **Set `WEBUI_PASSWORD`.** Without it the web UI has no login, and anyone who can reach it can change `config.ini` (API keys are masked in the editor, but a config change can still point Soularr elsewhere). Without a password the UI only answers to IP addresses, `localhost` and local names, which blocks DNS-rebinding attacks from other websites. If you don't use the web UI, turn it off with `WEBUI_ENABLED=false`.
+- **Do not expose the web UI (port `8265`) directly to the internet.** For remote access use a VPN or an HTTPS reverse proxy: the login is HTTP Basic auth, which sends the password in the clear over plain HTTP.
 - **Treat `config.ini` as a secret.** It holds your slskd and Lidarr API keys. Keep it readable only by the user Soularr runs as, and give slskd its own API key rather than reusing the Lidarr one.
 - **Run the container as a non-root user** (the `user:` setting in the Docker Compose example), and mount only the directories Soularr needs.
 - **Files from Soulseek come from untrusted peers.** Soularr moves downloads into Lidarr's import folder and edits their tags. Keep slskd's download directory separate from anything else you care about.
