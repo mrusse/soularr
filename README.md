@@ -234,6 +234,7 @@ album_prepend_artist = False
 # album type. When unset, the search is the album title (with the artist if album_prepend_artist).
 #search_template = {artist} {album}
 #search_template_ep = {artist} {album} {year} | {artist} {album}
+#search_template_single = {artist} {album} {year} | {artist} {album}
 # Search modes: all, incrementing_page, first_page
 # "all": search for every wanted record, "first_page": repeatedly searches the first page, "incrementing_page": starts with the first page and increments on each run.
 search_type = incrementing_page
