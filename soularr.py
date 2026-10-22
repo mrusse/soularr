@@ -12,6 +12,7 @@ import operator
 import configparser
 import logging
 import json
+import string
 from datetime import datetime
 import copy
 import music_tag
@@ -92,6 +93,7 @@ lock_file_path = None
 config_file_path = None
 current_page_file_path = None
 search_blacklist = []
+search_templates = {}
 
 # How long to wait for a single Lidarr DownloadedAlbumsScan command. It can sit queued behind other
 # Lidarr commands (e.g. a library refresh), so this is generous.
@@ -512,28 +514,83 @@ def filter_list(albums):
         return None
 
 
-def search_for_album(album):
+SEARCH_TEMPLATE_FIELDS = ("artist", "album", "year", "type")
+
+
+def load_search_templates(cfg):
+    """
+    Read search_template and search_template_<album type> (e.g. search_template_ep) from [Search Settings].
+    Each value is one or more templates separated by "|", tried in order. Returns {type key: [templates]},
+    where "" is the default. Raises ValueError for a malformed template or an unknown placeholder.
+    """
+    templates = {}
+    if not cfg.has_section("Search Settings"):
+        return templates
+    for option, raw in cfg.items("Search Settings"):
+        if option != "search_template" and not option.startswith("search_template_"):
+            continue
+        parts = [part.strip() for part in raw.split("|") if part.strip()]
+        for part in parts:
+            try:
+                fields = [field for _, field, _, _ in string.Formatter().parse(part) if field is not None]
+            except ValueError as ex:
+                raise ValueError(f"[Search Settings] {option}: can't parse '{part}': {ex}")
+            for field in fields:
+                if field not in SEARCH_TEMPLATE_FIELDS:
+                    allowed = ", ".join("{" + f + "}" for f in SEARCH_TEMPLATE_FIELDS)
+                    raise ValueError(f"[Search Settings] {option}: unknown placeholder {{{field}}} in '{part}'. Use {allowed}")
+        if parts:
+            templates["" if option == "search_template" else option[len("search_template_"):]] = parts
+    return templates
+
+
+def default_search_query(album):
     album_title = album["title"]
     artist_name = album["artist"]["artistName"]
-    album_id = album["id"]
     if len(album_title) == 1:  # Need to add some code to wrangle specific artist names in here.. ;)
-        query = artist_name + " " + album_title
+        return artist_name + " " + album_title
+    return artist_name + " " + album_title if config.getboolean("Search Settings", "album_prepend_artist", fallback=False) else album_title
+
+
+def build_search_queries(album):
+    """
+    The search strings to try for an album, in order (#94). Uses search_template_<album type> if set,
+    otherwise search_template, otherwise the original artist/title query.
+    """
+    type_key = "_".join(str(album.get("albumType") or "").lower().split())
+    templates = search_templates.get(type_key) or search_templates.get("")
+    if templates:
+        values = {
+            "artist": album["artist"]["artistName"],
+            "album": album["title"],
+            "year": (album.get("releaseDate") or "")[:4],
+            "type": album.get("albumType") or "",
+        }
+        raw_queries = [template.format(**values) for template in templates]
     else:
-        query = artist_name + " " + album_title if config.getboolean("Search Settings", "album_prepend_artist", fallback=False) else album_title
+        raw_queries = [default_search_query(album)]
 
-    original_query = query
-    for word in search_blacklist:
-        if word:
-            # Case-insensitive replacement
-            pattern = re.compile(re.escape(word), re.IGNORECASE)
-            query = pattern.sub("", query)
+    queries = []
+    for original_query in raw_queries:
+        query = original_query
+        for word in search_blacklist:
+            if word:
+                # Case-insensitive replacement
+                pattern = re.compile(re.escape(word), re.IGNORECASE)
+                query = pattern.sub("", query)
 
-    # Clean up double spaces
-    query = " ".join(query.split())
+        # Clean up double spaces
+        query = " ".join(query.split())
 
-    if query != original_query:
-        logger.info(f"Filtered search query: '{original_query}' -> '{query}'")
+        if query != " ".join(original_query.split()):
+            logger.info(f"Filtered search query: '{original_query}' -> '{query}'")
+        if query and query not in queries:
+            queries.append(query)
+    return queries
 
+
+def search_for_album(album, query):
+    album_id = album["id"]
     logger.info(f"Searching for album: {query}")
     search_timeout = config.getint("Search Settings", "search_timeout", fallback=5000)
     try:
@@ -853,19 +910,31 @@ def search_and_queue(albums):
     failed_grab = []
     failed_search = []
     for i, album in enumerate(albums):
-        search_start = time.time()
-        if search_for_album(album):
-            if not find_download(album, grab_list):
-                failed_grab.append(album)
-        else:
-            failed_search.append(album)
+        queries = build_search_queries(album)
+        found_results = False
+        grabbed = False
+        for q, query in enumerate(queries):
+            search_start = time.time()
+            if search_for_album(album, query):
+                found_results = True
+                grabbed = find_download(album, grab_list)
+            if q < len(queries) - 1 and not grabbed:
+                logger.info(f"No match from '{query}', trying next search: '{queries[q + 1]}'")
+            last_search_of_run = (grabbed or q == len(queries) - 1) and i == len(albums) - 1
+            if minimum_search_interval > 0 and not last_search_of_run:
+                elapsed = time.time() - search_start
+                remaining = minimum_search_interval - elapsed
+                if remaining > 0:
+                    logger.info(f"Search completed in {elapsed:.1f}s, waiting {remaining:.1f}s to meet minimum_search_interval")
+                    time.sleep(remaining)
+            if grabbed:
+                break
 
-        if minimum_search_interval > 0 and i < len(albums) - 1:
-            elapsed = time.time() - search_start
-            remaining = minimum_search_interval - elapsed
-            if remaining > 0:
-                logger.info(f"Search completed in {elapsed:.1f}s, waiting {remaining:.1f}s to meet minimum_search_interval")
-                time.sleep(remaining)
+        if not grabbed:
+            if found_results:
+                failed_grab.append(album)
+            else:
+                failed_search.append(album)
 
     return grab_list, failed_search, failed_grab
 
@@ -1489,6 +1558,7 @@ def main():
         config_file_path, \
         current_page_file_path, \
         search_blacklist, \
+        search_templates, \
         lidarr, \
         slskd, \
         config, \
@@ -1593,6 +1663,12 @@ def main():
         ignored_users = split_config_list(config.get("Search Settings", "ignored_users", fallback=""))
         search_blacklist = config.get("Search Settings", "search_blacklist", fallback="").split(",")
         search_blacklist = [word.strip() for word in search_blacklist if word.strip()]
+        try:
+            search_templates = load_search_templates(config)
+        except ValueError as ex:
+            logger.error(f"Invalid search template: {ex}")
+            logger.error("Exiting...")
+            sys.exit(0)
         search_type = config.get("Search Settings", "search_type", fallback="first_page").lower().strip()
         search_source = config.get("Search Settings", "search_source", fallback="missing").lower().strip()
 
