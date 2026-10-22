@@ -165,7 +165,7 @@ services:
 
 ## Configure your config file
 
-The config file has a bunch of different settings that affect how the script runs. Any lists in the config such as "accepted_countries" need to be comma separated with no spaces (e.g. `","` not `" , "` or `" ,"`).
+The config file has a bunch of different settings that affect how the script runs. Lists in the config such as "accepted_countries" are comma separated. Spaces around the commas and a trailing comma are ignored, so `flac, mp3` and `flac,mp3` mean the same thing. Because entries are trimmed, a `title_blacklist` entry of `" live"` matches the same titles as `"live"`.
 
 Given the directory structure above you can use the following configuration
 
@@ -282,6 +282,9 @@ Soularr includes a built-in web interface accessible at `http://your-host:8265` 
 - **Log viewer** — streams logs in real time
 - **Config editor** — view and edit your `config.ini` in the browser
 - **Failed Imports** — view and clear albums that previously failed to import into Lidarr
+
+> [!WARNING]
+> The web UI has no login. Anyone who can reach the port can read your `config.ini`, including the Lidarr and Slskd API keys, and change it. Only expose it on a trusted network, never directly to the internet, and turn it off with `WEBUI_ENABLED=false` if you don't use it. See [SECURITY.md](SECURITY.md).
 
 The web UI is enabled by default in Docker. Make sure port `8265` is exposed in your compose file or `docker run` command (see the examples above).
 
