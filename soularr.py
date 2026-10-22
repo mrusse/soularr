@@ -82,6 +82,10 @@ config_file_path = None
 current_page_file_path = None
 search_blacklist = []
 
+# How long to wait for a single Lidarr DownloadedAlbumsScan command. It can sit queued behind other
+# Lidarr commands (e.g. a library refresh), so this is generous.
+IMPORT_POLL_TIMEOUT = 3600
+
 # === Runtime State & Caches ===
 search_cache = {}
 folder_cache = {}
@@ -849,10 +853,18 @@ def process_completed_album(album_data, failed_grab):
         )  # Album all tagged up and in a correctly named folder. This should work more reliably
         logger.info(f"Starting Lidarr import for: {album_data['title']} ID: {command['id']}")
 
+        poll_start = time.time()
         while True:
             current_task = lidarr.get_command(command["id"])
-            if current_task["status"] == "completed" or current_task["status"] == "failed":
+            # Lidarr commands can also end as aborted, cancelled or orphaned, not just completed/failed.
+            if current_task["status"] not in ("queued", "started"):
                 break
+            if time.time() - poll_start > IMPORT_POLL_TIMEOUT:
+                logger.warning(
+                    f"Lidarr import of {album_data['title']} still '{current_task['status']}' after "
+                    f"{IMPORT_POLL_TIMEOUT}s. No longer waiting; Lidarr may still complete it."
+                )
+                return
             time.sleep(2)
 
         try:
@@ -941,18 +953,20 @@ def monitor_downloads(grab_list, failed_grab):
 
     while True:
         for album_id in list(grab_list.keys()):
+            grab_list[album_id].setdefault("count_start", time.time())
+            elapsed = time.time() - grab_list[album_id]["count_start"]
+
+            # Checked before polling so a transfer slskd can no longer report on (e.g. removed in its UI)
+            # still times out instead of keeping the monitor loop alive forever.
+            if elapsed >= stalled_timeout:
+                delete_album("Timeout waiting for download of")
+                continue
+
             if not slskd_download_status(grab_list[album_id]["files"]):
-                grab_list[album_id]["error_count"] = grab_list[album_id].get("error_count", 0) + 1
                 continue
 
             album_done, problems, queued = downloads_all_done(grab_list[album_id]["files"])
 
-            grab_list[album_id].setdefault("count_start", time.time())
-            elapsed = time.time() - grab_list[album_id]["count_start"]
-
-            if elapsed >= stalled_timeout:
-                delete_album("Timeout waiting for download of")
-                continue
             if queued == len(grab_list[album_id]["files"]) and elapsed >= remote_queue_timeout:
                 delete_album("Timeout waiting for download of")
                 continue
