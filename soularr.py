@@ -875,6 +875,11 @@ def downloaded_file_path(file):
     return os.path.join(slskd_download_dir, file["file_dir"].split("\\")[-1], file["filename"].split("\\")[-1])
 
 
+def is_extra_file(file, filetype):
+    """True for files that aren't the album's audio (e.g. .nfo, .jpg, .cue), whatever the extension case."""
+    return file["filename"].rsplit(".", 1)[-1].lower() != filetype.split(" ")[0].lower()
+
+
 def process_completed_album(album_data, failed_grab):
     os.chdir(slskd_download_dir)
     if rename_download_folders is True:
@@ -987,10 +992,15 @@ def process_completed_album(album_data, failed_grab):
 def monitor_downloads(grab_list, failed_grab):
     MAX_FILE_RETRIES = 4  # Max requeue attempts per file for hard errors (Errored, Cancelled, etc.)
 
+    def audio_files(album_id):
+        """The album's audio files. Only these decide whether an album is done, failed or timed out (#194)."""
+        album = grab_list[album_id]
+        return [f for f in album["files"] if not is_extra_file(f, album["filetype"])]
+
     def delete_album(reason):
         album = grab_list[album_id]
         unfinished_users = {
-            f["username"] for f in album["files"] if not (f.get("status") and f["status"]["state"] == "Completed, Succeeded")
+            f["username"] for f in audio_files(album_id) if not (f.get("status") and f["status"]["state"] == "Completed, Succeeded")
         }
         for username in sorted(unfinished_users):
             record_failed_user(username, f"{album['artist']} - {album['title']}", reason)
@@ -1016,7 +1026,7 @@ def monitor_downloads(grab_list, failed_grab):
         Handle Cancelled/TimedOut/Errored/Aborted files.
         Returns True if the album was deleted (caller should stop processing this album).
         """
-        if len(problems) == len(grab_list[album_id]["files"]):
+        if len(problems) == len(audio_files(album_id)):
             delete_album("Failed grab of")
             return True
         file.setdefault("retry", 0)
@@ -1036,7 +1046,7 @@ def monitor_downloads(grab_list, failed_grab):
         Rejected files often indicate grab limits; we wait for all other files to reach
         a stable state before requeuing.
         """
-        files = grab_list[album_id]["files"]
+        files = audio_files(album_id)
         if len(problems) == len(files):
             delete_album("Failed grab of")
             return True
@@ -1066,16 +1076,31 @@ def monitor_downloads(grab_list, failed_grab):
                 delete_album("Timeout waiting for download of")
                 continue
 
-            if not slskd_download_status(grab_list[album_id]["files"]):
+            slskd_download_status(grab_list[album_id]["files"])
+            audio = audio_files(album_id)
+            # Extras (.nfo, .jpg, ...) must not fail, hold up or time out an album whose audio downloaded (#194).
+            if any(f["status"] is None for f in audio):
                 continue
 
-            album_done, problems, queued = downloads_all_done(grab_list[album_id]["files"])
+            album_done, problems, queued = downloads_all_done(audio)
 
-            if queued == len(grab_list[album_id]["files"]) and elapsed >= remote_queue_timeout:
+            if queued == len(audio) and elapsed >= remote_queue_timeout:
                 delete_album("Timeout waiting for download of")
                 continue
 
             if album_done:
+                extras = [f for f in grab_list[album_id]["files"] if is_extra_file(f, grab_list[album_id]["filetype"])]
+                skipped = [f for f in extras if not (f["status"] and f["status"]["state"] == "Completed, Succeeded")]
+                if skipped:
+                    for f in skipped:
+                        try:
+                            slskd.transfers.cancel_download(username=f["username"], id=f["id"])
+                        except Exception:
+                            logger.debug(f"Could not cancel extra file {f['filename']}", exc_info=True)
+                    names = ", ".join(f["filename"].split("\\")[-1] for f in skipped)
+                    logger.info(f"Skipping {len(skipped)} extra file(s) that didn't download for {grab_list[album_id]['title']}: {names}")
+                    grab_list[album_id]["files"] = [f for f in grab_list[album_id]["files"] if f not in skipped]
+
                 # slskd reports "Completed, Succeeded" before it moves the file out of its incomplete
                 # directory, so wait until every file is in place. stalled_timeout still bounds this.
                 not_moved = [f for f in grab_list[album_id]["files"] if not os.path.isfile(downloaded_file_path(f))]
