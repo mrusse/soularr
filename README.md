@@ -227,6 +227,14 @@ allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3
 ignored_users = User1,User2,Fred,Bob
 # Prepend artist name when searching for albums
 album_prepend_artist = False
+# Optional: build the search string yourself. Placeholders: {artist} {album} {year} {type}
+# ({type} is Lidarr's album type: Album, EP, Single, ...). Separate several with "|" to try them
+# in order until one finds a match; each extra search counts toward minimum_search_interval.
+# search_template_<type> (e.g. search_template_ep, search_template_single) overrides it for that
+# album type. When unset, the search is the album title (with the artist if album_prepend_artist).
+#search_template = {artist} {album}
+#search_template_ep = {artist} {album} {year} | {artist} {album}
+#search_template_single = {artist} {album} {year} | {artist} {album}
 # Search modes: all, incrementing_page, first_page
 # "all": search for every wanted record, "first_page": repeatedly searches the first page, "incrementing_page": starts with the first page and increments on each run.
 search_type = incrementing_page
