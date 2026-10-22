@@ -248,8 +248,12 @@ ignore_failed_users = False
 failed_user_ignore_hours = 168
 
 [Download Settings]
+# Only download the album's audio files, not everything in the remote folder (.m3u, .log, images, ...)
 download_filtering = True
+# Also download files with these extensions alongside the audio (needs download_filtering = True)
 use_extension_whitelist = False
+# Extra (non-audio) files are best-effort: if one fails or is stuck in the peer's queue,
+# the album is still imported without it
 extensions_whitelist = lrc,nfo,txt
 # Rename completed downloads to "Artist - Album (Year)" before Lidarr import
 rename_download_folders = True
