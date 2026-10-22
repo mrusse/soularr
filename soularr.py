@@ -117,7 +117,8 @@ def album_match(lidarr_tracks, slskd_tracks, username, filetype):
         best_match = 0.0
 
         for slskd_track in slskd_tracks:
-            slskd_filename = slskd_track["filename"]
+            name, dot, extension = slskd_track["filename"].rpartition(".")
+            slskd_filename = f"{name}.{extension.lower()}" if dot else slskd_track["filename"]
 
             # Try to match the ratio with the exact filenames
             ratio = difflib.SequenceMatcher(None, lidarr_filename, slskd_filename).ratio()
@@ -169,8 +170,9 @@ def album_track_num(directory):
     index = -1
     filetype = ""
     for file in files:
-        if file["filename"].split(".")[-1] in allowed_filetypes_no_attributes:
-            new_index = allowed_filetypes_no_attributes.index(file["filename"].split(".")[-1])
+        extension = file["filename"].split(".")[-1].lower()
+        if extension in allowed_filetypes_no_attributes:
+            new_index = allowed_filetypes_no_attributes.index(extension)
 
             if index == -1:
                 index = new_index
@@ -236,8 +238,9 @@ def choose_release(artist_name, releases):
     for release in releases:
         country = release["country"][0] if release["country"] else None
 
-        if release["format"][1] == "x" and allow_multi_disc:
-            format_accepted = release["format"].split("x", 1)[1] in accepted_formats
+        multi_disc = re.match(r"^\d+x(.+)$", release["format"])
+        if multi_disc and allow_multi_disc:
+            format_accepted = multi_disc.group(1) in accepted_formats
         else:
             format_accepted = release["format"] in accepted_formats
 
@@ -279,7 +282,7 @@ def choose_release(artist_name, releases):
 
 
 def verify_filetype(file, allowed_filetype):
-    current_filetype = file["filename"].split(".")[-1]
+    current_filetype = file["filename"].split(".")[-1].lower()
     bitdepth = None
     samplerate = None
     bitrate = None
@@ -292,7 +295,7 @@ def verify_filetype(file, allowed_filetype):
         bitdepth = file["bitDepth"]
 
     # Check if the types match up for the current files type and the current type from the config
-    if current_filetype == allowed_filetype.split(" ")[0]:
+    if current_filetype == allowed_filetype.split(" ")[0].lower():
         # Check if the current type from the config specifies other attributes than the filetype (bitrate etc)
         if " " in allowed_filetype:
             selected_attributes = allowed_filetype.split(" ")[1]
@@ -407,8 +410,14 @@ def check_for_match(tracks, allowed_filetype, file_dirs, username):
     return False, {}, ""
 
 
+def split_config_list(raw: str) -> list:
+    """Split a comma-separated config value, tolerating spaces around entries and empty entries."""
+    items = [" ".join(item.split()) for item in raw.split(",")]
+    return [item for item in items if item]
+
+
 def is_blacklisted(title: str) -> bool:
-    blacklist = config.get("Search Settings", "title_blacklist", fallback="").lower().split(",")
+    blacklist = split_config_list(config.get("Search Settings", "title_blacklist", fallback="").lower())
     for word in blacklist:
         if word != "" and word in title.lower():
             logger.info(f"Skipping {title} due to blacklisted word: {word}")
@@ -1581,7 +1590,7 @@ def main():
 
         slskd_url_base = config.get("Slskd", "url_base", fallback="/")
 
-        ignored_users = config.get("Search Settings", "ignored_users", fallback="").split(",")
+        ignored_users = split_config_list(config.get("Search Settings", "ignored_users", fallback=""))
         search_blacklist = config.get("Search Settings", "search_blacklist", fallback="").split(",")
         search_blacklist = [word.strip() for word in search_blacklist if word.strip()]
         search_type = config.get("Search Settings", "search_type", fallback="first_page").lower().strip()
@@ -1589,7 +1598,7 @@ def main():
 
         download_filtering = config.getboolean("Download Settings", "download_filtering", fallback=False)
         use_extension_whitelist = config.getboolean("Download Settings", "use_extension_whitelist", fallback=False)
-        extensions_whitelist = config.get("Download Settings", "extensions_whitelist", fallback="txt,nfo,jpg").split(",")
+        extensions_whitelist = split_config_list(config.get("Download Settings", "extensions_whitelist", fallback="txt,nfo,jpg"))
         rename_download_folders = config.getboolean("Download Settings", "rename_download_folders", fallback=True)
 
         search_sources = [search_source]
@@ -1611,16 +1620,12 @@ def main():
 
         default_accepted_countries = "Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada"
         default_accepted_formats = "CD,Digital Media,Vinyl"
-        accepted_countries = config.get("Release Settings", "accepted_countries", fallback=default_accepted_countries).split(",")
+        accepted_countries = split_config_list(config.get("Release Settings", "accepted_countries", fallback=default_accepted_countries))
         skip_region_check = config.getboolean("Release Settings", "skip_region_check", fallback=False)
-        accepted_formats = config.get("Release Settings", "accepted_formats", fallback=default_accepted_formats).split(",")
+        accepted_formats = split_config_list(config.get("Release Settings", "accepted_formats", fallback=default_accepted_formats))
 
         raw_filetypes = config.get("Search Settings", "allowed_filetypes", fallback="flac,mp3")
-
-        if "," in raw_filetypes:
-            allowed_filetypes = raw_filetypes.split(",")
-        else:
-            allowed_filetypes = [raw_filetypes]
+        allowed_filetypes = [filetype.lower() for filetype in split_config_list(raw_filetypes)]
 
         # Init directory cache. The wide search returns all the data we need. This prevents us from hammering the users on the Soulseek network
         search_cache = {}
