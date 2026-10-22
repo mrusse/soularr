@@ -76,6 +76,9 @@ minimum_search_interval = None
 page_size = None
 failed_import_denylist = None
 failed_import_denylist_file_path = None
+ignore_failed_users = None
+failed_user_ignore_hours = None
+failed_users_file_path = None
 use_most_common_tracknum = None
 allow_multi_disc = None
 accepted_countries = []
@@ -96,6 +99,7 @@ IMPORT_POLL_TIMEOUT = 3600
 search_cache = {}
 folder_cache = {}
 broken_user = []
+failed_users = {}
 
 
 def album_match(lidarr_tracks, slskd_tracks, username, filetype):
@@ -616,6 +620,8 @@ def try_enqueue(all_tracks, results, allowed_filetype):
     for username in results:
         if allowed_filetype not in results[username]:
             continue
+        if is_skipped_user(username):
+            continue
         logger.debug(f"Parsing result from user: {username}")
         file_dirs = results[username][allowed_filetype]
         found, directory, file_dir = check_for_match(all_tracks, allowed_filetype, file_dirs, username)
@@ -669,6 +675,8 @@ def try_multi_enqueue(release, all_tracks, results, allowed_filetype):
     for disk in split_release:
         for username in tmp_results:
             if allowed_filetype not in tmp_results[username]:
+                continue
+            if is_skipped_user(username):
                 continue
             file_dirs = results[username][allowed_filetype]
             found, directory, file_dir = check_for_match(disk["tracks"], allowed_filetype, file_dirs, username)
@@ -908,6 +916,12 @@ def monitor_downloads(grab_list, failed_grab):
     MAX_FILE_RETRIES = 4  # Max requeue attempts per file for hard errors (Errored, Cancelled, etc.)
 
     def delete_album(reason):
+        album = grab_list[album_id]
+        unfinished_users = {
+            f["username"] for f in album["files"] if not (f.get("status") and f["status"]["state"] == "Completed, Succeeded")
+        }
+        for username in sorted(unfinished_users):
+            record_failed_user(username, f"{album['artist']} - {album['title']}", reason)
         cancel_and_delete(grab_list[album_id]["files"])
         logger.info(f"{reason} Album: {grab_list[album_id]['title']} Artist: {grab_list[album_id]['artist']}")
         del grab_list[album_id]
@@ -1274,6 +1288,68 @@ def add_to_failed_import_denylist(file_path, album_id, artist, title, folder_pat
         logger.info(f"Added to failed import denylist: {artist} - {title} (ID: {album_id})")
 
 
+def is_skipped_user(username):
+    """True if a user should not be browsed or downloaded from: listed in ignored_users or a recent failure."""
+    if username in ignored_users:
+        logger.debug(f"Skipping user in ignored_users: {username}")
+        return True
+    if is_failed_user(username):
+        logger.debug(f"Skipping user with a recent failed download: {username}")
+        return True
+    return False
+
+
+def failed_user_expired(entry):
+    if not failed_user_ignore_hours or failed_user_ignore_hours <= 0:
+        return False  # 0 means ignore until removed by hand
+    try:
+        last_failed = datetime.strptime(entry["last_failed"], "%Y-%m-%dT%H:%M:%S")
+    except (KeyError, TypeError, ValueError):
+        return True
+    return (datetime.now() - last_failed).total_seconds() > failed_user_ignore_hours * 3600
+
+
+def load_failed_users(file_path):
+    """Load the failed-users file, dropping entries older than failed_user_ignore_hours."""
+    if not os.path.exists(file_path):
+        return {}
+    try:
+        with open(file_path, "r") as file:
+            users = json.load(file)
+    except (json.JSONDecodeError, IOError) as ex:
+        logger.warning(f"Error loading failed users file: {ex}. Starting with an empty list.")
+        return {}
+    return {username: entry for username, entry in users.items() if not failed_user_expired(entry)}
+
+
+def is_failed_user(username):
+    if not ignore_failed_users:
+        return False
+    entry = failed_users.get(username)
+    return entry is not None and not failed_user_expired(entry)
+
+
+def record_failed_user(username, album, reason):
+    """Remember a user whose download failed so later runs pick someone else."""
+    if not ignore_failed_users:
+        return
+    entry = failed_users.setdefault(username, {"failures": 0})
+    entry["failures"] += 1
+    entry["last_failed"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    entry["last_album"] = album
+    entry["last_reason"] = reason
+    try:
+        with open(failed_users_file_path, "w") as file:
+            json.dump(failed_users, file, indent=2)
+    except IOError as ex:
+        logger.error(f"Error saving failed users file: {ex}")
+    if not failed_user_ignore_hours or failed_user_ignore_hours <= 0:
+        duration = "until removed from failed_users.json"
+    else:
+        duration = f"for {failed_user_ignore_hours:g}h"
+    logger.info(f"Ignoring user {username} {duration} after failed download of {album}")
+
+
 def main():
     global \
         slskd_api_key, \
@@ -1300,6 +1376,10 @@ def main():
         page_size, \
         failed_import_denylist, \
         failed_import_denylist_file_path, \
+        ignore_failed_users, \
+        failed_user_ignore_hours, \
+        failed_users_file_path, \
+        failed_users, \
         use_selected_lidarr_release, \
         use_most_common_tracknum, \
         allow_multi_disc, \
@@ -1361,6 +1441,7 @@ def main():
     config_file_path = os.path.join(args.config_dir, "config.ini")
     current_page_file_path = os.path.join(args.var_dir, ".current_page.txt")
     failed_import_denylist_file_path = os.path.join(args.var_dir, "failed_imports.json")
+    failed_users_file_path = os.path.join(args.var_dir, "failed_users.json")
 
     if not is_docker() and os.path.exists(lock_file_path) and args.lock_file:
         logger.info(f"Soularr instance is already running.")
@@ -1429,6 +1510,9 @@ def main():
         minimum_search_interval = config.getint("Search Settings", "minimum_search_interval", fallback=5)
         page_size = config.getint("Search Settings", "number_of_albums_to_grab", fallback=10)
         failed_import_denylist = config.getboolean("Search Settings", "failed_import_denylist", fallback=True)
+        ignore_failed_users = config.getboolean("Search Settings", "ignore_failed_users", fallback=False)
+        failed_user_ignore_hours = config.getfloat("Search Settings", "failed_user_ignore_hours", fallback=168)
+        failed_users = load_failed_users(failed_users_file_path) if ignore_failed_users else {}
 
         use_selected_lidarr_release = config.getboolean("Release Settings", "use_selected_lidarr_release", fallback=False)
         use_most_common_tracknum = config.getboolean("Release Settings", "use_most_common_tracknum", fallback=True)
