@@ -218,6 +218,9 @@ minimum_peer_upload_speed = 0
 minimum_filename_match_ratio = 0.8
 # Minimum time (seconds) between searches. Set to 0 to disable.
 minimum_search_interval = 5
+# Wait this many hours before searching again for an album that wasn't found or failed to download.
+# Attempts are tracked in search_attempts.json in the data directory. 0 = search every run (default).
+search_retry_wait_hours = 0
 # Preferred file types and qualities (most to least preferred)
 # Use "flac" or "mp3" to ignore quality details
 allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3

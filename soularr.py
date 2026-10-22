@@ -73,6 +73,8 @@ rename_download_folders = None
 search_sources = []
 minimum_match_ratio = None
 minimum_search_interval = None
+search_retry_wait_hours = None
+search_attempts_file_path = None
 page_size = None
 failed_import_denylist = None
 failed_import_denylist_file_path = None
@@ -414,6 +416,53 @@ def is_blacklisted(title: str) -> bool:
     return False
 
 
+def load_search_attempts(file_path):
+    if not os.path.exists(file_path):
+        return {}
+    try:
+        with open(file_path, "r") as file:
+            return json.load(file)
+    except (json.JSONDecodeError, IOError) as ex:
+        logger.warning(f"Error loading search attempts file: {ex}. Starting with an empty list.")
+        return {}
+
+
+def save_search_attempts(file_path, attempts):
+    try:
+        with open(file_path, "w") as file:
+            json.dump(attempts, file, indent=2)
+    except IOError as ex:
+        logger.error(f"Error saving search attempts file: {ex}")
+
+
+def waiting_to_retry(entry):
+    """True if an album's last failed attempt is more recent than search_retry_wait_hours."""
+    try:
+        last_failed = datetime.strptime(entry["last_failed"], "%Y-%m-%dT%H:%M:%S")
+    except (KeyError, TypeError, ValueError):
+        return False
+    return (datetime.now() - last_failed).total_seconds() < search_retry_wait_hours * 3600
+
+
+def update_search_attempts(albums, failed_albums):
+    """Record albums that failed this run and forget the ones that succeeded."""
+    if not search_retry_wait_hours or search_retry_wait_hours <= 0:
+        return
+    attempts = load_search_attempts(search_attempts_file_path)
+    failed_ids = {str(album["id"]) for album in failed_albums}
+    now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    for album in albums:
+        album_key = str(album["id"])
+        if album_key in failed_ids:
+            entry = attempts.setdefault(album_key, {"attempts": 0})
+            entry["attempts"] += 1
+            entry["last_failed"] = now
+            entry["album"] = f"{album['artist']['artistName']} - {album['title']}"
+        else:
+            attempts.pop(album_key, None)
+    save_search_attempts(search_attempts_file_path, attempts)
+
+
 def filter_list(albums):
     """
     Helper to do all the various filtering in one go and in one place. Same net effect as the previous multi-stage approach
@@ -438,6 +487,15 @@ def filter_list(albums):
             continue
         else:
             list_to_download.append(album)
+
+    if search_retry_wait_hours and search_retry_wait_hours > 0:
+        attempts = load_search_attempts(search_attempts_file_path)
+        waiting = [album for album in list_to_download if waiting_to_retry(attempts.get(str(album["id"]), {}))]
+        for album in waiting:
+            logger.debug(f"Waiting to retry: {album['artist']['artistName']} - {album['title']} (ID: {album['id']})")
+        if waiting:
+            logger.info(f"Skipping {len(waiting)} album(s) that failed within the last {search_retry_wait_hours:g}h")
+            list_to_download = [album for album in list_to_download if album not in waiting]
 
     if len(list_to_download) > 0:
         return list_to_download
@@ -1060,6 +1118,8 @@ def grab_most_wanted(albums):
 
     monitor_downloads(grab_list, failed_grab)
 
+    update_search_attempts(albums, failed_search + failed_grab)
+
     count = len(failed_search) + len(failed_grab)
     for album in failed_search:
         album_title = album["title"]
@@ -1373,6 +1433,8 @@ def main():
         search_sources, \
         minimum_match_ratio, \
         minimum_search_interval, \
+        search_retry_wait_hours, \
+        search_attempts_file_path, \
         page_size, \
         failed_import_denylist, \
         failed_import_denylist_file_path, \
@@ -1440,6 +1502,7 @@ def main():
     lock_file_path = os.path.join(args.var_dir, ".soularr.lock")
     config_file_path = os.path.join(args.config_dir, "config.ini")
     current_page_file_path = os.path.join(args.var_dir, ".current_page.txt")
+    search_attempts_file_path = os.path.join(args.var_dir, "search_attempts.json")
     failed_import_denylist_file_path = os.path.join(args.var_dir, "failed_imports.json")
     failed_users_file_path = os.path.join(args.var_dir, "failed_users.json")
 
@@ -1508,6 +1571,7 @@ def main():
 
         minimum_match_ratio = config.getfloat("Search Settings", "minimum_filename_match_ratio", fallback=0.5)
         minimum_search_interval = config.getint("Search Settings", "minimum_search_interval", fallback=5)
+        search_retry_wait_hours = config.getfloat("Search Settings", "search_retry_wait_hours", fallback=0)
         page_size = config.getint("Search Settings", "number_of_albums_to_grab", fallback=10)
         failed_import_denylist = config.getboolean("Search Settings", "failed_import_denylist", fallback=True)
         ignore_failed_users = config.getboolean("Search Settings", "ignore_failed_users", fallback=False)
@@ -1556,7 +1620,7 @@ def main():
                     failed = grab_most_wanted(filtered)
                 else:
                     failed = 0
-                    logger.info("No releases wanted that aren't on the deny list and/or blacklisted")
+                    logger.info("No releases wanted that aren't on the deny list, blacklisted or waiting to retry")
             except Exception:
                 logger.exception("Fatal error! Exiting...")
 
