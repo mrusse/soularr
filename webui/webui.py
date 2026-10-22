@@ -93,6 +93,50 @@ def save_config():
         return jsonify({"error": str(e)}), 500
 
 
+LOG_POLL_SECONDS = 0.5
+LOG_KEEPALIVE_SECONDS = 15
+
+
+def _log_replaced(f, log_path):
+    """True when log_path is now a different file (rotated) or was truncated below what we've read."""
+    try:
+        current = os.stat(log_path)
+    except FileNotFoundError:
+        return False  # mid-rotation: the new file hasn't been created yet
+    return current.st_ino != os.fstat(f.fileno()).st_ino or current.st_size < f.tell()
+
+
+def follow_log(log_path):
+    """
+    Yield every line of log_path as a server-sent event, then keep following it.
+    Re-opens the file after RotatingFileHandler rotates it (the open handle would otherwise
+    stay on soularr.log.1 forever), and sends an SSE comment while idle so a closed browser
+    tab is noticed and its server thread released.
+    """
+    f = open(log_path, "r", errors="replace")
+    idle = 0.0
+    try:
+        while True:
+            line = f.readline()
+            if line:
+                idle = 0.0
+                line = line.rstrip("\n")
+                if line:
+                    yield f"data: {line}\n\n"
+                continue
+            if _log_replaced(f, log_path):
+                f.close()
+                f = open(log_path, "r", errors="replace")
+                continue
+            time.sleep(LOG_POLL_SECONDS)
+            idle += LOG_POLL_SECONDS
+            if idle >= LOG_KEEPALIVE_SECONDS:
+                idle = 0.0
+                yield ": keepalive\n\n"
+    finally:
+        f.close()
+
+
 @app.route("/stream")
 def stream():
     log_path = get_log_path(get_var_dir())
@@ -107,19 +151,7 @@ def stream():
             else:
                 yield f"data: {_fmt(f'Waiting for log file: {log_path}')}\n\n"
             time.sleep(5)
-        with open(log_path, "r") as f:
-            for line in f:
-                line = line.rstrip("\n")
-                if line:
-                    yield f"data: {line}\n\n"
-            while True:
-                line = f.readline()
-                if line:
-                    line = line.rstrip("\n")
-                    if line:
-                        yield f"data: {line}\n\n"
-                else:
-                    time.sleep(0.5)
+        yield from follow_log(log_path)
 
     return Response(
         generate(),

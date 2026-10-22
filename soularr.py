@@ -389,8 +389,13 @@ def check_for_match(tracks, allowed_filetype, file_dirs, username):
                     directory = slskd.users.directory(username=username, directory=file_dir)[0]
                 else:
                     directory = slskd.users.directory(username=username, directory=file_dir)
-            except Exception:
-                logger.exception(f'Error getting directory from user: "{username}"')
+            except Exception as ex:
+                # Routine on Soulseek (peer offline, firewalled or slow): one line, not an ERROR traceback.
+                # Note: a requests Response is falsy for 4xx/5xx, so compare with None.
+                response = getattr(ex, "response", None)
+                reason = f"slskd HTTP {response.status_code}" if response is not None else type(ex).__name__
+                logger.warning(f'Could not browse "{file_dir}" from user "{username}" ({reason}); skipping this user for the rest of the run')
+                logger.debug("Folder browse failure details", exc_info=True)
                 broken_user.append(username)
                 logger.debug(f"Updated broken users {broken_user}")
                 return False, {}, ""
