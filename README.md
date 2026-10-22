@@ -284,7 +284,7 @@ Soularr includes a built-in web interface accessible at `http://your-host:8265` 
 - **Failed Imports** — view and clear albums that previously failed to import into Lidarr
 
 > [!WARNING]
-> By default the web UI has no login. Anyone who can reach the port can read your `config.ini`, including the Lidarr and Slskd API keys, and change it. Only expose it on a trusted network, never directly to the internet, and turn it off with `WEBUI_ENABLED=false` if you don't use it. See [SECURITY.md](SECURITY.md).
+> By default the web UI has no login. Anyone who can reach the port can view and change your `config.ini`, which holds the Lidarr and Slskd API keys. Only expose it on a trusted network, never directly to the internet, and turn it off with `WEBUI_ENABLED=false` if you don't use it. See [SECURITY.md](SECURITY.md).
 
 The web UI is enabled by default in Docker. Make sure port `8265` is exposed in your compose file or `docker run` command (see the examples above).
 
