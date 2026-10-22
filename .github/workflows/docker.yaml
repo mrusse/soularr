@@ -22,6 +22,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      # Forks don't have the Docker Hub secrets, so pushing a branch there failed at "Login to
+      # Docker Hub". Only use Docker Hub when the secrets exist (and not for PRs); forks still
+      # build and push to their own GHCR (ghcr.io/<owner>/soularr). Secrets can't be used in a
+      # step's `if:`, hence this flag.
+      PUSH_TO_DOCKERHUB: ${{ github.event_name != 'pull_request' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
 
     steps:
       - name: Checkout
@@ -35,7 +41,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
+        if: env.PUSH_TO_DOCKERHUB == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -59,13 +65,14 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             
       - name: Determine Docker Hub Tag
-        if: github.event_name != 'pull_request'
+        if: env.PUSH_TO_DOCKERHUB == 'true'
         id: hubtag
         run: |
           if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
             echo "tag=latest" >> $GITHUB_OUTPUT
           else
-            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+            # Docker tags can't contain "/", so a branch like feature/foo becomes feature-foo
+            echo "tag=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
           fi
           echo "dockerhub_image=${{ secrets.DOCKERHUB_USERNAME }}/soularr" >> $GITHUB_OUTPUT
           
@@ -76,6 +83,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ steps.meta.outputs.tags }}
-            ${{ github.event_name != 'pull_request' && format('{0}:{1}', steps.hubtag.outputs.dockerhub_image, steps.hubtag.outputs.tag) || '' }}
+            ${{ env.PUSH_TO_DOCKERHUB == 'true' && format('{0}:{1}', steps.hubtag.outputs.dockerhub_image, steps.hubtag.outputs.tag) || '' }}
 
           labels: ${{ steps.meta.outputs.labels }}
