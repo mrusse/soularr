@@ -3,7 +3,7 @@ Tests for the search fallback chain (search_fallback_bare_title).
 
 The Soulseek server silently returns nothing for searches containing some terms, several artist names among them, so
 when the artist-prefixed search finds nothing soularr retries with the bare album title and then with the album title
-plus the first track title.
+plus the first track title. Generic titles skip the bare-title step (search_fallback_generic_titles).
 """
 import configparser
 import logging
@@ -15,14 +15,15 @@ import requests
 import soularr
 
 ARTIST = "Lady Gaga"
+TITLE = "The Fame Monster"
 RELEASE = {"id": 11, "monitored": True, "format": "CD", "trackCount": 2, "mediumCount": 1, "country": ["US"], "status": "Official", "media": [{}]}
-TRACKS = [{"title": "Venus", "absoluteTrackNumber": 2}, {"title": "Aura", "absoluteTrackNumber": 1}]
-A_RESPONSE = [{"username": "peer", "files": [{"filename": "Music\\Lady Gaga - ARTPOP\\01 - Aura.flac"}]}]
+TRACKS = [{"title": "Alejandro", "absoluteTrackNumber": 2}, {"title": "Bad Romance", "absoluteTrackNumber": 1}]
+A_RESPONSE = [{"username": "peer", "files": [{"filename": "Music\\Lady Gaga - The Fame Monster\\01 - Bad Romance.flac"}]}]
 BAD_REQUEST = "The search text must contain at least one term of 3 or more characters"
 
 
 def album(title):
-    return {"id": 7, "artistId": 3, "title": title, "artist": {"artistName": ARTIST}, "releaseDate": "2013-11-06"}
+    return {"id": 7, "artistId": 3, "title": title, "artist": {"artistName": ARTIST}, "releaseDate": "2009-11-18"}
 
 
 class FakeSlskd:
@@ -73,62 +74,65 @@ def use_slskd(monkeypatch, responses):
     return slskd
 
 
-def retries(caplog):
-    return [record.getMessage() for record in caplog.records if record.getMessage().startswith("Retrying search")]
+def messages(caplog, prefix):
+    return [record.getMessage() for record in caplog.records if record.getMessage().startswith(prefix)]
 
 
 def test_prefixed_search_with_results_does_not_fall_back(env, monkeypatch, caplog):
-    slskd = use_slskd(monkeypatch, {"Lady Gaga ARTPOP": A_RESPONSE})
+    slskd = use_slskd(monkeypatch, {f"{ARTIST} {TITLE}": A_RESPONSE})
 
     with caplog.at_level(logging.INFO, logger="soularr"):
-        assert soularr.search_for_album(album("ARTPOP")) is True
+        assert soularr.search_for_album(album(TITLE)) is True
 
-    assert slskd.queries == ["Lady Gaga ARTPOP"]
-    assert retries(caplog) == []
-    assert soularr.search_cache[7]["peer"]["flac"] == ["Music\\Lady Gaga - ARTPOP"]
+    assert slskd.queries == [f"{ARTIST} {TITLE}"]
+    assert messages(caplog, "Retrying search") == []
+    assert soularr.search_cache[7]["peer"]["flac"] == ["Music\\Lady Gaga - The Fame Monster"]
     soularr.lidarr.get_tracks.assert_not_called()
 
 
 def test_prefixed_search_without_results_retries_with_bare_title(env, monkeypatch, caplog):
-    slskd = use_slskd(monkeypatch, {"ARTPOP": A_RESPONSE})
+    slskd = use_slskd(monkeypatch, {TITLE: A_RESPONSE})
 
     with caplog.at_level(logging.INFO, logger="soularr"):
-        assert soularr.search_for_album(album("ARTPOP")) is True
+        assert soularr.search_for_album(album(TITLE)) is True
 
-    assert slskd.queries == ["Lady Gaga ARTPOP", "ARTPOP"]
-    assert retries(caplog) == ["Retrying search without artist: ARTPOP"]
-    assert soularr.search_cache[7]["peer"]["flac"] == ["Music\\Lady Gaga - ARTPOP"]
+    assert slskd.queries == [f"{ARTIST} {TITLE}", TITLE]
+    assert messages(caplog, "Retrying search") == [f"Retrying search without artist: {TITLE}"]
+    assert soularr.search_cache[7]["peer"]["flac"] == ["Music\\Lady Gaga - The Fame Monster"]
 
 
 @pytest.mark.parametrize("title", ["X", "XO"])
 def test_short_title_falls_through_to_title_plus_first_track(env, monkeypatch, caplog, title):
-    slskd = use_slskd(monkeypatch, {f"{title} Aura": A_RESPONSE})
+    slskd = use_slskd(monkeypatch, {f"{title} Bad Romance": A_RESPONSE})
 
     with caplog.at_level(logging.INFO, logger="soularr"):
         assert soularr.search_for_album(album(title)) is True
 
     # The bare title is under 3 characters, so it is skipped; the first track is the lowest-numbered one.
-    assert slskd.queries == [f"Lady Gaga {title}", f"{title} Aura"]
-    assert retries(caplog) == [f"Retrying search without artist: {title} Aura"]
+    assert slskd.queries == [f"{ARTIST} {title}", f"{title} Bad Romance"]
+    assert messages(caplog, "Retrying search") == [f"Retrying search without artist: {title} Bad Romance"]
     soularr.lidarr.get_tracks.assert_called_once_with(artistId=3, albumId=7, albumReleaseId=11)
 
 
 def test_bare_title_without_results_retries_with_title_plus_first_track(env, monkeypatch, caplog):
-    slskd = use_slskd(monkeypatch, {"ARTPOP Aura": A_RESPONSE})
+    slskd = use_slskd(monkeypatch, {f"{TITLE} Bad Romance": A_RESPONSE})
 
     with caplog.at_level(logging.INFO, logger="soularr"):
-        assert soularr.search_for_album(album("ARTPOP")) is True
+        assert soularr.search_for_album(album(TITLE)) is True
 
-    assert slskd.queries == ["Lady Gaga ARTPOP", "ARTPOP", "ARTPOP Aura"]
-    assert retries(caplog) == ["Retrying search without artist: ARTPOP", "Retrying search without artist: ARTPOP Aura"]
+    assert slskd.queries == [f"{ARTIST} {TITLE}", TITLE, f"{TITLE} Bad Romance"]
+    assert messages(caplog, "Retrying search") == [
+        f"Retrying search without artist: {TITLE}",
+        f"Retrying search without artist: {TITLE} Bad Romance",
+    ]
 
 
 def test_all_retries_without_results_returns_false(env, monkeypatch):
     slskd = use_slskd(monkeypatch, {})
 
-    assert soularr.search_for_album(album("ARTPOP")) is False
+    assert soularr.search_for_album(album(TITLE)) is False
 
-    assert slskd.queries == ["Lady Gaga ARTPOP", "ARTPOP", "ARTPOP Aura"]
+    assert slskd.queries == [f"{ARTIST} {TITLE}", TITLE, f"{TITLE} Bad Romance"]
     assert 7 not in soularr.search_cache
 
 
@@ -137,57 +141,118 @@ def test_slskd_rejecting_a_query_counts_as_no_results(env, monkeypatch):
     slskd = use_slskd(
         monkeypatch,
         {
-            "Lady Gaga ARTPOP": BAD_REQUEST,
-            "ARTPOP": requests.exceptions.JSONDecodeError("Expecting value", BAD_REQUEST, 0),
-            "ARTPOP Aura": A_RESPONSE,
+            f"{ARTIST} {TITLE}": BAD_REQUEST,
+            TITLE: requests.exceptions.JSONDecodeError("Expecting value", BAD_REQUEST, 0),
+            f"{TITLE} Bad Romance": A_RESPONSE,
         },
     )
 
-    assert soularr.search_for_album(album("ARTPOP")) is True
+    assert soularr.search_for_album(album(TITLE)) is True
 
-    assert slskd.queries == ["Lady Gaga ARTPOP", "ARTPOP", "ARTPOP Aura"]
+    assert slskd.queries == [f"{ARTIST} {TITLE}", TITLE, f"{TITLE} Bad Romance"]
 
 
 def test_fallback_can_be_turned_off(env, monkeypatch):
     env["Search Settings"]["search_fallback_bare_title"] = "False"
-    slskd = use_slskd(monkeypatch, {"ARTPOP": A_RESPONSE})
+    slskd = use_slskd(monkeypatch, {TITLE: A_RESPONSE})
 
-    assert soularr.search_for_album(album("ARTPOP")) is False
+    assert soularr.search_for_album(album(TITLE)) is False
 
-    assert slskd.queries == ["Lady Gaga ARTPOP"]
+    assert slskd.queries == [f"{ARTIST} {TITLE}"]
 
 
 def test_search_blacklist_still_applies_to_every_query(env, monkeypatch):
-    monkeypatch.setattr(soularr, "search_blacklist", ["Lady", "Aura"])
+    monkeypatch.setattr(soularr, "search_blacklist", ["Lady", "Bad Romance"])
     slskd = use_slskd(monkeypatch, {})
 
-    assert soularr.search_for_album(album("ARTPOP")) is False
+    assert soularr.search_for_album(album(TITLE)) is False
 
-    # "ARTPOP Aura" loses its track title and collapses to the already-tried bare title, so it is not searched again.
-    assert slskd.queries == ["Gaga ARTPOP", "ARTPOP"]
+    # The title + track query loses its track title and collapses to the already-tried bare title, so it is not searched again.
+    assert slskd.queries == [f"Gaga {TITLE}", TITLE]
 
 
 def test_without_album_prepend_artist_the_bare_title_is_not_searched_twice(env, monkeypatch):
     env["Search Settings"]["album_prepend_artist"] = "False"
-    slskd = use_slskd(monkeypatch, {"ARTPOP Aura": A_RESPONSE})
+    slskd = use_slskd(monkeypatch, {f"{TITLE} Bad Romance": A_RESPONSE})
 
-    assert soularr.search_for_album(album("ARTPOP")) is True
+    assert soularr.search_for_album(album(TITLE)) is True
 
-    assert slskd.queries == ["ARTPOP", "ARTPOP Aura"]
+    assert slskd.queries == [TITLE, f"{TITLE} Bad Romance"]
 
 
 def test_unreachable_slskd_stops_the_chain(env, monkeypatch):
-    slskd = use_slskd(monkeypatch, {"Lady Gaga ARTPOP": requests.exceptions.ConnectionError("slskd is down")})
+    slskd = use_slskd(monkeypatch, {f"{ARTIST} {TITLE}": requests.exceptions.ConnectionError("slskd is down")})
 
-    assert soularr.search_for_album(album("ARTPOP")) is False
+    assert soularr.search_for_album(album(TITLE)) is False
 
-    assert slskd.queries == ["Lady Gaga ARTPOP"]
+    assert slskd.queries == [f"{ARTIST} {TITLE}"]
 
 
 def test_lidarr_tracks_unavailable_ends_the_chain_after_the_bare_title(env, monkeypatch):
     soularr.lidarr.get_tracks.side_effect = requests.exceptions.ConnectionError("lidarr is down")
     slskd = use_slskd(monkeypatch, {})
 
-    assert soularr.search_for_album(album("ARTPOP")) is False
+    assert soularr.search_for_album(album(TITLE)) is False
 
-    assert slskd.queries == ["Lady Gaga ARTPOP", "ARTPOP"]
+    assert slskd.queries == [f"{ARTIST} {TITLE}", TITLE]
+
+
+# --- generic titles skip the bare-title retry ----------------------------------------------------------------------
+
+
+def test_one_word_title_skips_the_bare_title_retry(env, monkeypatch, caplog):
+    slskd = use_slskd(monkeypatch, {"Remixes Bad Romance": A_RESPONSE})
+
+    with caplog.at_level(logging.INFO, logger="soularr"):
+        assert soularr.search_for_album(album("Remixes")) is True
+
+    assert slskd.queries == [f"{ARTIST} Remixes", "Remixes Bad Romance"]
+    assert messages(caplog, "Skipping bare-title") == ["Skipping bare-title retry for generic title: Remixes"]
+    assert messages(caplog, "Retrying search") == ["Retrying search without artist: Remixes Bad Romance"]
+
+
+@pytest.mark.parametrize("title", ["Greatest Hits", "the best of", "B-Sides"])
+def test_listed_generic_title_skips_the_bare_title_retry(env, monkeypatch, caplog, title):
+    slskd = use_slskd(monkeypatch, {f"{title} Bad Romance": A_RESPONSE})
+
+    with caplog.at_level(logging.INFO, logger="soularr"):
+        assert soularr.search_for_album(album(title)) is True
+
+    assert slskd.queries == [f"{ARTIST} {title}", f"{title} Bad Romance"]
+    assert messages(caplog, "Skipping bare-title") == [f"Skipping bare-title retry for generic title: {title}"]
+
+
+def test_multi_word_title_still_tries_the_bare_title_first(env, monkeypatch, caplog):
+    slskd = use_slskd(monkeypatch, {})
+
+    with caplog.at_level(logging.INFO, logger="soularr"):
+        assert soularr.search_for_album(album("Born This Way")) is False
+
+    assert slskd.queries == [f"{ARTIST} Born This Way", "Born This Way", "Born This Way Bad Romance"]
+    assert messages(caplog, "Skipping bare-title") == []
+
+
+def test_empty_generic_list_disables_the_list_but_not_the_word_count_rule(env, monkeypatch):
+    env["Search Settings"]["search_fallback_generic_titles"] = ""
+    slskd = use_slskd(monkeypatch, {})
+
+    assert soularr.search_for_album(album("Greatest Hits")) is False
+    assert slskd.queries == [f"{ARTIST} Greatest Hits", "Greatest Hits", "Greatest Hits Bad Romance"]
+
+    slskd = use_slskd(monkeypatch, {})
+
+    assert soularr.search_for_album(album("Remixes")) is False
+    assert slskd.queries == [f"{ARTIST} Remixes", "Remixes Bad Romance"]
+
+
+def test_configured_generic_list_replaces_the_default(env, monkeypatch):
+    env["Search Settings"]["search_fallback_generic_titles"] = "Christmas Album, Live in Concert"
+    slskd = use_slskd(monkeypatch, {})
+
+    assert soularr.search_for_album(album("Live In Concert")) is False
+    assert slskd.queries == [f"{ARTIST} Live In Concert", "Live In Concert Bad Romance"]
+
+    slskd = use_slskd(monkeypatch, {})
+
+    assert soularr.search_for_album(album("Greatest Hits")) is False
+    assert slskd.queries == [f"{ARTIST} Greatest Hits", "Greatest Hits", "Greatest Hits Bad Romance"]

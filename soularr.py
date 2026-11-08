@@ -97,6 +97,12 @@ search_blacklist = []
 # Lidarr commands (e.g. a library refresh), so this is generous.
 IMPORT_POLL_TIMEOUT = 3600
 
+# Album titles too unspecific to search on their own (see is_generic_title). Overridden by search_fallback_generic_titles.
+DEFAULT_GENERIC_TITLES = (
+    "Greatest Hits,The Hits,Hits,Best Of,The Best Of,Remixes,Remix,Live,Singles,Anthology,Collection,The Collection,"
+    "Essentials,Deluxe,Acoustic,Unplugged,B-Sides,Rarities,EP,Demos"
+)
+
 # === Runtime State & Caches ===
 search_cache = {}
 folder_cache = {}
@@ -548,16 +554,38 @@ def first_track_title(album):
     return None
 
 
+def normalize_title(title):
+    """Lower-case the title, replace punctuation with spaces and collapse whitespace, for comparing titles."""
+    return " ".join(re.sub(r"[^\w\s]", " ", title).lower().split())
+
+
+def is_generic_title(title):
+    """
+    Whether an album title is too unspecific to search for on its own: fewer than two words once punctuation is
+    stripped, or one of the titles in search_fallback_generic_titles. Searching "Remixes" alone fills slskd's
+    response cap with other artists' folders, and soularr then spends minutes browsing them for nothing.
+    """
+    normalized = normalize_title(title)
+    if len(normalized.split()) < 2:
+        return True
+    generic_titles = split_config_list(config.get("Search Settings", "search_fallback_generic_titles", fallback=DEFAULT_GENERIC_TITLES))
+    return normalized in {normalize_title(generic) for generic in generic_titles}
+
+
 def fallback_queries(album):
     """
     Queries to try, in order, when the regular search for an album finds nothing.
     The Soulseek server silently returns no results for searches containing some terms (several artist names among
-    them), so first the bare album title is searched. If that is too short for Soulseek (under 3 characters) or finds
-    nothing either, the album title plus the title of the first track is searched.
+    them), so first the bare album title is searched. If that is too short for Soulseek (under 3 characters), too
+    generic to find the right album (see is_generic_title) or finds nothing either, the album title plus the title of
+    the first track is searched.
     """
     title = build_search_query(album["title"])
     if len(title) >= 3:
-        yield title
+        if is_generic_title(title):
+            logger.info(f"Skipping bare-title retry for generic title: {title}")
+        else:
+            yield title
     track_title = first_track_title(album)
     if track_title:
         yield build_search_query(album["title"], track_title)

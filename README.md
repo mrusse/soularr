@@ -232,6 +232,11 @@ album_prepend_artist = False
 # The Soulseek server silently returns no results for searches containing some terms, several artist names
 # among them, so this keeps album_prepend_artist usable for those artists.
 search_fallback_bare_title = True
+# Titles too generic to search on their own: the bare-title retry is skipped for them (straight to album title plus
+# first track), because searching e.g. "Remixes" alone fills slskd's response cap with other artists' folders.
+# A title of fewer than two words is always treated as generic; this comma-separated, case-insensitive list adds
+# multi-word ones. Leave empty to only apply the word-count rule.
+search_fallback_generic_titles = Greatest Hits,The Hits,Hits,Best Of,The Best Of,Remixes,Remix,Live,Singles,Anthology,Collection,The Collection,Essentials,Deluxe,Acoustic,Unplugged,B-Sides,Rarities,EP,Demos
 # Search modes: all, incrementing_page, first_page
 # "all": search for every wanted record, "first_page": repeatedly searches the first page, "incrementing_page": starts with the first page and increments on each run.
 search_type = incrementing_page
