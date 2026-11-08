@@ -227,6 +227,11 @@ allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3
 ignored_users = User1,User2,Fred,Bob
 # Prepend artist name when searching for albums
 album_prepend_artist = False
+# When the search above finds nothing, retry without the artist: first the bare album title, then (if the
+# title is under 3 characters or still finds nothing) the album title plus the title of its first track.
+# The Soulseek server silently returns no results for searches containing some terms, several artist names
+# among them, so this keeps album_prepend_artist usable for those artists.
+search_fallback_bare_title = True
 # Search modes: all, incrementing_page, first_page
 # "all": search for every wanted record, "first_page": repeatedly searches the first page, "incrementing_page": starts with the first page and increments on each run.
 search_type = incrementing_page

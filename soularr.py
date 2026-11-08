@@ -512,16 +512,10 @@ def filter_list(albums):
         return None
 
 
-def search_for_album(album):
-    album_title = album["title"]
-    artist_name = album["artist"]["artistName"]
-    album_id = album["id"]
-    if len(album_title) == 1:  # Need to add some code to wrangle specific artist names in here.. ;)
-        query = artist_name + " " + album_title
-    else:
-        query = artist_name + " " + album_title if config.getboolean("Search Settings", "album_prepend_artist", fallback=False) else album_title
-
-    original_query = query
+def build_search_query(*parts):
+    """Join the non-empty parts into one slskd query, strip the search_blacklist words and collapse whitespace."""
+    original_query = " ".join(part for part in parts if part)
+    query = original_query
     for word in search_blacklist:
         if word:
             # Case-insensitive replacement
@@ -533,7 +527,48 @@ def search_for_album(album):
 
     if query != original_query:
         logger.info(f"Filtered search query: '{original_query}' -> '{query}'")
+    return query
 
+
+def first_track_title(album):
+    """Title of the first track of the release soularr would download for this album, or None if Lidarr can't say."""
+    try:
+        releases = lidarr.get_album(album["id"])["releases"]
+        if not releases:
+            return None
+        release = choose_release(album["artist"]["artistName"], list(releases))
+        tracks = lidarr.get_tracks(artistId=album["artistId"], albumId=album["id"], albumReleaseId=release["id"])
+        tracks = sorted(tracks, key=lambda track: track.get("absoluteTrackNumber", 0))
+        for track in tracks:
+            title = (track.get("title") or "").strip()
+            if title:
+                return title
+    except Exception:
+        logger.warning(f"Could not fetch the tracks of {album['title']} from Lidarr for a fallback search", exc_info=True)
+    return None
+
+
+def fallback_queries(album):
+    """
+    Queries to try, in order, when the regular search for an album finds nothing.
+    The Soulseek server silently returns no results for searches containing some terms (several artist names among
+    them), so first the bare album title is searched. If that is too short for Soulseek (under 3 characters) or finds
+    nothing either, the album title plus the title of the first track is searched.
+    """
+    title = build_search_query(album["title"])
+    if len(title) >= 3:
+        yield title
+    track_title = first_track_title(album)
+    if track_title:
+        yield build_search_query(album["title"], track_title)
+
+
+def run_search(query):
+    """
+    Run one slskd search and return its responses.
+    A query slskd rejects (a 400 because every term is too short) counts as a search with no responses.
+    Returns None when slskd could not be reached or never finished the search, so that further searches are pointless.
+    """
     logger.info(f"Searching for album: {query}")
     search_timeout = config.getint("Search Settings", "search_timeout", fallback=5000)
     try:
@@ -544,9 +579,21 @@ def search_for_album(album):
             maximumPeerQueueLength=config.getint("Search Settings", "maximum_peer_queue", fallback=50),
             minimumPeerUploadSpeed=config.getint("Search Settings", "minimum_peer_upload_speed", fallback=0),
         )
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        logger.exception(f"Failed to perform search via SLSKD: {query}")
+        return None
+    except ValueError:
+        # slskd answered, but not with JSON: a 400 for a query whose terms are all too short comes back as plain text.
+        logger.warning(f"SLSKD rejected search '{query}', treating it as a search with no results", exc_info=True)
+        return []
     except Exception:
         logger.exception(f"Failed to perform search via SLSKD: {query}")
-        return False
+        return None
+
+    if not isinstance(search, dict) or "id" not in search:
+        # The parsed body of an error response (ASP.NET problem details or a bare message) rather than a search.
+        logger.warning(f"SLSKD rejected search '{query}', treating it as a search with no results: {search}")
+        return []
 
     # Add timeout here to increase reliability with Slskd. Sometimes it doesn't update search status fast enough. More of an issue with lots of historical searches in slskd
     time.sleep(5)
@@ -557,14 +604,44 @@ def search_for_album(album):
         time.sleep(1)
         if (time.time() - start_time) > search_timeout / 1000 + 60:
             logger.error("Failed to perform search via SLSKD due to timeout on search results.")
-            return False
+            return None
 
     search_results = slskd.searches.search_responses(search["id"])  # We use this API call twice. Let's just cache it locally.
     logger.info(f"Search returned {len(search_results)} results")
     if delete_searches:
         slskd.searches.delete(search["id"])
+    return search_results
 
-    if not len(search_results) > 0:
+
+def search_for_album(album):
+    album_title = album["title"]
+    artist_name = album["artist"]["artistName"]
+    album_id = album["id"]
+    if len(album_title) == 1:  # Need to add some code to wrangle specific artist names in here.. ;)
+        query = build_search_query(artist_name, album_title)
+    elif config.getboolean("Search Settings", "album_prepend_artist", fallback=False):
+        query = build_search_query(artist_name, album_title)
+    else:
+        query = build_search_query(album_title)
+
+    search_results = run_search(query)
+    if search_results is None:
+        return False
+
+    if not search_results and config.getboolean("Search Settings", "search_fallback_bare_title", fallback=True):
+        tried = [query]
+        for fallback in fallback_queries(album):
+            if not fallback or fallback in tried:
+                continue
+            tried.append(fallback)
+            logger.info(f"Retrying search without artist: {fallback}")
+            search_results = run_search(fallback)
+            if search_results is None:
+                return False
+            if search_results:
+                break
+
+    if not search_results:
         return False
 
     if album_id not in search_cache:
