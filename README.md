@@ -198,6 +198,10 @@ stalled_timeout = 3600
 [Release Settings]
 # Use the release manually selected in Lidarr, ignoring the other release settings below
 use_selected_lidarr_release = False
+# Do the same for albums whose type in Lidarr is Single or EP only. Soulseek peers share singles as one-file
+# folders, almost never as the multi-track CD or remix single that use_most_common_tracknum picks, so select the
+# 1-track digital release in Lidarr and soularr searches for that one. Albums still follow the settings below.
+use_selected_lidarr_release_for_singles = True
 # Pick release with most common track count
 use_most_common_tracknum = True
 allow_multi_disc = True

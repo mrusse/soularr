@@ -87,6 +87,7 @@ accepted_countries = []
 skip_region_check = None
 accepted_formats = []
 use_selected_lidarr_release = None
+use_selected_lidarr_release_for_singles = None
 allowed_filetypes = []
 lock_file_path = None
 config_file_path = None
@@ -226,8 +227,15 @@ def release_trackcount_mode(releases):
     return most_common_trackcount
 
 
-def choose_release(artist_name, releases):
-    if use_selected_lidarr_release:
+def is_single_or_ep(album_type):
+    return (album_type or "").strip().lower() in ("single", "ep")
+
+
+def choose_release(artist_name, releases, album_type=None):
+    # Soulseek peers share singles and EPs as the one-file (or few-file) digital release, almost never as the
+    # multi-track CD or remix single that the most common track count picks, so for those the release the user
+    # selected in Lidarr is used when use_selected_lidarr_release_for_singles is on.
+    if use_selected_lidarr_release or (use_selected_lidarr_release_for_singles and is_single_or_ep(album_type)):
         for release in releases:
             if release.get("monitored"):
                 logger.info(f"Using selected Lidarr release for {artist_name}: {release['format']}, {release['trackCount']} tracks, ID: {release['id']}")
@@ -821,7 +829,7 @@ def find_download(album, grab_list):
         for _ in range(0, num_releases):
             if len(releases) == 0:
                 break
-            release = choose_release(artist_name, releases)
+            release = choose_release(artist_name, releases, album.get("albumType"))
             releases.remove(release)
             release_id = release["id"]
             all_tracks = lidarr.get_tracks(artistId=artist_id, albumId=album_id, albumReleaseId=release_id)
@@ -1479,6 +1487,7 @@ def main():
         failed_users_file_path, \
         failed_users, \
         use_selected_lidarr_release, \
+        use_selected_lidarr_release_for_singles, \
         use_most_common_tracknum, \
         allow_multi_disc, \
         accepted_countries, \
@@ -1615,6 +1624,7 @@ def main():
         failed_users = load_failed_users(failed_users_file_path) if ignore_failed_users else {}
 
         use_selected_lidarr_release = config.getboolean("Release Settings", "use_selected_lidarr_release", fallback=False)
+        use_selected_lidarr_release_for_singles = config.getboolean("Release Settings", "use_selected_lidarr_release_for_singles", fallback=True)
         use_most_common_tracknum = config.getboolean("Release Settings", "use_most_common_tracknum", fallback=True)
         allow_multi_disc = config.getboolean("Release Settings", "allow_multi_disc", fallback=True)
 
